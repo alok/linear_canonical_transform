@@ -1,0 +1,48 @@
+goal: implement the linear canonical transform in JAX.
+
+use these specific 2 x 2 SL(2, C) matrices as test cases:
+
+fourier : [
+    [0,1],
+    [-1, 0]
+]
+
+laplace : [
+    [0, i],
+    [i, 0]
+]
+
+fractional fourier : [
+    [cos(theta), sin(theta)],
+    [-sin(theta), cos(theta)]
+]
+
+fractional inverse fourier : [
+    [cos(-theta), sin(-theta)],
+    [-sin(-theta), cos(-theta)]
+] (just the negative of the fractional fourier transform)
+
+fractional laplace : [
+ [i cos(theta),i sin(theta)],
+    [i sin(theta), i cos(theta)]
+]
+
+tests: 
+
+- inversions (inverse of transform uses inverse of matrix, so LCT(inverse of matrix) should be the inverse of LCT)
+- composition (LCT(A) then LCT(B) should be the same as LCT(A @ B))
+
+
+use the tex files as specs.
+
+prefer complex domain where its convenient. it makes more mathematical sense and therefore more sense.
+
+use the fact that these are inverses to generate property tests with hypothesis. 
+
+use jax.
+
+use jaxtyping, beartype, einops. 
+
+give all functions explicit types.
+
+copy lucidrains's code for ideas 

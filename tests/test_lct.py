@@ -63,11 +63,11 @@ def test_fourier_transform(inputs):
     f, x, _ = inputs
 
     ft_result = dft(f)
-    fft_result = jnp.fft.fft(f)
+    fft_result = jnp.fft.fft(f, norm='ortho')
 
     assert jnp.allclose(
         ft_result, fft_result, rtol=1e-4, atol=1e-4
-    ), f"Fourier transform results do not match, {jnp.round(jnp.abs(ft_result - fft_result).max(), 4)}"
+    ), "Fourier transform results do not match"
 
 
 @given(lct_inputs())
@@ -75,7 +75,7 @@ def test_inverse_fourier_transform(inputs):
     f, x, _ = inputs
 
     ift_result = idft(f)
-    ifft_result = jnp.fft.ifft(f)
+    ifft_result = jnp.fft.ifft(f, norm='ortho')
 
     assert jnp.allclose(
         ift_result, ifft_result, rtol=1e-4, atol=1e-4
@@ -92,7 +92,7 @@ def test_specific_dft_vs_fft():
 
     # Compute both transforms
     dft_result = dft(f)
-    fft_result = jnp.fft.fft(f)
+    fft_result = jnp.fft.fft(f, norm='ortho')
 
     # Print results for comparison
     print("\nRandom signal:")

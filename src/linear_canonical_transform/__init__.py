@@ -28,10 +28,10 @@ def dft(f: Signal) -> Signal:
     n = len(f)
     k = jnp.arange(n)
     m = k.reshape(-1, 1)
-    # Create DFT matrix
+    # Create DFT matrix with scaling
     dft_matrix = jnp.exp(-2j * jnp.pi * k * m / n)
     # Compute transform
-    return jnp.dot(dft_matrix, f)
+    return jnp.dot(dft_matrix, f) / jnp.sqrt(n)
 
 
 def idft(f: Signal) -> Signal:
@@ -49,10 +49,10 @@ def idft(f: Signal) -> Signal:
     n = len(f)
     k = jnp.arange(n)
     m = k.reshape(-1, 1)
-    # Create IDFT matrix
+    # Create IDFT matrix with scaling
     idft_matrix = jnp.exp(2j * jnp.pi * k * m / n)
     # Compute inverse transform with 1/n normalization
-    return jnp.dot(idft_matrix, f) / n
+    return jnp.dot(idft_matrix, f) / jnp.sqrt(n)
 
 
 
@@ -70,7 +70,7 @@ def lct(f: Signal, x: Grid, matrix: SL2C) -> TransformedSignal:
     Returns:
         Function that maps output grid points to the LCT-transformed signal
     """
-
+    
 
 def fourier_transform(f: Signal, x: Grid) -> TransformedSignal:
     """

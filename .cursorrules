@@ -1,15 +1,37 @@
-goal: implement the linear canonical transform in JAX.
+goal: implement the linear canonical transform in JAX. give all functions explicit types. Python allows the `type` keyword now instead of `typing.TypeAlias`. Use functools.partial because the transform is an operator.
 
-use these specific 2 x 2 SL(2, C) matrices as test cases:
+
+
+```math
+Definition 1. For an arbitrary 2N × 2N symplectic matrix
+
+E = [a b; c d],  EΩE^T = Ω,  Ω = [0 1_N; -1_N 0]
+
+the N-dimensional linear canonical transform (LCT) is defined as:
+
+L_E[f](ξ) = ∫_{R^n} f(t)K_E(ξ,t) dt
+
+where
+
+K_E(ξ,t) = \frac{1}{\sqrt{(2πi)^N det b}} e^{\frac{i}{2}(ξ^T b^{-1}d ξ - ξ^T b^{-1}t + \frac{1}{2}t^T ab^{-1}t)}
+
+where i^2 = -1. Here, E is invertible and its inverse is given by:
+
+E^{-1} = [a b; c d]^{-1} = ΩE^T Ω^T = [d^T -b^T; -c^T a^T] 
+```
+
+
+use these specific SL(2, C) matrices as test cases:
+
+
+
+
+
+
 
 fourier : [
     [0,1],
     [-1, 0]
-]
-
-laplace : [
-    [0, i],
-    [i, 0]
 ]
 
 fractional fourier : [
@@ -17,32 +39,17 @@ fractional fourier : [
     [-sin(theta), cos(theta)]
 ]
 
-fractional inverse fourier : [
+fractional inverse fourier (just the negative of the fractional fourier transform): [
     [cos(-theta), sin(-theta)],
     [-sin(-theta), cos(-theta)]
-] (just the negative of the fractional fourier transform)
-
-fractional laplace : [
- [i cos(theta),i sin(theta)],
-    [i sin(theta), i cos(theta)]
-]
+] 
 
 tests: 
-
+- test against JAX's implementations of fft and ifft. Do this before trying further tests.
 - inversions (inverse of transform uses inverse of matrix, so LCT(inverse of matrix) should be the inverse of LCT)
-- composition (LCT(A) then LCT(B) should be the same as LCT(A @ B))
-
+- composition (LCT(A) then LCT(B) should be the same as LCT(A @ B)) applied to input
 
 use the tex files as specs.
 
-prefer complex domain where its convenient. it makes more mathematical sense and therefore more sense.
+prefer complex domain where its convenient. it makes sense mathematically.
 
-use the fact that these are inverses to generate property tests with hypothesis. 
-
-use jax.
-
-use jaxtyping, beartype, einops. 
-
-give all functions explicit types.
-
-copy lucidrains's code for ideas 

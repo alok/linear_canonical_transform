@@ -102,6 +102,33 @@ def make_lct(a, b, c, d):
 
 
 FFT = make_lct(0, 1, -1, 0)
+def test_fft_implementation():
+    """Compare our FFT implementation with numpy's FFT for a sample signal"""
+    # Generate sample signal
+    N = 64
+    t = jnp.linspace(0, 1, N)
+    f = jnp.sin(2 * jnp.pi * 10 * t) + 1j * jnp.cos(2 * jnp.pi * 20 * t)
+    f = f.astype(jnp.complex64)
+
+    # Compute FFTs
+    our_fft = FFT(f)
+    np_fft = jnp.fft.fft(f, norm='ortho')
+
+    # Print comparison
+    print("\nSample signal first 5 values:")
+    print(f[:5])
+    print("\nOur FFT first 5 values:")
+    print(our_fft[:5])
+    print("\nNumPy FFT first 5 values:")
+    print(np_fft[:5])
+    print(f"\nMax absolute difference: {jnp.abs(our_fft - np_fft).max()}")
+
+    # Verify they match
+    assert jnp.allclose(our_fft, np_fft, rtol=1e-5, atol=1e-5), \
+        "FFT implementation doesn't match numpy"
+
+# Run test
+test_fft_implementation()
 
 
 

@@ -11,7 +11,9 @@ from linear_canonical_transform import (
     idft,
     inverse_fourier_transform,
     fractional_fourier_transform,
+    FFT,
 )
+import numpy as np
 
 
 # Strategy for generating valid SL(2,C) matrices
@@ -106,3 +108,87 @@ def test_specific_dft_vs_fft():
     assert jnp.allclose(
         dft_result, fft_result, rtol=1e-4, atol=1e-4
     ), "DFT and FFT results don't match for specific random signal"
+
+
+def test_fft_against_numpy():
+    """Test our FFT implementation against NumPy's FFT for various inputs"""
+    
+    # Test case 1: Simple sinusoid
+    N = 64
+    t = np.linspace(0, 1, N)
+    f = np.sin(2 * np.pi * 10 * t) + 1j * np.cos(2 * np.pi * 20 * t)
+    f = f.astype(np.complex64)
+    
+    # Compare results
+    our_fft = FFT(f)
+    np_fft = np.fft.fft(f, norm='ortho')
+    
+    assert np.allclose(our_fft, np_fft, rtol=1e-5, atol=1e-5), \
+        "FFT doesn't match NumPy for sinusoid"
+        
+    # Test case 2: Gaussian pulse
+    x = np.linspace(-2, 2, N)
+    f = np.exp(-x**2).astype(np.complex64)
+    
+    our_fft = FFT(f)
+    np_fft = np.fft.fft(f, norm='ortho')
+    
+    assert np.allclose(our_fft, np_fft, rtol=1e-5, atol=1e-5), \
+        "FFT doesn't match NumPy for Gaussian"
+    
+    # Test case 3: Random complex signal
+    key = jax.random.PRNGKey(0)
+    f = (jax.random.normal(key, (N,)) + 
+         1j * jax.random.normal(key, (N,))).astype(np.complex64)
+    
+    our_fft = FFT(f)
+    np_fft = np.fft.fft(f, norm='ortho')
+    
+    assert np.allclose(our_fft, np_fft, rtol=1e-5, atol=1e-5), \
+        "FFT doesn't match NumPy for random signal"
+
+def test_fft_properties():
+    """Test mathematical properties of our FFT implementation"""
+    N = 64
+    key = jax.random.PRNGKey(1)
+    f = (jax.random.normal(key, (N,)) + 
+         1j * jax.random.normal(key, (N,))).astype(np.complex64)
+    
+    # Test linearity
+    alpha = 2.0 + 3.0j
+    beta = -1.0 + 2.0j
+    g = (jax.random.normal(key, (N,)) + 
+         1j * jax.random.normal(key, (N,))).astype(np.complex64)
+    
+    sum_of_ffts = alpha * FFT(f) + beta * FFT(g)
+    fft_of_sum = FFT(alpha * f + beta * g)
+    
+    assert np.allclose(sum_of_ffts, fft_of_sum, rtol=1e-5, atol=1e-5), \
+        "FFT linearity property failed"
+    
+    # Test Parseval's theorem
+    # Energy in time domain should equal energy in frequency domain
+    energy_time = np.sum(np.abs(f)**2)
+    energy_freq = np.sum(np.abs(FFT(f))**2)
+    
+    assert np.allclose(energy_time, energy_freq, rtol=1e-5, atol=1e-5), \
+        "FFT Parseval's theorem failed"
+    
+    # Test shift theorem
+    # Circular shift in time domain = phase shift in frequency domain
+    shift = 3
+    shifted_f = np.roll(f, shift)
+    k = np.fft.fftfreq(N) * N
+    expected_phase = np.exp(-2j * np.pi * k * shift / N)
+    
+    fft_shifted = FFT(shifted_f)
+    fft_original = FFT(f)
+    
+    phase_ratio = fft_shifted / fft_original
+    phase_ratio = phase_ratio[np.abs(fft_original) > 1e-10]  # Avoid division by near-zero
+    expected_phase = expected_phase[np.abs(fft_original) > 1e-10]
+    
+    assert np.allclose(np.abs(phase_ratio), np.ones_like(phase_ratio), rtol=1e-5, atol=1e-5), \
+        "FFT shift theorem magnitude failed"
+    assert np.allclose(phase_ratio / expected_phase, np.ones_like(phase_ratio), rtol=1e-5, atol=1e-5), \
+        "FFT shift theorem phase failed"

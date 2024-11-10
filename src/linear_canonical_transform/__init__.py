@@ -54,7 +54,60 @@ def idft(f: Signal) -> Signal:
     # Compute inverse transform with 1/n normalization
     return jnp.dot(idft_matrix, f) / jnp.sqrt(n)
 
+import jax.numpy as jnp
+from jax import jit
+from functools import partial
 
+def make_lct(a, b, c, d):
+    """Create a Linear Canonical Transform function with fixed parameters.
+    
+    Args:
+        a, b, c, d: LCT parameters satisfying ad-bc=1
+        
+    Returns:
+        Function that takes a signal array and returns its LCT
+    """
+    # @jit
+    def lct(f):
+        N = f.shape[0]
+        norm_factor = 1/jnp.sqrt(N)  # For 'ortho' normalization
+        
+        if jnp.abs(b) < 1e-10:  # b ≈ 0 case
+            # For b≈0, LCT is just a scaling and chirp multiplication
+            n = jnp.arange(N)
+            scaling = jnp.sqrt(d) * jnp.exp(1j * c * d/2 * (n/N)**2)
+            return norm_factor * scaling * f
+            
+        # General case
+        n = jnp.arange(N)
+        
+        # Pre-chirp multiplication
+        pre_chirp = jnp.exp(1j * jnp.pi * a/(2*b) * (n/N)**2)
+        f_chirped = f * pre_chirp
+        
+        # FFT (using ortho normalization)
+        F = jnp.fft.fft(f_chirped) / jnp.sqrt(N)
+        
+        # Post-chirp multiplication
+        m = jnp.arange(N)
+        post_chirp = jnp.exp(1j * jnp.pi * d/(2*b) * (m/N)**2)
+        
+        # Combine with normalization factor
+        phase_factor = jnp.sqrt(1/(1j*2*jnp.pi*b)) 
+        result = phase_factor * post_chirp * F
+        
+        return result
+
+    return lct
+
+
+FFT = make_lct(0, 1, -1, 0)
+
+
+
+# Example usage:
+# frft = make_lct(cos(alpha), sin(alpha), -sin(alpha), cos(alpha))  # Fractional Fourier Transform
+# fft = make_lct(0, 1, -1, 0)  # Regular Fourier Transform
 
 
 def lct(f: Signal, x: Grid, matrix: SL2C) -> TransformedSignal:

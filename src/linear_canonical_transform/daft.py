@@ -153,6 +153,17 @@ from hypothesis.extra.numpy import arrays
 import numpy as np
 
 
+def generate_random_sl2r(
+    key: Any,
+) -> tuple[Float[Array, ""], Float[Array, ""], Float[Array, ""], Float[Array, ""]]:
+    """Generate random SL(2,R) matrices."""
+    a = random.uniform(key, dtype=jnp.float64)
+    b = random.uniform(key, dtype=jnp.float64)
+    c = random.uniform(key, dtype=jnp.float64)
+    d = (1 + b * c) / a
+    return a, b, c, d
+
+
 def generate_random_sl2c(
     key: Any,
 ) -> tuple[
@@ -183,12 +194,12 @@ def generate_random_sl2c(
     # Compute d numerically stably by avoiding division by small numbers
     # Use the fact that ad - bc = 1
     d = (1 + b * c) / a
-    print((a * d - b * c).shape)
+    #    print((a * d - b * c).shape)
     # Verify SL(2,C) constraint numerically
     assert jnp.isclose(
         a * d - b * c, 1, atol=TOLERANCE
     ), f"Matrix not in SL(2,C): ad-bc={a*d - b*c}"
-    print(f"{a = }\n{b = }\n{c = }\n{d = }")
+    #   print(f"{a = }\n{b = }\n{c = }\n{d = }")
     return a, b, c, d
 
 
@@ -197,6 +208,7 @@ def test_composition_property():
     Test how well the composition property holds for discrete LCT.
     LCT(A)·LCT(B) should approximately equal LCT(A@B).
     """
+    print("\nComposition Property Test:")
     N = 64
     key = random.PRNGKey(0)
     for i in range(5):
@@ -205,11 +217,9 @@ def test_composition_property():
         x_centered = jnp.exp(-(n_centered**2) / (N / 8) ** 2)
 
         # Generate random SL(2,C) matrices
-        a1, b1, c1, d1 = generate_random_sl2c(key)
+        a1, b1, c1, d1 = generate_random_sl2r(key)
         key = random.split(key)[1]
-        a2, b2, c2, d2 = generate_random_sl2c(key)
-
-        print("\nComposition Property Test:")
+        a2, b2, c2, d2 = generate_random_sl2r(key)
 
         # First matrix
         A = jnp.array([[a1, b1], [c1, d1]])

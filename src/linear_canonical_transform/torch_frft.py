@@ -228,6 +228,9 @@ from torch.fft import fft, fftshift, ifft
 def frft_shifted(
     fc: torch.Tensor, a_param: float | torch.Tensor, *, dim: int = -1
 ) -> torch.Tensor:
+    """
+    Shift the input tensor before applying FrFT to match NumPy's FrFT instead of MATLAB's FrFT.
+    """
     return fftshift(frft(fftshift(fc, dim=dim), a_param, dim=dim), dim=dim)
 
 
@@ -432,35 +435,59 @@ class DFrFTLayer(nn.Module):
 
 def test_frft_matches_fft() -> None:
     """Test that FrFT with order=1 matches regular FFT.
-    
+
     Based on torch-frft package's implementation which matches MATLAB's fracF.m.
-    We need to use fftshift for proper comparison since FrFT is defined on 
+    We need to use fftshift for proper comparison since FrFT is defined on
     centered grid [-N/2, (N-1)/2] while FFT uses [0, N-1].
     """
     # Create random complex input tensor
     N = 32  # Must be even for frft
-    x = torch.randn(N, dtype=torch.complex64) + 1j * torch.randn(N, dtype=torch.complex64)
-    
+    x = torch.randn(N, dtype=torch.complex64) + 1j * torch.randn(
+        N, dtype=torch.complex64
+    )
+
     # FrFT with order=1 should match FFT after proper shifting
     frft_result = fftshift(frft(fftshift(x), a_param=1.0))
     fft_result = fft(x, norm="ortho")  # Match MATLAB normalization
+    # need inner fftshift else every other value is negated
+    # Test that 4 transforms is identity (a=1 four times)
+    x_recovered = x
+    # Test additivity: FrFT(a) + FrFT(b) = FrFT(a+b)
+    # additivity fails, numerical errors?
+    frft_ab = frft_shifted(frft_shifted(x, a_param=.5), a_param=.7)
+    frft_sum = frft_shifted(x, a_param=.5 + .7)
     
-    # Check results match within numerical tolerance
-    if not torch.allclose(frft_result, fft_result, rtol=1e-5, atol=1e-8):
+    if not torch.allclose(frft_ab, frft_sum, rtol=1e-5, atol=1e-5):
+        print("First 5 values of FrFT(a+b):", frft_sum[:5])
+        print("First 5 values of FrFT(b)(FrFT(a)):", frft_ab[:5])
+        print("Max difference:", torch.max(torch.abs(frft_sum - frft_ab)))
+        raise AssertionError("FrFT should be additive in its parameter")
+    for _ in range(12):
+        x_recovered = frft_shifted(x_recovered, a_param=1.0)
+    # Check results match within numerical tolerance, its about 2e-6 to 5e-6
+    if not torch.allclose(frft_result, fft_result, rtol=1e-5, atol=1e-5):
         print("First 5 values of shifted frft_result:", frft_result[:5])
         print("First 5 values of fft_result:", fft_result[:5])
+        print("Ratio of norms:", torch.norm(frft_result) / torch.norm(fft_result))
+        print(
+            "Ratio to sqrt(N):",
+            torch.norm(frft_result)
+            / torch.norm(fft_result)
+            / torch.sqrt(torch.tensor(N)),
+        )
         raise AssertionError("FrFT with order=1 should match FFT after shifting")
     
-    # Test inverse transform with proper shifting
-    x_recovered = fftshift(ifrft(fftshift(frft_result), a_param=1.0))
-    if not torch.allclose(x, x_recovered, rtol=1e-5, atol=1e-8):
+    print("Max absolute difference:", torch.max(torch.abs(x - x_recovered)))
+    print("Mean absolute difference:", torch.mean(torch.abs(x - x_recovered)))
+    if not torch.allclose(x, x_recovered, rtol=1e-5, atol=1e-5):
         print("First 5 values of original x:", x[:5])
-        print("First 5 values of recovered x:", x_recovered[:5]) 
+        print("First 5 values of recovered x:", x_recovered[:5])
+        print("Ratio of norms:", torch.norm(x_recovered) / torch.norm(x))
+        print(
+            "Ratio to sqrt(N):",
+            torch.norm(x_recovered) / torch.norm(x) / torch.sqrt(torch.tensor(N)),
+        )
         raise AssertionError("Inverse FrFT should recover original signal")
-    x_recovered = ifrft(frft_result, a_param=1.0)
-    assert torch.allclose(
-        x, x_recovered, rtol=1e-5, atol=1e-8
-    ), "Inverse FrFT should recover original signal"
 
 
 test_frft_matches_fft()

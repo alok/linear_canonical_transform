@@ -99,6 +99,31 @@ def make_lct(a, b, c, d):
         return result
 
     return lct
+def test_numpy_fft_normalization():
+    """Test that numpy.fft with ortho normalization matches manual normalization"""
+    # Generate sample signal
+    N = 64
+    t = jnp.linspace(0, 1, N)
+    f = jnp.sin(2 * jnp.pi * 10 * t) + 1j * jnp.cos(2 * jnp.pi * 20 * t)
+    f = f.astype(jnp.complex64)
+
+    # Compute FFTs with different normalizations
+    fft_ortho = jnp.fft.fft(f, norm='ortho')
+    fft_manual = jnp.fft.fft(f) / jnp.sqrt(N)
+
+    # Verify they match
+    assert jnp.allclose(fft_ortho, fft_manual, rtol=1e-5, atol=1e-5), \
+        "FFT ortho normalization doesn't match manual normalization"
+
+    # Print comparison for first few values
+    print("\nFFT with ortho first 5 values:")
+    print(fft_ortho[:5])
+    print("\nFFT with manual normalization first 5 values:")
+    print(fft_manual[:5])
+    print(f"\nMax absolute difference: {jnp.abs(fft_ortho - fft_manual).max()}")
+
+# Run test
+test_numpy_fft_normalization()
 
 
 FFT = make_lct(0, 1, -1, 0)

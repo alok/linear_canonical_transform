@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import math
 import os
 import runpy
 import shutil
@@ -16,6 +15,8 @@ from typing import Any, Callable, Literal, TypeAlias
 
 import torch
 from torch import Tensor, nn
+
+from lct_activation.layers import LCTActivation as CoreLCTActivation
 
 DEFAULT_LOCAL_NANOGPT_REPO = Path("/Users/alokbeniwal/nanogpt")
 DEFAULT_UPSTREAM_NANOGPT_REPO = Path("extern/nanoGPT")
@@ -33,75 +34,46 @@ _ORIGINAL_INIT_ATTR = "__lct_activation_original_init__"
 
 
 class NonlinearLCTActivation(nn.Module):
-    """LCT-style spectral activation used to replace NanoGPT's MLP nonlinearity.
+    """Lazy wrapper around the package's real `LCTActivation`.
 
-    The Linear Canonical Transform is linear, so the actual nonlinearity here
-    comes from applying a sigmoid gate to the imaginary response of a simple
-    chirp-FFT-chirp pipeline and then mixing it back with the residual stream.
-    This keeps the module lightweight while still injecting an LCT-flavoured
-    transformation across the hidden dimension.
+    NanoGPT integration points often construct activations without passing the
+    hidden width. This wrapper waits until the first forward pass, then
+    materializes the real shape-aware activation module with the observed width.
     """
 
     def __init__(
         self,
-        pre_chirp: float = 0.35,
-        post_chirp: float = -0.2,
-        gate_scale: float = 1.0,
-        gate_bias: float = 0.0,
-        residual_mix: float = 0.25,
+        a: float = 0.0,
+        b: float = 1.0,
+        c: float = 0.0,
+        bias_init: float = 0.1,
+        inverse_after_nonlinearity: bool = False,
+        residual_mix: float = 0.0,
+        dense_threshold: int = 256,
     ) -> None:
         super().__init__()
-        residual_mix = min(max(float(residual_mix), 1e-4), 1.0 - 1e-4)
-        self.pre_chirp = nn.Parameter(torch.tensor(float(pre_chirp)))
-        self.post_chirp = nn.Parameter(torch.tensor(float(post_chirp)))
-        self.gate_scale = nn.Parameter(torch.tensor(float(gate_scale)))
-        self.gate_bias = nn.Parameter(torch.tensor(float(gate_bias)))
-        self.residual_logit = nn.Parameter(
-            torch.tensor(math.log(residual_mix / (1.0 - residual_mix)))
-        )
+        self.activation: CoreLCTActivation | None = None
+        self.kwargs = {
+            "a": float(a),
+            "b": float(b),
+            "c": float(c),
+            "bias_init": float(bias_init),
+            "inverse_after_nonlinearity": bool(inverse_after_nonlinearity),
+            "residual_mix": float(residual_mix),
+            "dense_threshold": int(dense_threshold),
+        }
+
+    def _ensure_activation(self, width: int, *, device: torch.device) -> CoreLCTActivation:
+        if self.activation is None or self.activation.channels != width:
+            self.activation = CoreLCTActivation(width, **self.kwargs)
+        return self.activation.to(device=device)
 
     def forward(self, x: Tensor) -> Tensor:
-        if x.shape[-1] < 2:
+        if x.shape[-1] < 2 or torch.is_complex(x):
             return x
 
-        original_dtype = x.dtype
-        work_dtype = torch.float64 if original_dtype == torch.float64 else torch.float32
-        real_x = x.to(dtype=work_dtype)
-
-        coords = torch.linspace(
-            -1.0,
-            1.0,
-            real_x.shape[-1],
-            device=real_x.device,
-            dtype=work_dtype,
-        )
-        phase_scale = torch.tensor(
-            math.pi,
-            device=real_x.device,
-            dtype=work_dtype,
-        )
-        pre_angle = phase_scale * self.pre_chirp.to(real_x.device, work_dtype) * coords.square()
-        post_angle = phase_scale * self.post_chirp.to(real_x.device, work_dtype) * coords.square()
-
-        pre_kernel = torch.polar(torch.ones_like(pre_angle), pre_angle)
-        post_kernel = torch.polar(torch.ones_like(post_angle), post_angle)
-
-        complex_dtype = torch.complex128 if work_dtype == torch.float64 else torch.complex64
-        signal = real_x.to(dtype=complex_dtype)
-        transformed = torch.fft.ifft(
-            torch.fft.fft(signal * pre_kernel, dim=-1, norm="ortho") * post_kernel,
-            dim=-1,
-            norm="ortho",
-        )
-
-        gate = torch.sigmoid(
-            self.gate_scale.to(real_x.device, work_dtype) * transformed.imag
-            + self.gate_bias.to(real_x.device, work_dtype)
-        )
-        spectral_response = transformed.real * gate
-        residual_mix = torch.sigmoid(self.residual_logit).to(real_x.device, work_dtype)
-        mixed = residual_mix * real_x + (1.0 - residual_mix) * spectral_response
-        return mixed.to(dtype=original_dtype)
+        activation = self._ensure_activation(x.shape[-1], device=x.device)
+        return activation(x)
 
 
 def infer_nanogpt_repo_kind(repo_dir: Path | str) -> RepoKind:

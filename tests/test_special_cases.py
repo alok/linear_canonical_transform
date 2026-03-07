@@ -5,7 +5,7 @@ import math
 import pytest
 import torch
 
-from lct_activation import LCTLayer, linear_canonical_transform
+from lct_activation import LCTLayer
 
 
 def _fourier_reference(n: int) -> torch.Tensor:
@@ -25,20 +25,15 @@ def _laplace_reference(n: int) -> torch.Tensor:
 @pytest.mark.parametrize(
     ("name", "params", "reference"),
     [
-        ("fourier", (0.0, 1.0, 0.0, 0.0), _fourier_reference),
-        ("laplace", (0j, 1j, 1j, 0j), _laplace_reference),
+        ("fourier", (0.0, 1.0, 0.0), _fourier_reference),
+        ("laplace", (0j, 1j, 1j), _laplace_reference),
     ],
 )
 def test_special_case_matrix(name: str, params, reference) -> None:
     n = 8
     x = torch.eye(n, dtype=torch.complex64)
-    out = linear_canonical_transform(
-        x,
-        a=params[0],
-        b=params[1],
-        c=params[2],
-        d=params[3],
-    )
+    layer = LCTLayer(a=params[0], b=params[1], c=params[2], normalized=True)
+    out = layer(x)
     expected = reference(n)
     assert torch.allclose(out, expected, atol=1e-4), f"mismatch for {name}"
 
@@ -55,7 +50,7 @@ def test_fractional_fourier_factory_matches_manual_params() -> None:
 
 
 def test_fresnel_factory() -> None:
-    layer = LCTLayer.fresnel(wavelength=1.0, distance=2.0)
+    layer = LCTLayer.fresnel(16, wavelength=1.0, distance=2.0)
     actual_a, actual_b, actual_c, _ = layer.canonical_matrix
     assert torch.isclose(actual_a.real, torch.tensor(1.0, dtype=actual_a.real.dtype))
     assert torch.isclose(actual_b.real, torch.tensor(2.0, dtype=actual_b.real.dtype))

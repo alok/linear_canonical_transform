@@ -121,7 +121,7 @@ class LCTLayer(nn.Module):
 
     @staticmethod
     def fresnel(
-        length: int,
+        length: int | None = None,
         *,
         wavelength: float = 1.0,
         distance: float = 1.0,

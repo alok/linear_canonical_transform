@@ -1,95 +1,60 @@
-# lct-activation
+# LCT Activation
 
-`lct-activation` is a small PyTorch research package for testing Linear Canonical Transform activations in transformer MLPs.
+`lct-activation` is a fresh standalone home for the reusable Linear Canonical
+Transform work that had previously been scattered across older local
+experiments.
 
-The package keeps two goals in view:
+The useful sources I found in `~/` were:
 
-- correctness on finite grids, via a dense reference kernel and explicit tests for special cases
-- speed where it matters, via FFT and Bluestein / chirp-z fast paths instead of Python loops
+- `/Users/alokbeniwal/fractional_fourier_net`, which was mostly a stub
+- `/Users/alokbeniwal/modded-nanogpt`, which had the real LCT research code but
+  mixed it with training, papers, and benchmark records
 
-The activation exposed here is genuinely nonlinear. Real channels are packed into complex pairs, transformed by an LCT, passed through a modReLU-style nonlinearity in the transform domain, and unpacked back to the original real shape. That makes it a drop-in candidate for replacing `ReLU` or `GELU` inside NanoGPT feedforward blocks.
+This repo extracts the reusable PyTorch core into a small package with a clean
+test suite and a `uv`-first workflow.
 
-## Install
+## What is here
+
+- `lct_activation.LCTLayer`: a differentiable 1-D discrete LCT module
+- `lct_activation.LCTActivation`: a real-valued modReLU-style activation built
+  on top of the LCT layer
+- `lct_activation.linear_canonical_transform`: functional API
+- `lct_activation.symplectic_d`: stable recovery of `d` from `ad - bc = 1`
+- Dense reference and Bluestein / Chirp-Z fast paths
+- Minimal NanoGPT integration under `src/lct_activation/integrations/`
+
+## Quick start
 
 ```bash
-cd /Users/alokbeniwal/LCT
 uv sync --extra dev
+uv run pytest
 ```
 
-## Quick use
+## Example
 
 ```python
 import torch
 
-from lct_activation import LCTActivation
+from lct_activation import LCTActivation, LCTLayer
 
-act = LCTActivation(
-    1024,
-    a=0.0,
-    b=1.0,
-    c=0.0,
-    dense_threshold=256,
-)
+x = torch.randn(2, 128, dtype=torch.complex64)
+layer = LCTLayer.fractional_fourier(torch.pi / 4)
+y = layer(x)
+z = layer.inverse(y)
 
-x = torch.randn(8, 128, 1024)
-y = act(x)
-print(y.shape)
+activation = LCTActivation(128)
+real_y = activation(torch.randn(2, 128))
 ```
-
-## Core package
-
-- `src/lct_activation/functional/lct.py`: dense reference kernel, `b ~= 0` branch, Fourier/Laplace special cases, and the finite-dimensional symplectic solve `symplectic_d`
-- `src/lct_activation/functional/chirpz.py`: generic `O(N log N)` Bluestein / chirp-z path
-- `src/lct_activation/layers.py`: `LCTLayer` plus the real-valued `LCTActivation`
-
-Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
 
 ## NanoGPT integration
 
-This repo includes a minimal NanoGPT integration under `lct_activation.integrations`:
-
-- `src/lct_activation/integrations/nanogpt.py` provides source-sliced loading for the local `/Users/alokbeniwal/nanogpt` repo, an upstream patch path for `karpathy/nanoGPT`, and model builders for both layouts
-- `scripts/bench_nanogpt.py` benchmarks baseline vs LCT activation throughput on random tokens
-- `scripts/train_nanogpt_lct.py` runs upstream `train.py` in-process after applying the LCT patch
-
-## Benchmark usage
-
-Smoke-test against the local `/Users/alokbeniwal/nanogpt` repo:
+The optional NanoGPT hook lives under `src/lct_activation/integrations/`.
+There are two convenience scripts:
 
 ```bash
-uv run python scripts/bench_nanogpt.py \
-  --device cpu \
-  --steps 1 \
-  --warmup-steps 1 \
-  --batch-size 1 \
-  --seq-len 12 \
-  --n-layers 1 \
-  --n-heads 4 \
-  --embed-dim 64
+uv run python scripts/bench_nanogpt.py --steps 10 --warmup-steps 3
+uv run python scripts/train_nanogpt_lct.py --clone-if-missing -- --batch_size=8
 ```
 
-Benchmark a different checkout explicitly:
-
-```bash
-uv run python scripts/bench_nanogpt.py \
-  --repo-dir /path/to/nanoGPT \
-  --repo-kind upstream
-```
-
-## Training usage
-
-Run upstream NanoGPT with the LCT patch:
-
-```bash
-uv run python scripts/train_nanogpt_lct.py \
-  --clone-if-missing \
-  -- --batch_size=8
-```
-
-## Verification
-
-Core verification used in this repo:
-
-```bash
-uv run pytest -q tests/test_lct_core.py tests/test_activation.py tests/test_special_cases.py
-```
+These are kept as scripts instead of package entry points because they are
+workspace-oriented utilities, not part of the core library API.

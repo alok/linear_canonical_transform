@@ -1,19 +1,12 @@
 [project]
 name = "lct-activation"
 version = "0.1.0"
-description = "Fast PyTorch Linear Canonical Transform activations and NanoGPT integration."
+description = "Standalone PyTorch Linear Canonical Transform layers and activations."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "bidict>=0.23.1",
-    "einops>=0.8.1",
-    "jaxtyping>=0.3.2",
     "numpy>=1.26",
     "torch>=2.2",
-    "tiktoken>=0.7.0",
-    "tqdm>=4.67.1",
-    "tyro>=0.8.14",
-    "wandb>=0.18.0",
 ]
 
 [project.optional-dependencies]

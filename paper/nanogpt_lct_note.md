@@ -52,6 +52,9 @@ Model/data path:
 The raw JSON artifact is stored in
 [`paper/results/nanogpt_local_tune.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_local_tune.json).
 
+A follow-up linear-only run at 40 steps is stored in
+[`paper/results/nanogpt_local_tune_linear_only.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_local_tune_linear_only.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -77,6 +80,23 @@ Fourier linear variant was materially faster and only slightly worse in loss.
 
 By contrast, the activation-only variants were slower and worse than baseline,
 and the hybrid variant underperformed all of the simpler alternatives.
+
+## Follow-up: linear-only rerun
+
+To check that the signal was not just a 20-step fluke, we reran the top three
+variants for 40 steps with the same tiny local setup:
+
+| variant | final val loss | tokens/s |
+| --- | ---: | ---: |
+| `linear-frft45` | `3.6563` | `24.4k` |
+| `linear-fourier` | `3.6575` | `41.7k` |
+| `baseline` | `3.6892` | `42.8k` |
+
+That rerun strengthens the same conclusion:
+
+- the structured linear layer still outperforms baseline in loss,
+- the FrFT-style version is marginally best in loss,
+- the Fourier version is almost as good in loss and much better in speed.
 
 ## Current conclusion
 

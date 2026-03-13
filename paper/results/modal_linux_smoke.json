@@ -1,0 +1,14 @@
+{
+  "platform": "Linux-4.4.0-x86_64-with-glibc2.31",
+  "test_stdout": "26 passed in 6.28s",
+  "bench_stdout": {
+    "device": "cpu",
+    "batch_size": 64,
+    "in_features": 512,
+    "out_features": 512,
+    "dense_ms": 0.4457,
+    "lct_ms": 0.3725,
+    "lct_over_dense": 0.8357
+  },
+  "modal_run_url": "https://modal.com/apps/alok/main/ap-HMziK4MWftq6e5CSgWO0y0"
+}

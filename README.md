@@ -152,6 +152,12 @@ lct-tune-nanogpt \
   --output paper/results/nanogpt_linear_angle_sweep.json
 ```
 
+Run the packaged branch in a remote Linux container on Modal:
+
+```bash
+modal run scripts/modal_linux_smoke.py
+```
+
 ## Training usage
 
 Run upstream NanoGPT with the LCT patch:

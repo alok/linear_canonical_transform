@@ -58,6 +58,9 @@ A follow-up linear-only run at 40 steps is stored in
 An FRFT angle sweep for the linear layer is stored in
 [`paper/results/nanogpt_linear_angle_sweep.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_linear_angle_sweep.json).
 
+A Linux smoke test on Modal is stored in
+[`paper/results/modal_linux_smoke.json`](/Users/alokbeniwal/LCT/paper/results/modal_linux_smoke.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -130,6 +133,20 @@ This changes the tuning recommendation slightly:
 - the Fourier special case remains the best speed/quality compromise,
 - the FrFT family is worth tuning further instead of freezing the project at a
   single canonical setting.
+
+## Linux smoke test
+
+We also ran the packaged branch inside a remote Modal Linux container. The
+container successfully completed:
+
+- `uv sync --extra dev`
+- the full `pytest` suite (`26 passed`)
+- `lct-bench-linear` on CPU
+
+In that Linux environment, the 512-wide CPU microbenchmark reported
+`lct_over_dense = 0.8357`, meaning the current `LCTLinear` implementation was
+already faster than `nn.Linear` for that setting. This matters because it
+reduces the risk that the current speed story is a macOS-local artifact.
 
 ## Next tuning steps
 

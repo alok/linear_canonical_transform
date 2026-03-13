@@ -10,6 +10,7 @@ from .functional import NormMode, linear_canonical_transform, symplectic_d
 
 __all__ = [
     "LCTActivation",
+    "LCTLinear",
     "LCTLayer",
     "LCTModReLU",
 ]
@@ -225,3 +226,146 @@ class LCTModReLU(nn.Module):
 
 
 LCTActivation = LCTModReLU
+
+
+class LCTLinear(nn.Module):
+    """Structured ``nn.Linear``-style layer built from LCT spectral mixing.
+
+    The layer packs real features into complex pairs, applies an LCT, multiplies
+    by a learnable complex diagonal in the transform domain, optionally maps
+    back through the inverse transform, then crops to ``out_features``.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        *,
+        a: float = 0.0,
+        b: float = 1.0,
+        c: float = 0.0,
+        inverse_after_multiply: bool = True,
+        dense_threshold: int = 32,
+        normalization: NormMode = "unitary",
+        unitary_projection: bool = False,
+        learnable_transform: bool = False,
+    ) -> None:
+        super().__init__()
+        if in_features <= 0:
+            raise ValueError("in_features must be positive")
+        if out_features <= 0:
+            raise ValueError("out_features must be positive")
+
+        self.in_features = int(in_features)
+        self.out_features = int(out_features)
+        self.inverse_after_multiply = inverse_after_multiply
+        self._direct_fft = (
+            not learnable_transform
+            and abs(a) <= 1e-6
+            and abs(b - 1.0) <= 1e-6
+            and abs(c) <= 1e-6
+        )
+
+        base_features = max(self.in_features, self.out_features)
+        self.padded_features = base_features if base_features % 2 == 0 else base_features + 1
+        self.complex_features = self.padded_features // 2
+
+        self.transform = LCTLayer(
+            a=a,
+            b=b,
+            c=c,
+            normalization=normalization,
+            dense_threshold=dense_threshold,
+            unitary_projection=unitary_projection,
+        )
+        if not learnable_transform:
+            self.transform.a.requires_grad_(False)
+            self.transform.b.requires_grad_(False)
+            self.transform.c.requires_grad_(False)
+
+        self.spectral_real = nn.Parameter(torch.ones(self.complex_features))
+        self.spectral_imag = nn.Parameter(torch.zeros(self.complex_features))
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(self.out_features))
+        else:
+            self.register_parameter("bias", None)
+
+    @property
+    def spectral_diag(self) -> Tensor:
+        return torch.complex(self.spectral_real, self.spectral_imag)
+
+    def reset_parameters(self) -> None:
+        with torch.no_grad():
+            self.spectral_real.fill_(1.0)
+            self.spectral_imag.zero_()
+            if self.bias is not None:
+                self.bias.zero_()
+
+    def _apply_linear_map(self, x: Tensor) -> Tensor:
+        if torch.is_complex(x):
+            raise TypeError("LCTLinear expects a real-valued tensor")
+
+        packed = _pack_real_pairs(x, self.padded_features)
+        if self._direct_fft:
+            spectral = torch.fft.fft(packed, dim=-1, norm="ortho")
+        else:
+            spectral = self.transform(packed)
+
+        diag = self.spectral_diag.to(spectral.dtype).view(
+            *([1] * (spectral.ndim - 1)),
+            self.complex_features,
+        )
+        mixed = spectral * diag
+        if self.inverse_after_multiply:
+            if self._direct_fft:
+                mixed = torch.fft.ifft(mixed, dim=-1, norm="ortho")
+            else:
+                mixed = self.transform.inverse(mixed)
+
+        out = _unpack_real_pairs(mixed, original_channels=self.padded_features)
+        return out[..., : self.out_features]
+
+    def forward(self, x: Tensor) -> Tensor:
+        out = self._apply_linear_map(x)
+        if self.bias is None:
+            return out.to(x.dtype)
+        return (out + self.bias.to(out.dtype)).to(x.dtype)
+
+    @torch.no_grad()
+    def materialize_weight(
+        self,
+        *,
+        device: torch.device | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> Tensor:
+        dev = device or self.spectral_real.device
+        basis = torch.eye(self.in_features, device=dev, dtype=dtype)
+        return self._apply_linear_map(basis).transpose(0, 1).contiguous()
+
+    @torch.no_grad()
+    def to_linear(
+        self,
+        *,
+        device: torch.device | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> nn.Linear:
+        dev = device or self.spectral_real.device
+        linear = nn.Linear(
+            self.in_features,
+            self.out_features,
+            bias=self.bias is not None,
+            device=dev,
+            dtype=dtype,
+        )
+        linear.weight.copy_(self.materialize_weight(device=dev, dtype=dtype))
+        if self.bias is not None and linear.bias is not None:
+            linear.bias.copy_(self.bias.to(device=dev, dtype=dtype))
+        return linear
+
+    def extra_repr(self) -> str:
+        return (
+            f"in_features={self.in_features}, out_features={self.out_features}, "
+            f"bias={self.bias is not None}, inverse_after_multiply={self.inverse_after_multiply}, "
+            f"complex_features={self.complex_features}"
+        )

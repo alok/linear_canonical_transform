@@ -1,13 +1,18 @@
 # lct-activation
 
-`lct-activation` is a small PyTorch research package for testing Linear Canonical Transform activations in transformer MLPs.
+`lct-activation` is a small PyTorch research package for testing Linear Canonical Transform layers inside real models.
 
 The package keeps two goals in view:
 
 - correctness on finite grids, via a dense reference kernel and explicit tests for special cases
 - speed where it matters, via FFT and Bluestein / chirp-z fast paths instead of Python loops
 
-The activation exposed here is genuinely nonlinear. Real channels are packed into complex pairs, transformed by an LCT, passed through a modReLU-style nonlinearity in the transform domain, and unpacked back to the original real shape. That makes it a drop-in candidate for replacing `ReLU` or `GELU` inside NanoGPT feedforward blocks.
+The package now exposes two model-facing building blocks:
+
+- `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT domain
+- `LCTLinear`, a structured `nn.Linear`-style layer that uses fast spectral mixing instead of a dense learned matrix
+
+Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
 ## Install
 
@@ -21,7 +26,7 @@ uv sync --extra dev
 ```python
 import torch
 
-from lct_activation import LCTActivation
+from lct_activation import LCTActivation, LCTLinear
 
 act = LCTActivation(
     1024,
@@ -34,13 +39,19 @@ act = LCTActivation(
 x = torch.randn(8, 128, 1024)
 y = act(x)
 print(y.shape)
+
+linear = LCTLinear(1024, 2048)
+z = linear(torch.randn(8, 1024))
+print(z.shape)
+
+dense_equivalent = linear.to_linear()
 ```
 
 ## Core package
 
 - `src/lct_activation/functional/lct.py`: dense reference kernel, `b ~= 0` branch, Fourier/Laplace special cases, and the finite-dimensional symplectic solve `symplectic_d`
 - `src/lct_activation/functional/chirpz.py`: generic `O(N log N)` Bluestein / chirp-z path
-- `src/lct_activation/layers.py`: `LCTLayer` plus the real-valued `LCTActivation`
+- `src/lct_activation/layers.py`: `LCTLayer`, `LCTActivation`, and `LCTLinear`
 
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
 
@@ -76,6 +87,20 @@ uv run python scripts/bench_nanogpt.py \
   --repo-kind upstream
 ```
 
+Microbenchmark the structured linear layer against `nn.Linear`:
+
+```bash
+uv run python scripts/bench_linear.py \
+  --device cpu \
+  --batch-size 256 \
+  --in-features 1024 \
+  --out-features 1024
+```
+
+On this machine, the current implementation is still slower than `nn.Linear`
+for small 512-wide CPU layers, but already faster around 4096 features where
+the structured FFT path starts to dominate the dense matmul.
+
 ## Training usage
 
 Run upstream NanoGPT with the LCT patch:
@@ -92,4 +117,5 @@ Core verification used in this repo:
 
 ```bash
 uv run pytest -q tests/test_lct_core.py tests/test_activation.py tests/test_special_cases.py
+uv run pytest -q tests/test_lct_linear.py
 ```

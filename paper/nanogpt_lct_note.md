@@ -55,6 +55,9 @@ The raw JSON artifact is stored in
 A follow-up linear-only run at 40 steps is stored in
 [`paper/results/nanogpt_local_tune_linear_only.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_local_tune_linear_only.json).
 
+An FRFT angle sweep for the linear layer is stored in
+[`paper/results/nanogpt_linear_angle_sweep.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_linear_angle_sweep.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -106,9 +109,31 @@ If this line of work is going to be adopted, the right story is currently:
 2. treat `LCTActivation` as exploratory,
 3. focus the next NanoGPT tuning wave on the linear variant only.
 
+## Angle sweep
+
+We also swept a few additional FRFT-style angles for `LCTLinear` while keeping
+the same tiny NanoGPT setup and 20-step budget:
+
+| variant | final val loss | tokens/s |
+| --- | ---: | ---: |
+| `linear-frft30` | `3.7809` | `23.8k` |
+| `linear-frft15` | `3.8205` | `24.7k` |
+| `linear-frft60` | `3.8460` | `24.6k` |
+| `linear-frft75` | `3.8636` | `24.4k` |
+| `linear-frft45` | `3.8680` | `24.3k` |
+| `linear-fourier` | `3.8768` | `41.4k` |
+| `baseline` | `3.9415` | `38.6k` |
+
+This changes the tuning recommendation slightly:
+
+- the best early-loss region is currently around `15°` to `30°`, not `45°`,
+- the Fourier special case remains the best speed/quality compromise,
+- the FrFT family is worth tuning further instead of freezing the project at a
+  single canonical setting.
+
 ## Next tuning steps
 
-- Sweep `LCTLinear` over more FrFT angles instead of just Fourier vs `pi/4`.
+- Sweep `LCTLinear` more finely between `10°` and `40°`.
 - Test `inverse_after_multiply=False` for the structured linear layer.
 - Run the same ablation at larger widths, where the FFT-backed linear path is
   already faster than `nn.Linear` on CPU.

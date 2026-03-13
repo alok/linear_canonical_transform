@@ -21,10 +21,18 @@ cd /Users/alokbeniwal/LCT
 uv sync --extra dev
 ```
 
-Install directly from GitHub with `uv` once this branch is pushed:
+Install directly from GitHub with `uv`:
 
 ```bash
 uv add "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt"
+```
+
+If you just want the packaged command-line tools, install them with `uv tool`:
+
+```bash
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-linear
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-nanogpt
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-tune-nanogpt
 ```
 
 ## Quick use
@@ -51,6 +59,12 @@ z = linear(torch.randn(8, 1024))
 print(z.shape)
 
 dense_equivalent = linear.to_linear()
+```
+
+Compatibility imports under the older repo name also work:
+
+```python
+from linear_canonical_transform import LCTLinear
 ```
 
 ## Core package
@@ -96,7 +110,7 @@ uv run python scripts/bench_nanogpt.py \
 Microbenchmark the structured linear layer against `nn.Linear`:
 
 ```bash
-uv run python scripts/bench_linear.py \
+lct-bench-linear \
   --device cpu \
   --batch-size 256 \
   --in-features 1024 \
@@ -110,7 +124,7 @@ the structured FFT path starts to dominate the dense matmul.
 Run the local NanoGPT ablation sweep:
 
 ```bash
-uv run python scripts/tune_nanogpt_lct.py \
+lct-tune-nanogpt \
   --device cpu \
   --steps 20 \
   --eval-iters 4 \
@@ -121,13 +135,31 @@ uv run python scripts/tune_nanogpt_lct.py \
   --embed-dim 64
 ```
 
+Sweep a few additional FRFT angles for the linear layer:
+
+```bash
+lct-tune-nanogpt \
+  --device cpu \
+  --steps 20 \
+  --eval-iters 4 \
+  --batch-size 8 \
+  --seq-len 24 \
+  --n-layers 2 \
+  --n-heads 4 \
+  --embed-dim 64 \
+  --presets baseline linear-fourier \
+  --linear-angle-degrees 15 30 45 60 75 \
+  --output paper/results/nanogpt_linear_angle_sweep.json
+```
+
 ## Training usage
 
 Run upstream NanoGPT with the LCT patch:
 
 ```bash
-uv run python scripts/train_nanogpt_lct.py \
+lct-train-nanogpt \
   --clone-if-missing \
+  --variant linear \
   -- --batch_size=8
 ```
 

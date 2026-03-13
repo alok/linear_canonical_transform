@@ -1,19 +1,12 @@
 [project]
 name = "lct-activation"
 version = "0.1.0"
-description = "Fast PyTorch Linear Canonical Transform activations and NanoGPT integration."
+description = "Fast PyTorch Linear Canonical Transform layers, activations, and NanoGPT experiments."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "bidict>=0.23.1",
-    "einops>=0.8.1",
-    "jaxtyping>=0.3.2",
     "numpy>=1.26",
     "torch>=2.2",
-    "tiktoken>=0.7.0",
-    "tqdm>=4.67.1",
-    "tyro>=0.8.14",
-    "wandb>=0.18.0",
 ]
 
 [project.optional-dependencies]
@@ -21,16 +14,21 @@ dev = [
     "pytest>=8.3.5",
 ]
 
+[project.scripts]
+lct-bench-linear = "lct_activation.cli:bench_linear_main"
+lct-bench-nanogpt = "lct_activation.cli:bench_nanogpt_main"
+lct-train-nanogpt = "lct_activation.cli:train_nanogpt_main"
+lct-tune-nanogpt = "lct_activation.cli:tune_nanogpt_main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/lct_activation"]
+packages = ["src/lct_activation", "src/linear_canonical_transform"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.uv]
 package = true
-

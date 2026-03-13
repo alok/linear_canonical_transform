@@ -18,6 +18,12 @@ __all__ = [
 ]
 
 
+def _dense_work_dtypes(device: torch.device) -> tuple[torch.dtype, torch.dtype]:
+    if device.type == "mps":
+        return torch.complex64, torch.float32
+    return torch.complex128, torch.float64
+
+
 def _complex_scalar(value: Tensor | float, *, dtype: torch.dtype, device: torch.device) -> Tensor:
     return torch.as_tensor(value, dtype=dtype, device=device)
 
@@ -232,17 +238,19 @@ def linear_canonical_transform(
             dense_fallback_threshold=dense_threshold,
         )
 
-    idx = torch.arange(n_features, device=device, dtype=torch.float64)
+    dense_complex_dtype, dense_real_dtype = _dense_work_dtypes(device)
+
+    idx = torch.arange(n_features, device=device, dtype=dense_real_dtype)
     if centered:
         idx = idx - (n_features - 1) / 2.0
 
     n_idx = idx.view(n_features, 1)
     k_idx = idx.view(1, n_features)
 
-    a128 = torch.as_tensor(a_c, dtype=torch.complex128, device=device)
-    b128 = torch.as_tensor(b_c, dtype=torch.complex128, device=device)
-    d128 = torch.as_tensor(d_c, dtype=torch.complex128, device=device)
-    pi128 = torch.as_tensor(PI, dtype=torch.complex128, device=device)
+    a128 = torch.as_tensor(a_c, dtype=dense_complex_dtype, device=device)
+    b128 = torch.as_tensor(b_c, dtype=dense_complex_dtype, device=device)
+    d128 = torch.as_tensor(d_c, dtype=dense_complex_dtype, device=device)
+    pi128 = torch.as_tensor(PI, dtype=dense_complex_dtype, device=device)
 
     phase = (
         1j * pi128 * (a128 / b128) * n_idx**2
@@ -251,7 +259,7 @@ def linear_canonical_transform(
     )
 
     if centered:
-        s = torch.tensor((n_features - 1) / 2.0, dtype=torch.float64, device=device)
+        s = torch.tensor((n_features - 1) / 2.0, dtype=dense_real_dtype, device=device)
         lin_phase = (
             1j
             * 2.0
@@ -268,10 +276,10 @@ def linear_canonical_transform(
         kernel = torch.exp(phase)
 
     amp = _global_amplitude(
-        b=torch.as_tensor(b128, dtype=torch.complex128, device=device),
+        b=torch.as_tensor(b128, dtype=dense_complex_dtype, device=device),
         length=n_features,
         mode=mode,
-        dtype=torch.complex128,
+        dtype=dense_complex_dtype,
         device=device,
     )
     kernel = (amp * kernel).to(dtype)
@@ -330,4 +338,3 @@ def symplectic_d(
     else:
         reg = (1.0 + b_t * c_t) * a_t / (a_t * a_t + eps * eps)
     return torch.where(mask, exact, reg)
-

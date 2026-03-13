@@ -12,6 +12,12 @@ if TYPE_CHECKING:
 __all__ = ["chirpz_lct"]
 
 
+def _work_dtypes(device: torch.device) -> tuple[torch.dtype, torch.dtype]:
+    if device.type == "mps":
+        return torch.complex64, torch.float32
+    return torch.complex128, torch.float64
+
+
 def _global_amplitude(
     *,
     b: Tensor,
@@ -74,7 +80,7 @@ def chirpz_lct(
 
     device = x.device
     in_dtype = x.dtype
-    work_dtype = torch.complex128
+    work_dtype, real_dtype = _work_dtypes(device)
 
     a64 = torch.as_tensor(a, dtype=torch.complex64, device=device)
     b64 = torch.as_tensor(b, dtype=torch.complex64, device=device)
@@ -85,7 +91,7 @@ def chirpz_lct(
     d_w = torch.as_tensor(d64, dtype=work_dtype, device=device)
 
     x_w = x.to(work_dtype)
-    n = torch.arange(n_features, device=device, dtype=torch.float64)
+    n = torch.arange(n_features, device=device, dtype=real_dtype)
     pi_w = torch.as_tensor(math.pi, dtype=work_dtype, device=device)
 
     alpha = 1.0 / (b_w * n_features)
@@ -96,7 +102,7 @@ def chirpz_lct(
     u_pad = torch.zeros(*u.shape[:-1], conv_len, dtype=work_dtype, device=device)
     u_pad[..., :n_features] = u
 
-    k = torch.arange(n_features, device=device, dtype=torch.float64)
+    k = torch.arange(n_features, device=device, dtype=real_dtype)
     q_first = torch.exp(1j * pi_w * alpha * k**2)
     q = torch.zeros(conv_len, dtype=work_dtype, device=device)
     q[:n_features] = q_first
@@ -120,4 +126,3 @@ def chirpz_lct(
 
     y = (amp * conv * chirp_out).to(in_dtype)
     return y.movedim(-1, dim) if dim != -1 else y
-

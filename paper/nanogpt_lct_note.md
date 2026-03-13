@@ -61,6 +61,12 @@ An FRFT angle sweep for the linear layer is stored in
 A Linux smoke test on Modal is stored in
 [`paper/results/modal_linux_smoke.json`](/Users/alokbeniwal/LCT/paper/results/modal_linux_smoke.json).
 
+An Apple MPS sweep is stored in
+[`paper/results/nanogpt_mps_sweep.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_mps_sweep.json).
+
+A CUDA / Modal GPU sweep is stored in
+[`paper/results/modal_gpu_sweep.json`](/Users/alokbeniwal/LCT/paper/results/modal_gpu_sweep.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -147,6 +153,57 @@ In that Linux environment, the 512-wide CPU microbenchmark reported
 `lct_over_dense = 0.8357`, meaning the current `LCTLinear` implementation was
 already faster than `nn.Linear` for that setting. This matters because it
 reduces the risk that the current speed story is a macOS-local artifact.
+
+## Apple MPS
+
+We also ran the current branch on local Apple MPS after fixing the generic LCT
+path to avoid `complex128` promotion on that backend.
+
+In the small MPS sweep:
+
+| variant | final val loss | tokens/s |
+| --- | ---: | ---: |
+| `linear-frft30` | `3.8893` | `3.34k` |
+| `linear-frft15` | `3.9213` | `1.96k` |
+| `linear-fourier` | `3.9591` | `7.91k` |
+| `baseline` | `4.0362` | `2.95k` |
+
+The 256-wide MPS microbenchmark also gave `lct_over_dense = 0.7563`, so the
+structured linear layer is already faster than `nn.Linear` for that tested MPS
+setting.
+
+## CUDA / Triton path on Linux
+
+We then ran the packaged branch on a Modal Tesla T4 instance.
+
+- `uv sync` installed the CUDA-enabled `torch` wheel and `triton`
+- `lct-bench-linear --device cuda --compile` ran successfully
+- `lct-bench-nanogpt --device cuda --compile` ran successfully
+- `lct-tune-nanogpt --device cuda` ran successfully
+
+The important caveat is that TorchInductor still warned that complex operators
+were not being code-generated efficiently, so the current CUDA compile path is
+using Triton where it can, but not yet for the complex-heavy parts of the LCT.
+That showed up in the 1024-wide compiled microbenchmark, where `LCTLinear` was
+still slower than `nn.Linear` (`lct_over_dense = 2.6131`).
+
+On the other hand, the actual CUDA NanoGPT tuning run still favored the linear
+variants:
+
+| variant | final val loss | tokens/s |
+| --- | ---: | ---: |
+| `linear-frft30` | `3.7809` | `12.7k` |
+| `linear-frft15` | `3.8205` | `12.3k` |
+| `linear-frft45` | `3.8680` | `12.5k` |
+| `linear-fourier` | `3.8768` | `18.2k` |
+| `baseline` | `3.9415` | `9.64k` |
+
+So the current state is:
+
+- the branch now works on Linux CUDA and macOS MPS,
+- `torch.compile` is active and usable on Linux CUDA,
+- but a custom complex-aware Triton kernel is still the next speed step if we
+  want the standalone CUDA microbenchmark to close the gap with dense matmuls.
 
 ## Next tuning steps
 

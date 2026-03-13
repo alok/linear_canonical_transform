@@ -158,6 +158,12 @@ Run the packaged branch in a remote Linux container on Modal:
 modal run scripts/modal_linux_smoke.py
 ```
 
+Run the CUDA benchmark/sweep on Modal:
+
+```bash
+modal run scripts/modal_gpu_sweep.py
+```
+
 ## Training usage
 
 Run upstream NanoGPT with the LCT patch:

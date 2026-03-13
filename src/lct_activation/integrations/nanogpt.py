@@ -598,15 +598,12 @@ def load_local_nanogpt_definitions(
     module_globals = module.__dict__
     sys.modules[module_name] = module
 
-    try:
-        with (
-            _temporary_chdir(repo_dir),
-            _patched_urlretrieve(repo_dir),
-            _local_nanogpt_import_shims(),
-        ):
-            exec(compile(pre_training_source, str(source_path), "exec"), module_globals)
-    finally:
-        sys.modules.pop(module_name, None)
+    with (
+        _temporary_chdir(repo_dir),
+        _patched_urlretrieve(repo_dir),
+        _local_nanogpt_import_shims(),
+    ):
+        exec(compile(pre_training_source, str(source_path), "exec"), module_globals)
 
     _patch_local_multihead_init(module_globals)
     _patch_local_gpt_forward(module_globals)

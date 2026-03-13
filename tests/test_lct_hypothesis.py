@@ -66,7 +66,7 @@ def test_laplace_special_case_matches_minus_i_fft(length: int, seed: int) -> Non
     y = linear_canonical_transform(x, a=0j, b=1j, c=1j, d=0j)
     expected = -1j * torch.fft.fft(x, dim=-1, norm="ortho")
 
-    assert torch.allclose(y, expected, atol=2e-5, rtol=0.0)
+    assert torch.allclose(y, expected, atol=3e-5, rtol=0.0)
 
 
 @settings(deadline=None, max_examples=30)

@@ -35,6 +35,16 @@ def _resolve_device(spec: str) -> torch.device:
 def _sync_device(device: torch.device) -> None:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
+    elif device.type == "mps":
+        torch.mps.synchronize()
+
+
+def _maybe_compile(module: torch.nn.Module, *, enabled: bool, device: torch.device, mode: str) -> torch.nn.Module:
+    if not enabled or not hasattr(torch, "compile"):
+        return module
+    if device.type != "cuda":
+        return module
+    return torch.compile(module, mode=mode)
 
 
 def _benchmark_module(module: torch.nn.Module, x: torch.Tensor, *, steps: int, warmup_steps: int) -> float:
@@ -58,6 +68,8 @@ def parse_bench_linear_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--warmup-steps", type=int, default=20)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     return parser.parse_args()
 
 
@@ -68,6 +80,8 @@ def bench_linear_main() -> None:
     x = torch.randn(args.batch_size, args.in_features, device=device)
     dense = torch.nn.Linear(args.in_features, args.out_features).to(device)
     lct = LCTLinear(args.in_features, args.out_features).to(device)
+    dense = _maybe_compile(dense, enabled=args.compile, device=device, mode=args.compile_mode)
+    lct = _maybe_compile(lct, enabled=args.compile, device=device, mode=args.compile_mode)
 
     dense_ms = _benchmark_module(dense, x, steps=args.steps, warmup_steps=args.warmup_steps)
     lct_ms = _benchmark_module(lct, x, steps=args.steps, warmup_steps=args.warmup_steps)
@@ -78,6 +92,7 @@ def bench_linear_main() -> None:
             "batch_size": args.batch_size,
             "in_features": args.in_features,
             "out_features": args.out_features,
+            "compiled": bool(args.compile and device.type == "cuda"),
             "dense_ms": round(dense_ms, 4),
             "lct_ms": round(lct_ms, 4),
             "lct_over_dense": round(lct_ms / dense_ms, 4) if dense_ms else None,
@@ -124,6 +139,8 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     return parser.parse_args()
 
 
@@ -146,6 +163,8 @@ def _benchmark_nanogpt_once(
     bias: bool,
     activation_factory,
     linear_factory,
+    compile_enabled: bool,
+    compile_mode: str,
 ) -> dict[str, object]:
     torch.manual_seed(seed)
 
@@ -182,6 +201,8 @@ def _benchmark_nanogpt_once(
     else:
         raise ValueError(f"Unsupported repo kind: {repo_kind}")
 
+    model = _maybe_compile(model, enabled=compile_enabled, device=device, mode=compile_mode)
+
     model.eval()
     input_ids = torch.randint(0, vocab_size, (batch_size, seq_len), device=device)
     targets = torch.randint(0, vocab_size, (batch_size, seq_len), device=device)
@@ -199,6 +220,7 @@ def _benchmark_nanogpt_once(
     total_tokens = batch_size * seq_len * steps
     return {
         "variant": variant,
+        "compiled": bool(compile_enabled and device.type == "cuda"),
         "elapsed_seconds": elapsed,
         "tokens_per_second": total_tokens / elapsed,
         "steps": steps,
@@ -250,6 +272,8 @@ def bench_nanogpt_main() -> None:
                 bias=args.bias,
                 activation_factory=activation_factory,
                 linear_factory=linear_factory,
+                compile_enabled=args.compile,
+                compile_mode=args.compile_mode,
             )
         )
 
@@ -415,6 +439,8 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--vocab-size", type=int, default=65)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     parser.add_argument(
         "--presets",
         nargs="+",
@@ -470,6 +496,7 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         vocab_size=args.vocab_size,
         device=device,
     )
+    model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
     get_batch = namespace["get_batch"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -496,6 +523,7 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
     return {
         "name": spec.name,
         "variant": spec.variant,
+        "compiled": bool(args.compile and device.type == "cuda"),
         "activation_kwargs": spec.activation_kwargs,
         "linear_kwargs": spec.linear_kwargs,
         "initial_val_loss": initial_val_loss,

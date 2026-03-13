@@ -1,0 +1,61 @@
+{
+  "device": "mps",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 10,
+    "eval_iters": 2,
+    "batch_size": 4,
+    "seq_len": 16,
+    "n_layers": 2,
+    "n_heads": 4,
+    "embed_dim": 64,
+    "dropout": 0.0,
+    "vocab_size": 65,
+    "lr": 0.0003,
+    "weight_decay": 0.0
+  },
+  "results": [
+    {
+      "name": "linear-frft30",
+      "variant": "linear",
+      "compiled": false,
+      "final_val_loss": 3.8893178701400757,
+      "tokens_per_second": 3344.06073184136,
+      "parameter_count": 77255
+    },
+    {
+      "name": "linear-frft15",
+      "variant": "linear",
+      "compiled": false,
+      "final_val_loss": 3.921348810195923,
+      "tokens_per_second": 1959.0867145921989,
+      "parameter_count": 77255
+    },
+    {
+      "name": "linear-fourier",
+      "variant": "linear",
+      "compiled": false,
+      "final_val_loss": 3.959123969078064,
+      "tokens_per_second": 7907.65753804971,
+      "parameter_count": 77255
+    },
+    {
+      "name": "baseline",
+      "variant": "baseline",
+      "compiled": false,
+      "final_val_loss": 4.036170601844788,
+      "tokens_per_second": 2954.273951051275,
+      "parameter_count": 109505
+    }
+  ],
+  "bench_linear_mps": {
+    "device": "mps",
+    "batch_size": 32,
+    "in_features": 256,
+    "out_features": 256,
+    "compiled": false,
+    "dense_ms": 0.1828,
+    "lct_ms": 0.1382,
+    "lct_over_dense": 0.7563
+  }
+}

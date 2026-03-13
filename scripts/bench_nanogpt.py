@@ -19,12 +19,14 @@ from lct_activation.integrations.nanogpt import (  # noqa: E402
     build_local_nanogpt,
     build_upstream_nanogpt,
     infer_nanogpt_repo_kind,
+    make_lct_activation_factory,
+    make_lct_linear_factory,
 )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark baseline vs nonlinear-LCT NanoGPT activations on random tokens."
+        description="Benchmark baseline and LCT NanoGPT variants on random tokens."
     )
     parser.add_argument(
         "--repo-dir",
@@ -54,6 +56,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--vocab-size", type=int, default=65)
     parser.add_argument(
+        "--variants",
+        nargs="+",
+        default=["baseline", "activation", "linear"],
+        choices=["baseline", "activation", "linear", "hybrid"],
+        help="Model variants to benchmark.",
+    )
+    parser.add_argument("--a", type=float, default=0.0)
+    parser.add_argument("--b", type=float, default=1.0)
+    parser.add_argument("--c", type=float, default=0.0)
+    parser.add_argument("--bias-init", type=float, default=0.1)
+    parser.add_argument("--residual-mix", type=float, default=0.0)
+    parser.add_argument(
+        "--inverse-after-multiply",
+        dest="inverse_after_multiply",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether LCTLinear should map back with the inverse transform after spectral mixing.",
+    )
+    parser.add_argument(
         "--bias",
         dest="bias",
         action=argparse.BooleanOptionalAction,
@@ -81,7 +102,7 @@ def benchmark_once(
     *,
     repo_dir: Path,
     repo_kind: str,
-    use_lct: bool,
+    variant: str,
     device: torch.device,
     seed: int,
     warmup_steps: int,
@@ -94,13 +115,17 @@ def benchmark_once(
     dropout: float,
     vocab_size: int,
     bias: bool,
+    activation_factory,
+    linear_factory,
 ) -> dict[str, object]:
     torch.manual_seed(seed)
 
     if repo_kind == "local":
         model, _namespace = build_local_nanogpt(
             repo_dir,
-            use_lct=use_lct,
+            variant=variant,
+            activation_factory=activation_factory,
+            linear_factory=linear_factory,
             batch_size=batch_size,
             ctx_len=seq_len,
             n_heads=n_heads,
@@ -113,7 +138,9 @@ def benchmark_once(
     elif repo_kind == "upstream":
         model, _model_module = build_upstream_nanogpt(
             repo_dir,
-            use_lct=use_lct,
+            variant=variant,
+            activation_factory=activation_factory,
+            linear_factory=linear_factory,
             block_size=seq_len,
             vocab_size=vocab_size,
             n_layer=n_layers,
@@ -143,7 +170,7 @@ def benchmark_once(
 
     total_tokens = batch_size * seq_len * steps
     return {
-        "variant": "lct" if use_lct else "baseline",
+        "variant": variant,
         "elapsed_seconds": elapsed,
         "tokens_per_second": total_tokens / elapsed,
         "steps": steps,
@@ -158,57 +185,59 @@ def main() -> None:
     repo_dir = args.repo_dir.resolve()
     repo_kind = infer_nanogpt_repo_kind(repo_dir) if args.repo_kind == "auto" else args.repo_kind
     device = resolve_device(args.device)
-
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
-
-    baseline = benchmark_once(
-        repo_dir=repo_dir,
-        repo_kind=repo_kind,
-        use_lct=False,
-        device=device,
-        seed=args.seed,
-        warmup_steps=args.warmup_steps,
-        steps=args.steps,
-        batch_size=args.batch_size,
-        seq_len=args.seq_len,
-        n_layers=args.n_layers,
-        n_heads=args.n_heads,
-        embed_dim=args.embed_dim,
-        dropout=args.dropout,
-        vocab_size=args.vocab_size,
-        bias=args.bias,
+    activation_factory = make_lct_activation_factory(
+        a=args.a,
+        b=args.b,
+        c=args.c,
+        bias_init=args.bias_init,
+        residual_mix=args.residual_mix,
+    )
+    linear_factory = make_lct_linear_factory(
+        a=args.a,
+        b=args.b,
+        c=args.c,
+        inverse_after_multiply=args.inverse_after_multiply,
     )
 
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
-
-    lct = benchmark_once(
-        repo_dir=repo_dir,
-        repo_kind=repo_kind,
-        use_lct=True,
-        device=device,
-        seed=args.seed,
-        warmup_steps=args.warmup_steps,
-        steps=args.steps,
-        batch_size=args.batch_size,
-        seq_len=args.seq_len,
-        n_layers=args.n_layers,
-        n_heads=args.n_heads,
-        embed_dim=args.embed_dim,
-        dropout=args.dropout,
-        vocab_size=args.vocab_size,
-        bias=args.bias,
-    )
+    results = []
+    for idx, variant in enumerate(args.variants):
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+        results.append(
+            benchmark_once(
+                repo_dir=repo_dir,
+                repo_kind=repo_kind,
+                variant=variant,
+                device=device,
+                seed=args.seed + idx * 1000,
+                warmup_steps=args.warmup_steps,
+                steps=args.steps,
+                batch_size=args.batch_size,
+                seq_len=args.seq_len,
+                n_layers=args.n_layers,
+                n_heads=args.n_heads,
+                embed_dim=args.embed_dim,
+                dropout=args.dropout,
+                vocab_size=args.vocab_size,
+                bias=args.bias,
+                activation_factory=activation_factory,
+                linear_factory=linear_factory,
+            )
+        )
 
     summary = {
         "repo_dir": str(repo_dir),
         "repo_kind": repo_kind,
         "device": str(device),
-        "baseline": baseline,
-        "lct": lct,
-        "speed_ratio_lct_vs_baseline": lct["tokens_per_second"] / baseline["tokens_per_second"],
+        "results": results,
     }
+    baseline = next((item for item in results if item["variant"] == "baseline"), None)
+    if baseline is not None:
+        summary["speed_ratios_vs_baseline"] = {
+            item["variant"]: item["tokens_per_second"] / baseline["tokens_per_second"]
+            for item in results
+            if item["variant"] != "baseline"
+        }
     print(json.dumps(summary, indent=2))
 
 

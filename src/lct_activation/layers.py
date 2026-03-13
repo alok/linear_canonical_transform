@@ -145,10 +145,15 @@ def _real_work_dtype(dtype: torch.dtype) -> torch.dtype:
     return dtype
 
 
-def _pack_real_pairs(x: Tensor, target_channels: int) -> Tensor:
-    pad = target_channels - x.size(-1)
+def _pack_real_pairs(x: Tensor, target_channels: int, *, mode: Literal["zero", "tile"] = "zero") -> Tensor:
+    current = x.size(-1)
+    pad = target_channels - current
     if pad > 0:
-        x = F.pad(x, (0, pad))
+        if mode == "tile" and current > 0:
+            repeats = (target_channels + current - 1) // current
+            x = x.repeat_interleave(repeats, dim=-1)[..., :target_channels]
+        else:
+            x = F.pad(x, (0, pad))
     work_dtype = _real_work_dtype(x.dtype)
     x_work = x.to(work_dtype).contiguous()
     return torch.view_as_complex(x_work.reshape(*x_work.shape[:-1], target_channels // 2, 2))
@@ -250,6 +255,7 @@ class LCTLinear(nn.Module):
         normalization: NormMode = "unitary",
         unitary_projection: bool = False,
         learnable_transform: bool = False,
+        expansion_mode: Literal["zero", "tile"] = "tile",
     ) -> None:
         super().__init__()
         if in_features <= 0:
@@ -260,6 +266,7 @@ class LCTLinear(nn.Module):
         self.in_features = int(in_features)
         self.out_features = int(out_features)
         self.inverse_after_multiply = inverse_after_multiply
+        self.expansion_mode = expansion_mode
         self._direct_fft = (
             not learnable_transform
             and abs(a) <= 1e-6
@@ -306,7 +313,11 @@ class LCTLinear(nn.Module):
         if torch.is_complex(x):
             raise TypeError("LCTLinear expects a real-valued tensor")
 
-        packed = _pack_real_pairs(x, self.padded_features)
+        packed = _pack_real_pairs(
+            x,
+            self.padded_features,
+            mode=self.expansion_mode if self.out_features > self.in_features else "zero",
+        )
         if self._direct_fft:
             spectral = torch.fft.fft(packed, dim=-1, norm="ortho")
         else:
@@ -367,5 +378,5 @@ class LCTLinear(nn.Module):
         return (
             f"in_features={self.in_features}, out_features={self.out_features}, "
             f"bias={self.bias is not None}, inverse_after_multiply={self.inverse_after_multiply}, "
-            f"complex_features={self.complex_features}"
+            f"complex_features={self.complex_features}, expansion_mode={self.expansion_mode}"
         )

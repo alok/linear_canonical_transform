@@ -1,0 +1,130 @@
+{
+  "device": "cpu",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 20,
+    "eval_iters": 4,
+    "batch_size": 8,
+    "seq_len": 24,
+    "n_layers": 2,
+    "n_heads": 4,
+    "embed_dim": 64,
+    "dropout": 0.0,
+    "vocab_size": 65,
+    "lr": 0.0003,
+    "weight_decay": 0.0
+  },
+  "results": [
+    {
+      "name": "linear-frft45",
+      "variant": "linear",
+      "activation_kwargs": {},
+      "linear_kwargs": {
+        "a": 0.7071067811865476,
+        "b": 0.7071067811865475,
+        "c": -0.7071067811865475,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true
+      },
+      "initial_val_loss": 4.327474236488342,
+      "final_train_loss": 3.8142998218536377,
+      "final_val_loss": 3.868027687072754,
+      "steps": 20,
+      "tokens_per_second": 26383.23016063462,
+      "parameter_count": 77767
+    },
+    {
+      "name": "linear-fourier",
+      "variant": "linear",
+      "activation_kwargs": {},
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true
+      },
+      "initial_val_loss": 4.3376243114471436,
+      "final_train_loss": 3.8226740956306458,
+      "final_val_loss": 3.8768040537834167,
+      "steps": 20,
+      "tokens_per_second": 42429.6307106394,
+      "parameter_count": 77767
+    },
+    {
+      "name": "baseline",
+      "variant": "baseline",
+      "activation_kwargs": {},
+      "linear_kwargs": {},
+      "initial_val_loss": 4.322430610656738,
+      "final_train_loss": 3.9056140184402466,
+      "final_val_loss": 3.9414602518081665,
+      "steps": 20,
+      "tokens_per_second": 44990.641238506134,
+      "parameter_count": 110017
+    },
+    {
+      "name": "activation-frft45",
+      "variant": "activation",
+      "activation_kwargs": {
+        "a": 0.7071067811865476,
+        "b": 0.7071067811865475,
+        "c": -0.7071067811865475,
+        "bias_init": 0.1,
+        "residual_mix": 0.1,
+        "dense_threshold": 128
+      },
+      "linear_kwargs": {},
+      "initial_val_loss": 4.315966963768005,
+      "final_train_loss": 3.9676586985588074,
+      "final_val_loss": 3.9748526215553284,
+      "steps": 20,
+      "tokens_per_second": 19701.830241882293,
+      "parameter_count": 110283
+    },
+    {
+      "name": "activation-fourier",
+      "variant": "activation",
+      "activation_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "bias_init": 0.1,
+        "residual_mix": 0.0,
+        "dense_threshold": 128
+      },
+      "linear_kwargs": {},
+      "initial_val_loss": 4.325937509536743,
+      "final_train_loss": 3.959998667240143,
+      "final_val_loss": 3.9931082129478455,
+      "steps": 20,
+      "tokens_per_second": 36964.43977285308,
+      "parameter_count": 110283
+    },
+    {
+      "name": "hybrid-fourier",
+      "variant": "hybrid",
+      "activation_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "bias_init": 0.1,
+        "residual_mix": 0.0,
+        "dense_threshold": 128
+      },
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true
+      },
+      "initial_val_loss": 4.382845878601074,
+      "final_train_loss": 4.028871476650238,
+      "final_val_loss": 4.032309949398041,
+      "steps": 20,
+      "tokens_per_second": 33874.51966017279,
+      "parameter_count": 78033
+    }
+  ]
+}

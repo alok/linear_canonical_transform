@@ -14,6 +14,8 @@ from lct_activation.integrations.nanogpt import (  # noqa: E402
     DEFAULT_UPSTREAM_NANOGPT_REPO,
     DEFAULT_UPSTREAM_NANOGPT_URL,
     infer_nanogpt_repo_kind,
+    make_lct_activation_factory,
+    make_lct_linear_factory,
     run_upstream_train,
 )
 
@@ -39,6 +41,24 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         help="Clone the upstream NanoGPT repository before training if it is missing.",
     )
     parser.add_argument(
+        "--variant",
+        choices=("activation", "linear", "hybrid"),
+        default="activation",
+        help="Which LCT patch to apply to NanoGPT's MLP block.",
+    )
+    parser.add_argument("--a", type=float, default=0.0)
+    parser.add_argument("--b", type=float, default=1.0)
+    parser.add_argument("--c", type=float, default=0.0)
+    parser.add_argument("--bias-init", type=float, default=0.1)
+    parser.add_argument("--residual-mix", type=float, default=0.0)
+    parser.add_argument(
+        "--inverse-after-multiply",
+        dest="inverse_after_multiply",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether LCTLinear should map back with the inverse transform after spectral mixing.",
+    )
+    parser.add_argument(
         "train_args",
         nargs=argparse.REMAINDER,
         help="Arguments after '--' are forwarded to NanoGPT train.py.",
@@ -62,11 +82,28 @@ def main() -> None:
                 "Use an upstream repo for training, or run scripts/bench_nanogpt.py for the local benchmark path."
             )
 
+    activation_factory = make_lct_activation_factory(
+        a=args.a,
+        b=args.b,
+        c=args.c,
+        bias_init=args.bias_init,
+        residual_mix=args.residual_mix,
+    )
+    linear_factory = make_lct_linear_factory(
+        a=args.a,
+        b=args.b,
+        c=args.c,
+        inverse_after_multiply=args.inverse_after_multiply,
+    )
+
     run_upstream_train(
         repo_dir=repo_dir,
         train_argv=train_args,
         clone_if_missing=args.clone_if_missing,
         repo_url=args.repo_url,
+        variant=args.variant,
+        activation_factory=activation_factory,
+        linear_factory=linear_factory,
     )
 
 

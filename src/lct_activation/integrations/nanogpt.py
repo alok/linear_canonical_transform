@@ -17,19 +17,23 @@ import torch
 from torch import Tensor, nn
 
 from lct_activation.layers import LCTActivation as CoreLCTActivation
+from lct_activation.layers import LCTLinear
 
 DEFAULT_LOCAL_NANOGPT_REPO = Path("/Users/alokbeniwal/nanogpt")
 DEFAULT_UPSTREAM_NANOGPT_REPO = Path("extern/nanoGPT")
 DEFAULT_UPSTREAM_NANOGPT_URL = "https://github.com/karpathy/nanoGPT.git"
 
 RepoKind: TypeAlias = Literal["local", "upstream"]
+ModelVariant: TypeAlias = Literal["baseline", "activation", "linear", "hybrid"]
 ActivationFactory: TypeAlias = Callable[[], nn.Module]
+LinearFactory: TypeAlias = Callable[[nn.Linear], nn.Module]
 
 _LOCAL_STOP_MARKERS = (
     "\ngpt = GPT()",
     "\ngpt = GPT(",
 )
 _PATCH_ATTR = "__lct_activation_patched__"
+_PATCH_VARIANT_ATTR = "__lct_patch_variant__"
 _ORIGINAL_INIT_ATTR = "__lct_activation_original_init__"
 
 
@@ -74,6 +78,56 @@ class NonlinearLCTActivation(nn.Module):
 
         activation = self._ensure_activation(x.shape[-1], device=x.device)
         return activation(x)
+
+
+def make_lct_activation_factory(
+    *,
+    a: float = 0.0,
+    b: float = 1.0,
+    c: float = 0.0,
+    bias_init: float = 0.1,
+    inverse_after_nonlinearity: bool = False,
+    residual_mix: float = 0.0,
+    dense_threshold: int = 256,
+) -> ActivationFactory:
+    return lambda: NonlinearLCTActivation(
+        a=a,
+        b=b,
+        c=c,
+        bias_init=bias_init,
+        inverse_after_nonlinearity=inverse_after_nonlinearity,
+        residual_mix=residual_mix,
+        dense_threshold=dense_threshold,
+    )
+
+
+def make_lct_linear_factory(
+    *,
+    a: float = 0.0,
+    b: float = 1.0,
+    c: float = 0.0,
+    inverse_after_multiply: bool = True,
+    dense_threshold: int = 32,
+    learnable_transform: bool = False,
+) -> LinearFactory:
+    def factory(linear: nn.Linear) -> nn.Module:
+        replacement = LCTLinear(
+            linear.in_features,
+            linear.out_features,
+            bias=linear.bias is not None,
+            a=a,
+            b=b,
+            c=c,
+            inverse_after_multiply=inverse_after_multiply,
+            dense_threshold=dense_threshold,
+            learnable_transform=learnable_transform,
+        )
+        replacement = replacement.to(device=linear.weight.device, dtype=linear.weight.dtype)
+        if linear.bias is not None and replacement.bias is not None:
+            replacement.bias.data.copy_(linear.bias.data)
+        return replacement
+
+    return factory
 
 
 def infer_nanogpt_repo_kind(repo_dir: Path | str) -> RepoKind:
@@ -145,29 +199,67 @@ def _replace_activation(module: nn.Module, activation: nn.Module) -> None:
     raise RuntimeError(f"Could not find a replaceable activation inside {type(module).__name__}.")
 
 
+def _replace_first_linear(module: nn.Module, linear_factory: LinearFactory) -> None:
+    for attr in ("c_fc", "fc1", "fc", "proj_in"):
+        current = getattr(module, attr, None)
+        if isinstance(current, nn.Linear):
+            setattr(module, attr, linear_factory(current))
+            return
+
+    net = getattr(module, "net", None)
+    if isinstance(net, nn.Sequential):
+        for idx, layer in enumerate(net):
+            if isinstance(layer, nn.Linear):
+                net[idx] = linear_factory(layer)
+                return
+
+    raise RuntimeError(f"Could not find a replaceable linear layer inside {type(module).__name__}.")
+
+
+def _resolve_variant(use_lct: bool, variant: ModelVariant | None) -> ModelVariant:
+    if variant is not None:
+        return variant
+    return "activation" if use_lct else "baseline"
+
+
 def patch_feedforward_class(
     feedforward_cls: type[nn.Module],
+    *,
+    variant: ModelVariant = "activation",
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
 ) -> type[nn.Module]:
-    if getattr(feedforward_cls, _PATCH_ATTR, False):
+    if variant == "baseline":
         return feedforward_cls
 
-    original_init = feedforward_cls.__init__
+    if getattr(feedforward_cls, _PATCH_ATTR, False) and getattr(feedforward_cls, _PATCH_VARIANT_ATTR, None) == variant:
+        return feedforward_cls
+
+    original_init = getattr(feedforward_cls, _ORIGINAL_INIT_ATTR, feedforward_cls.__init__)
 
     @wraps(original_init)
     def patched_init(self: nn.Module, *args: Any, **kwargs: Any) -> None:
         original_init(self, *args, **kwargs)
-        _replace_activation(self, activation_factory())
+        if variant in {"linear", "hybrid"}:
+            if linear_factory is None:
+                raise RuntimeError("linear_factory is required for linear or hybrid NanoGPT patching.")
+            _replace_first_linear(self, linear_factory)
+        if variant in {"activation", "hybrid"}:
+            _replace_activation(self, activation_factory())
 
     setattr(feedforward_cls, _ORIGINAL_INIT_ATTR, original_init)
     feedforward_cls.__init__ = patched_init
     setattr(feedforward_cls, _PATCH_ATTR, True)
+    setattr(feedforward_cls, _PATCH_VARIANT_ATTR, variant)
     return feedforward_cls
 
 
 def patch_upstream_nanogpt(
     repo_dir: Path | str = DEFAULT_UPSTREAM_NANOGPT_REPO,
+    *,
+    variant: ModelVariant = "activation",
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
 ) -> Any:
     repo_dir = Path(repo_dir)
     if infer_nanogpt_repo_kind(repo_dir) != "upstream":
@@ -175,8 +267,16 @@ def patch_upstream_nanogpt(
 
     _add_repo_to_syspath(repo_dir)
     importlib.invalidate_caches()
-    model_module = importlib.import_module("model")
-    patch_feedforward_class(model_module.MLP, activation_factory)
+    if "model" in sys.modules:
+        model_module = importlib.reload(sys.modules["model"])
+    else:
+        model_module = importlib.import_module("model")
+    patch_feedforward_class(
+        model_module.MLP,
+        variant=variant,
+        activation_factory=activation_factory,
+        linear_factory=linear_factory,
+    )
     return model_module
 
 
@@ -184,7 +284,9 @@ def build_upstream_nanogpt(
     repo_dir: Path | str = DEFAULT_UPSTREAM_NANOGPT_REPO,
     *,
     use_lct: bool = False,
+    variant: ModelVariant | None = None,
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
     block_size: int = 256,
     vocab_size: int = 50304,
     n_layer: int = 12,
@@ -198,12 +300,21 @@ def build_upstream_nanogpt(
     if infer_nanogpt_repo_kind(repo_dir) != "upstream":
         raise ValueError(f"{repo_dir} is not an upstream NanoGPT checkout.")
 
-    if use_lct:
-        model_module = patch_upstream_nanogpt(repo_dir, activation_factory)
+    resolved_variant = _resolve_variant(use_lct, variant)
+    if resolved_variant != "baseline":
+        model_module = patch_upstream_nanogpt(
+            repo_dir,
+            variant=resolved_variant,
+            activation_factory=activation_factory,
+            linear_factory=linear_factory,
+        )
     else:
         _add_repo_to_syspath(repo_dir)
         importlib.invalidate_caches()
-        model_module = importlib.import_module("model")
+        if "model" in sys.modules:
+            model_module = importlib.reload(sys.modules["model"])
+        else:
+            model_module = importlib.import_module("model")
 
     config = model_module.GPTConfig(
         block_size=block_size,
@@ -436,12 +547,17 @@ def _patch_local_multihead_init(namespace: dict[str, Any]) -> None:
     def patched_init(self: nn.Module, *args: Any, **kwargs: Any) -> None:
         head_size = kwargs.get("head_size")
         n_heads = kwargs.get("n_heads", namespace["args"].N_HEADS)
+        ctx_len = namespace["args"].CTX_LEN
 
         if len(args) >= 1:
             head_size = args[0]
         if len(args) >= 2 or "embed_dim" in kwargs:
             result = original_init(self, *args, **kwargs)
-            self.mask = self.mask.to(dtype=torch.bool)
+            causal_mask = torch.triu(
+                torch.ones(ctx_len, ctx_len, device=self.mask.device, dtype=torch.bool),
+                diagonal=1,
+            )
+            self.mask = causal_mask.unsqueeze(0).unsqueeze(0)
             return result
         if len(args) >= 3:
             n_heads = args[2]
@@ -450,7 +566,11 @@ def _patch_local_multihead_init(namespace: dict[str, Any]) -> None:
             head_size = namespace["args"].HEAD_SIZE
         kwargs["embed_dim"] = int(head_size) * int(n_heads)
         result = original_init(self, *args, **kwargs)
-        self.mask = self.mask.to(dtype=torch.bool)
+        causal_mask = torch.triu(
+            torch.ones(ctx_len, ctx_len, device=self.mask.device, dtype=torch.bool),
+            diagonal=1,
+        )
+        self.mask = causal_mask.unsqueeze(0).unsqueeze(0)
         return result
 
     multihead_cls.__init__ = patched_init
@@ -461,7 +581,9 @@ def load_local_nanogpt_definitions(
     repo_dir: Path | str = DEFAULT_LOCAL_NANOGPT_REPO,
     *,
     use_lct: bool = False,
+    variant: ModelVariant | None = None,
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
 ) -> dict[str, Any]:
     repo_dir = Path(repo_dir)
     source_path = repo_dir / "nanogpt" / "__init__.py"
@@ -488,8 +610,14 @@ def load_local_nanogpt_definitions(
 
     _patch_local_multihead_init(module_globals)
     _patch_local_gpt_forward(module_globals)
-    if use_lct:
-        patch_feedforward_class(module_globals["FeedForward"], activation_factory)
+    resolved_variant = _resolve_variant(use_lct, variant)
+    if resolved_variant != "baseline":
+        patch_feedforward_class(
+            module_globals["FeedForward"],
+            variant=resolved_variant,
+            activation_factory=activation_factory,
+            linear_factory=linear_factory,
+        )
     return module_globals
 
 
@@ -530,7 +658,9 @@ def build_local_nanogpt(
     repo_dir: Path | str = DEFAULT_LOCAL_NANOGPT_REPO,
     *,
     use_lct: bool = False,
+    variant: ModelVariant | None = None,
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
     batch_size: int = 8,
     ctx_len: int = 128,
     n_heads: int = 8,
@@ -543,7 +673,9 @@ def build_local_nanogpt(
     namespace = load_local_nanogpt_definitions(
         repo_dir,
         use_lct=use_lct,
+        variant=variant,
         activation_factory=activation_factory,
+        linear_factory=linear_factory,
     )
     args = configure_local_nanogpt(
         namespace,
@@ -571,7 +703,9 @@ def run_upstream_train(
     train_argv: list[str] | tuple[str, ...] = (),
     clone_if_missing: bool = False,
     repo_url: str = DEFAULT_UPSTREAM_NANOGPT_URL,
+    variant: ModelVariant = "activation",
     activation_factory: ActivationFactory = NonlinearLCTActivation,
+    linear_factory: LinearFactory | None = None,
 ) -> None:
     repo_dir = ensure_upstream_nanogpt_repo(
         repo_dir,
@@ -583,7 +717,12 @@ def run_upstream_train(
             f"{repo_dir} does not look like an upstream NanoGPT checkout with train.py/model.py."
         )
 
-    patch_upstream_nanogpt(repo_dir, activation_factory)
+    patch_upstream_nanogpt(
+        repo_dir,
+        variant=variant,
+        activation_factory=activation_factory,
+        linear_factory=linear_factory,
+    )
     train_py = repo_dir / "train.py"
     old_argv = sys.argv[:]
     with _temporary_chdir(repo_dir):
@@ -598,6 +737,7 @@ __all__ = [
     "DEFAULT_LOCAL_NANOGPT_REPO",
     "DEFAULT_UPSTREAM_NANOGPT_REPO",
     "DEFAULT_UPSTREAM_NANOGPT_URL",
+    "ModelVariant",
     "NonlinearLCTActivation",
     "build_local_nanogpt",
     "build_upstream_nanogpt",
@@ -605,6 +745,8 @@ __all__ = [
     "ensure_upstream_nanogpt_repo",
     "infer_nanogpt_repo_kind",
     "load_local_nanogpt_definitions",
+    "make_lct_activation_factory",
+    "make_lct_linear_factory",
     "patch_feedforward_class",
     "patch_upstream_nanogpt",
     "run_upstream_train",

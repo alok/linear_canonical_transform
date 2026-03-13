@@ -21,6 +21,12 @@ cd /Users/alokbeniwal/LCT
 uv sync --extra dev
 ```
 
+Install directly from GitHub with `uv` once this branch is pushed:
+
+```bash
+uv add "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt"
+```
+
 ## Quick use
 
 ```python
@@ -100,6 +106,20 @@ uv run python scripts/bench_linear.py \
 On this machine, the current implementation is still slower than `nn.Linear`
 for small 512-wide CPU layers, but already faster around 4096 features where
 the structured FFT path starts to dominate the dense matmul.
+
+Run the local NanoGPT ablation sweep:
+
+```bash
+uv run python scripts/tune_nanogpt_lct.py \
+  --device cpu \
+  --steps 20 \
+  --eval-iters 4 \
+  --batch-size 8 \
+  --seq-len 24 \
+  --n-layers 2 \
+  --n-heads 4 \
+  --embed-dim 64
+```
 
 ## Training usage
 

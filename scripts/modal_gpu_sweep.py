@@ -58,6 +58,9 @@ def run_gpu_sweep() -> dict[str, object]:
     results["tune_nanogpt_gpu"] = run(
         "uv run lct-tune-nanogpt --repo-dir /root/nanogpt --device cuda --steps 20 --eval-iters 4 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --presets baseline linear-fourier --linear-angle-degrees 15 30 45"
     )
+    results["tune_nanogpt_gpu_inverse_false"] = run(
+        "uv run lct-tune-nanogpt --repo-dir /root/nanogpt --device cuda --steps 10 --eval-iters 2 --batch-size 4 --seq-len 16 --n-layers 2 --n-heads 4 --embed-dim 64 --presets baseline linear-fourier --linear-angle-degrees 10 15 20 25 30 35 40 --no-inverse-after-multiply"
+    )
     return results
 
 

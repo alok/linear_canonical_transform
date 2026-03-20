@@ -18,6 +18,7 @@ from torch import Tensor, nn
 
 from lct_activation.layers import LCTActivation as CoreLCTActivation
 from lct_activation.layers import LCTLinear
+from lct_activation.functional import NormMode
 
 DEFAULT_LOCAL_NANOGPT_REPO = Path("/Users/alokbeniwal/nanogpt")
 DEFAULT_UPSTREAM_NANOGPT_REPO = Path("extern/nanoGPT")
@@ -89,6 +90,8 @@ def make_lct_activation_factory(
     inverse_after_nonlinearity: bool = False,
     residual_mix: float = 0.0,
     dense_threshold: int = 256,
+    normalization: NormMode = "unitary",
+    unitary_projection: bool = True,
 ) -> ActivationFactory:
     return lambda: NonlinearLCTActivation(
         a=a,
@@ -98,6 +101,8 @@ def make_lct_activation_factory(
         inverse_after_nonlinearity=inverse_after_nonlinearity,
         residual_mix=residual_mix,
         dense_threshold=dense_threshold,
+        normalization=normalization,
+        unitary_projection=unitary_projection,
     )
 
 
@@ -109,6 +114,9 @@ def make_lct_linear_factory(
     inverse_after_multiply: bool = True,
     dense_threshold: int = 32,
     learnable_transform: bool = False,
+    normalization: NormMode = "unitary",
+    unitary_projection: bool = False,
+    use_triton_kernels: bool = True,
 ) -> LinearFactory:
     def factory(linear: nn.Linear) -> nn.Module:
         replacement = LCTLinear(
@@ -121,6 +129,9 @@ def make_lct_linear_factory(
             inverse_after_multiply=inverse_after_multiply,
             dense_threshold=dense_threshold,
             learnable_transform=learnable_transform,
+            normalization=normalization,
+            unitary_projection=unitary_projection,
+            use_triton_kernels=use_triton_kernels,
         )
         replacement = replacement.to(device=linear.weight.device, dtype=linear.weight.dtype)
         if linear.bias is not None and replacement.bias is not None:

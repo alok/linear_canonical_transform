@@ -10,10 +10,11 @@
     "in_features": 1024,
     "out_features": 1024,
     "mode": "forward",
+    "normalization": "unitary",
     "compiled": true,
-    "dense_ms": 0.1664,
-    "lct_ms": 0.4213,
-    "lct_over_dense": 2.5309
+    "dense_ms": 0.1672,
+    "lct_ms": 0.4175,
+    "lct_over_dense": 2.4966
   },
   "bench_linear_train_compile": {
     "device": "cuda",
@@ -21,47 +22,108 @@
     "in_features": 1024,
     "out_features": 1024,
     "mode": "train",
+    "normalization": "unitary",
     "compiled": true,
-    "dense_ms": 0.7066,
-    "lct_ms": 1.218,
-    "lct_over_dense": 1.7237
+    "dense_ms": 0.6885,
+    "lct_ms": 1.0122,
+    "lct_over_dense": 1.4702
   },
   "bench_nanogpt_compile": {
-    "baseline_tokens_per_second": 241780.0146904295,
-    "linear_tokens_per_second": 158201.94263748228,
-    "linear_over_baseline": 0.6543218340028684,
+    "baseline_tokens_per_second": 235963.20055608707,
+    "linear_tokens_per_second": 147645.1521021026,
+    "linear_over_baseline": 0.6257126185530283,
     "compiled": true
   },
   "tune_nanogpt_gpu": {
     "device": "cuda",
     "compiled": false,
+    "config": {
+      "normalization": "unitary",
+      "inverse_after_multiply": true
+    },
     "results": [
       {
         "name": "linear-frft15",
         "final_val_loss": 3.7979027032852173,
-        "tokens_per_second": 14311.903578438745
+        "tokens_per_second": 13750.884676057758
       },
       {
         "name": "linear-frft30",
         "final_val_loss": 3.803081512451172,
-        "tokens_per_second": 14075.09906927108
+        "tokens_per_second": 14008.03720619346
       },
       {
         "name": "linear-frft45",
         "final_val_loss": 3.8156869411468506,
-        "tokens_per_second": 12543.261021303026
+        "tokens_per_second": 13875.047515262415
       },
       {
         "name": "linear-fourier",
         "final_val_loss": 3.8523340225219727,
-        "tokens_per_second": 8848.118132810687
+        "tokens_per_second": 9173.52747779133
       },
       {
         "name": "baseline",
         "final_val_loss": 3.941460072994232,
-        "tokens_per_second": 11477.99650136275
+        "tokens_per_second": 11514.707230277725
       }
     ],
-    "modal_run_url": "https://modal.com/apps/alok/main/ap-7tQGYXenOXrKohmkVNhua7"
+    "modal_run_url": "https://modal.com/apps/alok/main/ap-dQu8YTO0mk4FN8kguvWvJW"
+  },
+  "tune_nanogpt_gpu_inverse_false": {
+    "device": "cuda",
+    "compiled": false,
+    "config": {
+      "normalization": "unitary",
+      "inverse_after_multiply": false
+    },
+    "results": [
+      {
+        "name": "linear-frft10",
+        "final_val_loss": 3.919516086578369,
+        "tokens_per_second": 6291.446192028571
+      },
+      {
+        "name": "linear-frft35",
+        "final_val_loss": 3.9392205476760864,
+        "tokens_per_second": 6527.1567148506765
+      },
+      {
+        "name": "linear-frft25",
+        "final_val_loss": 3.9432127475738525,
+        "tokens_per_second": 6591.049478390658
+      },
+      {
+        "name": "linear-frft40",
+        "final_val_loss": 3.949167013168335,
+        "tokens_per_second": 6248.646472388111
+      },
+      {
+        "name": "linear-frft20",
+        "final_val_loss": 3.960317373275757,
+        "tokens_per_second": 6452.515149572778
+      },
+      {
+        "name": "linear-frft15",
+        "final_val_loss": 3.973459839820862,
+        "tokens_per_second": 6438.78479285398
+      },
+      {
+        "name": "linear-frft30",
+        "final_val_loss": 3.9737067222595215,
+        "tokens_per_second": 6157.015477565123
+      },
+      {
+        "name": "baseline",
+        "final_val_loss": 4.036170721054077,
+        "tokens_per_second": 2557.229916494178
+      },
+      {
+        "name": "linear-fourier",
+        "final_val_loss": 4.0713783502578735,
+        "tokens_per_second": 4917.712417572418
+      }
+    ],
+    "modal_run_url": "https://modal.com/apps/alok/main/ap-dQu8YTO0mk4FN8kguvWvJW"
   }
 }

@@ -208,6 +208,29 @@ So the current state is:
   even after adding the optimized Fourier backward and the Triton pointwise
   multiply.
 
+## Inverse-free sweep
+
+We also tested `inverse_after_multiply=False` around the same `10°` to `40°`
+region.
+
+This did improve throughput on both MPS and CUDA, but it did **not** improve
+the validation-loss frontier enough to beat the inverse-backed variants.
+
+On CUDA, for example:
+
+| variant | final val loss | tokens/s |
+| --- | ---: | ---: |
+| `linear-frft10` | `3.9195` | `6.29k` |
+| `linear-frft35` | `3.9392` | `6.53k` |
+| `baseline` | `4.0362` | `2.56k` |
+| `linear-fourier` | `4.0714` | `4.92k` |
+
+So the current recommendation stays the same:
+
+- keep `inverse_after_multiply=True` for the best paper-quality result,
+- treat `inverse_after_multiply=False` as a speed-biased ablation, not the main
+  model configuration.
+
 ## Next tuning steps
 
 - Sweep `LCTLinear` more finely between `10°` and `40°`.

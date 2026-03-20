@@ -69,6 +69,19 @@ def parse_bench_linear_args() -> argparse.Namespace:
     parser.add_argument("--warmup-steps", type=int, default=20)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--mode", choices=("forward", "train"), default="forward")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--use-triton-kernels",
+        dest="use_triton_kernels",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     return parser.parse_args()
@@ -80,7 +93,13 @@ def bench_linear_main() -> None:
 
     x = torch.randn(args.batch_size, args.in_features, device=device)
     dense = torch.nn.Linear(args.in_features, args.out_features).to(device)
-    lct = LCTLinear(args.in_features, args.out_features).to(device)
+    lct = LCTLinear(
+        args.in_features,
+        args.out_features,
+        normalization=args.normalization,
+        unitary_projection=args.unitary_projection,
+        use_triton_kernels=args.use_triton_kernels,
+    ).to(device)
     dense = _maybe_compile(dense, enabled=args.compile, device=device, mode=args.compile_mode)
     lct = _maybe_compile(lct, enabled=args.compile, device=device, mode=args.compile_mode)
 
@@ -121,6 +140,7 @@ def bench_linear_main() -> None:
             "in_features": args.in_features,
             "out_features": args.out_features,
             "mode": args.mode,
+            "normalization": args.normalization,
             "compiled": bool(args.compile and device.type == "cuda"),
             "dense_ms": round(dense_ms, 4),
             "lct_ms": round(lct_ms, 4),
@@ -162,6 +182,19 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--c", type=float, default=0.0)
     parser.add_argument("--bias-init", type=float, default=0.1)
     parser.add_argument("--residual-mix", type=float, default=0.0)
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--use-triton-kernels",
+        dest="use_triton_kernels",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument(
         "--inverse-after-multiply",
         dest="inverse_after_multiply",
@@ -270,12 +303,17 @@ def bench_nanogpt_main() -> None:
         c=args.c,
         bias_init=args.bias_init,
         residual_mix=args.residual_mix,
+        normalization=args.normalization,
+        unitary_projection=args.unitary_projection,
     )
     linear_factory = make_lct_linear_factory(
         a=args.a,
         b=args.b,
         c=args.c,
         inverse_after_multiply=args.inverse_after_multiply,
+        normalization=args.normalization,
+        unitary_projection=args.unitary_projection,
+        use_triton_kernels=args.use_triton_kernels,
     )
 
     results = []
@@ -335,6 +373,19 @@ def parse_train_nanogpt_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--c", type=float, default=0.0)
     parser.add_argument("--bias-init", type=float, default=0.1)
     parser.add_argument("--residual-mix", type=float, default=0.0)
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--use-triton-kernels",
+        dest="use_triton_kernels",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument(
         "--inverse-after-multiply",
         dest="inverse_after_multiply",
@@ -366,12 +417,17 @@ def train_nanogpt_main() -> None:
         c=args.c,
         bias_init=args.bias_init,
         residual_mix=args.residual_mix,
+        normalization=args.normalization,
+        unitary_projection=args.unitary_projection,
     )
     linear_factory = make_lct_linear_factory(
         a=args.a,
         b=args.b,
         c=args.c,
         inverse_after_multiply=args.inverse_after_multiply,
+        normalization=args.normalization,
+        unitary_projection=args.unitary_projection,
+        use_triton_kernels=args.use_triton_kernels,
     )
 
     run_upstream_train(
@@ -468,6 +524,25 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--vocab-size", type=int, default=65)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--use-triton-kernels",
+        dest="use_triton_kernels",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--inverse-after-multiply",
+        dest="inverse_after_multiply",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     parser.add_argument(
@@ -508,8 +583,22 @@ def _evaluate_loss(model: torch.nn.Module, get_batch, split: str, eval_iters: in
 
 def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.device, seed_offset: int) -> dict[str, object]:
     torch.manual_seed(args.seed + seed_offset)
-    activation_factory = make_lct_activation_factory(**spec.activation_kwargs)
-    linear_factory = make_lct_linear_factory(**spec.linear_kwargs)
+    activation_kwargs = {
+        **spec.activation_kwargs,
+        "normalization": args.normalization,
+        "unitary_projection": args.unitary_projection,
+    }
+    linear_kwargs = {
+        **spec.linear_kwargs,
+        "inverse_after_multiply": spec.linear_kwargs.get("inverse_after_multiply", args.inverse_after_multiply)
+        if spec.variant not in {"linear", "hybrid"}
+        else args.inverse_after_multiply,
+        "normalization": args.normalization,
+        "unitary_projection": args.unitary_projection,
+        "use_triton_kernels": args.use_triton_kernels,
+    }
+    activation_factory = make_lct_activation_factory(**activation_kwargs)
+    linear_factory = make_lct_linear_factory(**linear_kwargs)
 
     model, namespace = build_local_nanogpt(
         args.repo_dir,
@@ -553,8 +642,8 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "name": spec.name,
         "variant": spec.variant,
         "compiled": bool(args.compile and device.type == "cuda"),
-        "activation_kwargs": spec.activation_kwargs,
-        "linear_kwargs": spec.linear_kwargs,
+        "activation_kwargs": activation_kwargs,
+        "linear_kwargs": linear_kwargs,
         "initial_val_loss": initial_val_loss,
         "final_train_loss": final_train_loss,
         "final_val_loss": final_val_loss,
@@ -591,6 +680,9 @@ def tune_nanogpt_main() -> None:
             "vocab_size": args.vocab_size,
             "lr": args.lr,
             "weight_decay": args.weight_decay,
+            "normalization": args.normalization,
+            "inverse_after_multiply": args.inverse_after_multiply,
+            "unitary_projection": args.unitary_projection,
         },
         "results": results,
     }

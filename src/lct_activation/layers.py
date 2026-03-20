@@ -193,6 +193,19 @@ def _unpack_real_pairs(z: Tensor, *, original_channels: int) -> Tensor:
     return out[..., :original_channels]
 
 
+def _diag_grad_from_complex(spectral: Tensor, spectral_grad: Tensor) -> tuple[Tensor, Tensor]:
+    spec_ri = torch.view_as_real(spectral)
+    grad_ri = torch.view_as_real(spectral_grad)
+
+    spec_r, spec_i = spec_ri[..., 0], spec_ri[..., 1]
+    grad_r, grad_i = grad_ri[..., 0], grad_ri[..., 1]
+
+    reduce_dims = tuple(range(spectral.ndim - 1))
+    grad_real = torch.sum(spec_r * grad_r + spec_i * grad_i, dim=reduce_dims)
+    grad_imag = torch.sum(spec_r * grad_i - spec_i * grad_r, dim=reduce_dims)
+    return grad_real, grad_imag
+
+
 def _norm_mode(normalization: NormMode | None) -> NormMode:
     return "unitary" if normalization is None else normalization
 
@@ -285,9 +298,9 @@ class _DirectFFTLinearFn(torch.autograd.Function):
             mode=ctx.expansion_mode,
         ).to(ctx.input_dtype)
 
-        grad_diag = torch.sum(torch.conj(spectral) * spectral_grad, dim=tuple(range(spectral.ndim - 1)))
-        grad_real = grad_diag.real.to(spectral.real.dtype)
-        grad_imag = grad_diag.imag.to(spectral.real.dtype)
+        grad_real, grad_imag = _diag_grad_from_complex(spectral, spectral_grad)
+        grad_real = grad_real.to(spectral.real.dtype)
+        grad_imag = grad_imag.to(spectral.real.dtype)
 
         return grad_input, grad_real, grad_imag, None, None, None, None, None, None, None
 

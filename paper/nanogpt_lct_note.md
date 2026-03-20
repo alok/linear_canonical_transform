@@ -186,7 +186,7 @@ were not being code-generated efficiently, so the current CUDA compile path is
 using Triton where it can, but not yet for the complex-heavy parts of the LCT.
 That showed up in the 1024-wide compiled microbenchmark, where `LCTLinear` was
 still slower than `nn.Linear` even after the optimized Fourier backward and the
-Triton pointwise path (`lct_over_dense = 2.5309` for forward, `1.7237` for a
+Triton pointwise path (`lct_over_dense = 2.4709` for forward, `1.5272` for a
 train step).
 
 On the other hand, the actual CUDA NanoGPT tuning run still favored the linear
@@ -194,11 +194,11 @@ variants:
 
 | variant | final val loss | tokens/s |
 | --- | ---: | ---: |
-| `linear-frft15` | `3.7979` | `14.3k` |
-| `linear-frft30` | `3.8031` | `14.1k` |
-| `linear-frft45` | `3.8157` | `12.5k` |
-| `linear-fourier` | `3.8523` | `8.85k` |
-| `baseline` | `3.9415` | `11.48k` |
+| `linear-frft15` | `3.7979` | `8.31k` |
+| `linear-frft30` | `3.8031` | `9.26k` |
+| `linear-frft45` | `3.8157` | `14.32k` |
+| `linear-fourier` | `3.8523` | `3.63k` |
+| `baseline` | `3.9415` | `7.90k` |
 
 So the current state is:
 
@@ -220,10 +220,10 @@ On CUDA, for example:
 
 | variant | final val loss | tokens/s |
 | --- | ---: | ---: |
-| `linear-frft10` | `3.9195` | `6.29k` |
-| `linear-frft35` | `3.9392` | `6.53k` |
-| `baseline` | `4.0362` | `2.56k` |
-| `linear-fourier` | `4.0714` | `4.92k` |
+| `linear-frft10` | `3.9195` | `4.75k` |
+| `linear-frft35` | `3.9392` | `5.80k` |
+| `baseline` | `4.0362` | `2.28k` |
+| `linear-fourier` | `4.0714` | `4.47k` |
 
 So the current recommendation stays the same:
 

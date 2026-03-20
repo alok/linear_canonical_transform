@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .functional import NormMode, linear_canonical_transform, symplectic_d
-from .triton_ops import HAS_TRITON, complex_pointwise_mul
+from .triton_ops import HAS_TRITON, complex_mul_conj_diag_and_grad, complex_pointwise_mul
 
 __all__ = [
     "LCTActivation",
@@ -193,19 +193,6 @@ def _unpack_real_pairs(z: Tensor, *, original_channels: int) -> Tensor:
     return out[..., :original_channels]
 
 
-def _diag_grad_from_complex(spectral: Tensor, spectral_grad: Tensor) -> tuple[Tensor, Tensor]:
-    spec_ri = torch.view_as_real(spectral)
-    grad_ri = torch.view_as_real(spectral_grad)
-
-    spec_r, spec_i = spec_ri[..., 0], spec_ri[..., 1]
-    grad_r, grad_i = grad_ri[..., 0], grad_ri[..., 1]
-
-    reduce_dims = tuple(range(spectral.ndim - 1))
-    grad_real = torch.sum(spec_r * grad_r + spec_i * grad_i, dim=reduce_dims)
-    grad_imag = torch.sum(spec_r * grad_i - spec_i * grad_r, dim=reduce_dims)
-    return grad_real, grad_imag
-
-
 def _norm_mode(normalization: NormMode | None) -> NormMode:
     return "unitary" if normalization is None else normalization
 
@@ -279,10 +266,10 @@ class _DirectFFTLinearFn(torch.autograd.Function):
             if ctx.inverse_after_multiply
             else grad_packed
         )
-        grad_spectral = complex_pointwise_mul(
+        grad_spectral, grad_real, grad_imag = complex_mul_conj_diag_and_grad(
+            spectral,
             spectral_grad,
             diag,
-            conjugate_diag=True,
             use_triton=ctx.use_triton,
         )
         grad_input_packed = torch.fft.ifft(
@@ -297,8 +284,6 @@ class _DirectFFTLinearFn(torch.autograd.Function):
             expanded_channels=ctx.padded_features,
             mode=ctx.expansion_mode,
         ).to(ctx.input_dtype)
-
-        grad_real, grad_imag = _diag_grad_from_complex(spectral, spectral_grad)
         grad_real = grad_real.to(spectral.real.dtype)
         grad_imag = grad_imag.to(spectral.real.dtype)
 

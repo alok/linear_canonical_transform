@@ -7,7 +7,14 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .functional import NormMode, linear_canonical_transform, symplectic_d
-from .triton_ops import HAS_TRITON, complex_mul_conj_diag_and_grad, complex_pointwise_mul
+from .triton_ops import (
+    HAS_TRITON,
+    complex_mul_conj_diag_and_grad,
+    complex_pointwise_mul,
+    pack_real_pairs as fused_pack_real_pairs,
+    reduce_unpacked_grad as fused_reduce_unpacked_grad,
+    unpack_real_pairs as fused_unpack_real_pairs,
+)
 
 __all__ = [
     "LCTActivation",
@@ -146,11 +153,20 @@ def _real_work_dtype(dtype: torch.dtype) -> torch.dtype:
     return dtype
 
 
-def _pack_real_pairs(x: Tensor, target_channels: int, *, mode: Literal["zero", "tile"] = "zero") -> Tensor:
-    x = _expand_real_features(x, target_channels, mode=mode)
+def _pack_real_pairs(
+    x: Tensor,
+    target_channels: int,
+    *,
+    mode: Literal["zero", "tile"] = "zero",
+    use_triton: bool = False,
+) -> Tensor:
     work_dtype = _real_work_dtype(x.dtype)
-    x_work = x.to(work_dtype).contiguous()
-    return torch.view_as_complex(x_work.reshape(*x_work.shape[:-1], target_channels // 2, 2))
+    return fused_pack_real_pairs(
+        x.to(work_dtype),
+        target_channels,
+        mode=mode,
+        use_triton=use_triton,
+    )
 
 
 def _expand_real_features(x: Tensor, target_channels: int, *, mode: Literal["zero", "tile"] = "zero") -> Tensor:
@@ -171,26 +187,19 @@ def _reduce_expanded_features(
     original_channels: int,
     expanded_channels: int,
     mode: Literal["zero", "tile"] = "zero",
+    use_triton: bool = False,
 ) -> Tensor:
-    if expanded_channels == original_channels:
-        return grad
-    if mode == "zero":
-        return grad[..., :original_channels]
-
-    repeats = (expanded_channels + original_channels - 1) // original_channels
-    indices = torch.div(
-        torch.arange(expanded_channels, device=grad.device),
-        repeats,
-        rounding_mode="floor",
-    ).clamp(max=original_channels - 1)
-    out = torch.zeros(*grad.shape[:-1], original_channels, dtype=grad.dtype, device=grad.device)
-    out.index_add_(-1, indices, grad)
-    return out
+    return fused_reduce_unpacked_grad(
+        grad,
+        original_channels=original_channels,
+        expanded_channels=expanded_channels,
+        mode=mode,
+        use_triton=use_triton,
+    )
 
 
-def _unpack_real_pairs(z: Tensor, *, original_channels: int) -> Tensor:
-    out = torch.view_as_real(z).reshape(*z.shape[:-1], -1)
-    return out[..., :original_channels]
+def _unpack_real_pairs(z: Tensor, *, original_channels: int, use_triton: bool = False) -> Tensor:
+    return fused_unpack_real_pairs(z, original_channels=original_channels, use_triton=use_triton)
 
 
 def _norm_mode(normalization: NormMode | None) -> NormMode:
@@ -221,12 +230,12 @@ class _DirectFFTLinearFn(torch.autograd.Function):
         use_triton: bool,
     ) -> Tensor:
         work_dtype = _real_work_dtype(x.dtype)
-        expanded = _expand_real_features(
+        packed = _pack_real_pairs(
             x.to(work_dtype),
             padded_features,
             mode=expansion_mode,
+            use_triton=use_triton,
         )
-        packed = torch.view_as_complex(expanded.contiguous().reshape(*expanded.shape[:-1], padded_features // 2, 2))
         spectral = torch.fft.fft(packed, dim=-1, norm=_fft_norm(norm_mode))
         diag = torch.complex(spectral_real.to(work_dtype), spectral_imag.to(work_dtype))
         mixed = complex_pointwise_mul(spectral, diag, use_triton=use_triton)
@@ -257,8 +266,11 @@ class _DirectFFTLinearFn(torch.autograd.Function):
             grad_out.to(work_dtype),
             (0, ctx.padded_features - ctx.out_features),
         )
-        grad_packed = torch.view_as_complex(
-            grad_expanded.contiguous().reshape(*grad_expanded.shape[:-1], ctx.padded_features // 2, 2)
+        grad_packed = _pack_real_pairs(
+            grad_expanded,
+            ctx.padded_features,
+            mode="zero",
+            use_triton=ctx.use_triton,
         )
 
         spectral_grad = (
@@ -277,12 +289,17 @@ class _DirectFFTLinearFn(torch.autograd.Function):
             dim=-1,
             norm=_ifft_norm(ctx.norm_mode),
         )
-        grad_input_expanded = _unpack_real_pairs(grad_input_packed, original_channels=ctx.padded_features)
+        grad_input_expanded = _unpack_real_pairs(
+            grad_input_packed,
+            original_channels=ctx.padded_features,
+            use_triton=ctx.use_triton,
+        )
         grad_input = _reduce_expanded_features(
             grad_input_expanded,
             original_channels=ctx.in_features,
             expanded_channels=ctx.padded_features,
             mode=ctx.expansion_mode,
+            use_triton=ctx.use_triton,
         ).to(ctx.input_dtype)
         grad_real = grad_real.to(spectral.real.dtype)
         grad_imag = grad_imag.to(spectral.real.dtype)
@@ -463,6 +480,7 @@ class LCTLinear(nn.Module):
             x,
             self.padded_features,
             mode=selected_mode,
+            use_triton=bool(self.use_triton_kernels and x.is_cuda),
         )
         if self._direct_fft:
             spectral = torch.fft.fft(packed, dim=-1, norm=_fft_norm(norm_mode))
@@ -481,7 +499,11 @@ class LCTLinear(nn.Module):
             else:
                 mixed = self.transform.inverse(mixed)
 
-        out = _unpack_real_pairs(mixed, original_channels=self.padded_features)
+        out = _unpack_real_pairs(
+            mixed,
+            original_channels=self.padded_features,
+            use_triton=bool(self.use_triton_kernels and mixed.is_cuda),
+        )
         return out[..., : self.out_features]
 
     def forward(self, x: Tensor) -> Tensor:

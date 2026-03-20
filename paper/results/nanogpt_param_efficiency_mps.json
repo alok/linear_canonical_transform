@@ -1,0 +1,30 @@
+[
+  {
+    "name": "baseline-56",
+    "params": 85073,
+    "initial_val_loss": 4.285106182098389,
+    "final_train_loss": 4.159355163574219,
+    "final_val_loss": 4.2292938232421875
+  },
+  {
+    "name": "baseline-64",
+    "params": 109505,
+    "initial_val_loss": 4.3831751346588135,
+    "final_train_loss": 4.020112872123718,
+    "final_val_loss": 4.036170601844788
+  },
+  {
+    "name": "linear64-frft15",
+    "params": 77255,
+    "initial_val_loss": 4.361407041549683,
+    "final_train_loss": 3.8792786598205566,
+    "final_val_loss": 3.881629705429077
+  },
+  {
+    "name": "linear64-frft30",
+    "params": 77255,
+    "initial_val_loss": 4.334994316101074,
+    "final_train_loss": 3.844306707382202,
+    "final_val_loss": 3.8204874992370605
+  }
+]

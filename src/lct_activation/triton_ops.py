@@ -13,7 +13,14 @@ except ImportError:  # pragma: no cover - local macOS env intentionally lacks Tr
     tl = None
     HAS_TRITON = False
 
-__all__ = ["HAS_TRITON", "complex_pointwise_mul", "complex_mul_conj_diag_and_grad"]
+__all__ = [
+    "HAS_TRITON",
+    "complex_mul_conj_diag_and_grad",
+    "complex_pointwise_mul",
+    "pack_real_pairs",
+    "reduce_unpacked_grad",
+    "unpack_real_pairs",
+]
 
 
 if HAS_TRITON:
@@ -93,6 +100,111 @@ if HAS_TRITON:
 
         tl.atomic_add(grad_real_ptr + col_offsets, partial_real, mask=col_offsets < width)
         tl.atomic_add(grad_imag_ptr + col_offsets, partial_imag, mask=col_offsets < width)
+
+
+    @triton.jit
+    def _pack_real_pairs_kernel(
+        x_ptr,
+        out_ptr,
+        rows,
+        in_features,
+        target_channels,
+        repeat_mode: tl.constexpr,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+    ):
+        pid_m = tl.program_id(0)
+        pid_n = tl.program_id(1)
+
+        row_offsets = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        col_offsets = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+        complex_cols = target_channels // 2
+        mask = (row_offsets[:, None] < rows) & (col_offsets[None, :] < complex_cols)
+
+        src_even = 2 * col_offsets
+        src_odd = 2 * col_offsets + 1
+
+        if repeat_mode:
+            src_even = src_even % in_features
+            src_odd = src_odd % in_features
+
+        even_mask = mask & (src_even[None, :] < in_features)
+        odd_mask = mask & (src_odd[None, :] < in_features)
+
+        even_idx = row_offsets[:, None] * in_features + src_even[None, :]
+        odd_idx = row_offsets[:, None] * in_features + src_odd[None, :]
+
+        xr = tl.load(x_ptr + even_idx, mask=even_mask, other=0.0)
+        xi = tl.load(x_ptr + odd_idx, mask=odd_mask, other=0.0)
+
+        out_base = (row_offsets[:, None] * complex_cols + col_offsets[None, :]) * 2
+        tl.store(out_ptr + out_base, xr, mask=mask)
+        tl.store(out_ptr + out_base + 1, xi, mask=mask)
+
+
+    @triton.jit
+    def _unpack_real_pairs_kernel(
+        z_ptr,
+        out_ptr,
+        rows,
+        original_channels,
+        complex_cols,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+    ):
+        pid_m = tl.program_id(0)
+        pid_n = tl.program_id(1)
+
+        row_offsets = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        col_offsets = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+        mask = (row_offsets[:, None] < rows) & (col_offsets[None, :] < original_channels)
+
+        pair_idx = col_offsets // 2
+        part_idx = col_offsets % 2
+        src_base = (row_offsets[:, None] * complex_cols + pair_idx[None, :]) * 2 + part_idx[None, :]
+        values = tl.load(z_ptr + src_base, mask=mask, other=0.0)
+        out_idx = row_offsets[:, None] * original_channels + col_offsets[None, :]
+        tl.store(out_ptr + out_idx, values, mask=mask)
+
+
+    @triton.jit
+    def _reduce_unpacked_grad_kernel(
+        grad_ptr,
+        out_ptr,
+        rows,
+        original_channels,
+        expanded_channels,
+        repeat_mode: tl.constexpr,
+        BLOCK_M: tl.constexpr,
+        BLOCK_N: tl.constexpr,
+    ):
+        pid_m = tl.program_id(0)
+        pid_n = tl.program_id(1)
+
+        row_offsets = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+        col_offsets = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+        mask = (row_offsets[:, None] < rows) & (col_offsets[None, :] < original_channels)
+
+        out = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+
+        if repeat_mode:
+            repeats = (expanded_channels + original_channels - 1) // original_channels
+            for r in range(0, 32):
+                pass
+        # fallback for non-repeat mode is a single contiguous slice
+        if not repeat_mode:
+            src_idx = row_offsets[:, None] * expanded_channels + col_offsets[None, :]
+            out = tl.load(grad_ptr + src_idx, mask=mask, other=0.0)
+        else:
+            repeats = (expanded_channels + original_channels - 1) // original_channels
+            for rep in range(0, 16):
+                src_col = col_offsets + rep * original_channels
+                rep_mask = mask & (src_col[None, :] < expanded_channels)
+                src_idx = row_offsets[:, None] * expanded_channels + src_col[None, :]
+                out += tl.load(grad_ptr + src_idx, mask=rep_mask, other=0.0)
+
+        out_idx = row_offsets[:, None] * original_channels + col_offsets[None, :]
+        tl.store(out_ptr + out_idx, out, mask=mask)
 
 
 def complex_pointwise_mul(
@@ -196,3 +308,114 @@ def complex_mul_conj_diag_and_grad(
 
     grad_spectral = torch.view_as_complex(out_ri.reshape(*spectral_contig.shape, 2))
     return grad_spectral, grad_real, grad_imag
+
+
+def pack_real_pairs(
+    x: Tensor,
+    target_channels: int,
+    *,
+    mode: str = "zero",
+    use_triton: bool = False,
+) -> Tensor:
+    if not (use_triton and HAS_TRITON and x.is_cuda):
+        current = x.size(-1)
+        pad = target_channels - current
+        if pad > 0:
+            if mode == "tile" and current > 0:
+                repeats = (target_channels + current - 1) // current
+                x = x.repeat(*([1] * (x.ndim - 1)), repeats)[..., :target_channels]
+            else:
+                x = torch.nn.functional.pad(x, (0, pad))
+        x_work = x.contiguous()
+        return torch.view_as_complex(x_work.reshape(*x_work.shape[:-1], target_channels // 2, 2))
+
+    x_contig = x.contiguous()
+    rows = x_contig.numel() // x_contig.shape[-1]
+    in_features = x_contig.shape[-1]
+    complex_cols = target_channels // 2
+    out_ri = torch.empty((rows, complex_cols, 2), device=x_contig.device, dtype=x_contig.dtype)
+
+    grid = lambda meta: (triton.cdiv(rows, meta["BLOCK_M"]), triton.cdiv(complex_cols, meta["BLOCK_N"]))
+    _pack_real_pairs_kernel[grid](
+        x_contig.reshape(-1),
+        out_ri.reshape(-1),
+        rows,
+        in_features,
+        target_channels,
+        repeat_mode=(mode == "tile"),
+        BLOCK_M=8,
+        BLOCK_N=64,
+    )
+    return torch.view_as_complex(out_ri.reshape(*x_contig.shape[:-1], complex_cols, 2))
+
+
+def unpack_real_pairs(
+    z: Tensor,
+    *,
+    original_channels: int,
+    use_triton: bool = False,
+) -> Tensor:
+    if not (use_triton and HAS_TRITON and z.is_cuda):
+        out = torch.view_as_real(z).reshape(*z.shape[:-1], -1)
+        return out[..., :original_channels]
+
+    z_contig = z.contiguous()
+    rows = z_contig.numel() // z_contig.shape[-1]
+    complex_cols = z_contig.shape[-1]
+    z_ri = torch.view_as_real(z_contig).reshape(rows, complex_cols, 2).contiguous()
+    out = torch.empty((rows, original_channels), device=z_contig.device, dtype=z_contig.real.dtype)
+
+    grid = lambda meta: (triton.cdiv(rows, meta["BLOCK_M"]), triton.cdiv(original_channels, meta["BLOCK_N"]))
+    _unpack_real_pairs_kernel[grid](
+        z_ri.reshape(-1),
+        out.reshape(-1),
+        rows,
+        original_channels,
+        complex_cols,
+        BLOCK_M=8,
+        BLOCK_N=64,
+    )
+    return out.reshape(*z_contig.shape[:-1], original_channels)
+
+
+def reduce_unpacked_grad(
+    grad: Tensor,
+    *,
+    original_channels: int,
+    expanded_channels: int,
+    mode: str = "zero",
+    use_triton: bool = False,
+) -> Tensor:
+    if expanded_channels == original_channels:
+        return grad
+
+    if not (use_triton and HAS_TRITON and grad.is_cuda):
+        if mode == "zero":
+            return grad[..., :original_channels]
+
+        repeats = (expanded_channels + original_channels - 1) // original_channels
+        indices = torch.div(
+            torch.arange(expanded_channels, device=grad.device),
+            repeats,
+            rounding_mode="floor",
+        ).clamp(max=original_channels - 1)
+        out = torch.zeros(*grad.shape[:-1], original_channels, dtype=grad.dtype, device=grad.device)
+        out.index_add_(-1, indices, grad)
+        return out
+
+    grad_contig = grad.contiguous()
+    rows = grad_contig.numel() // grad_contig.shape[-1]
+    out = torch.empty((rows, original_channels), device=grad_contig.device, dtype=grad_contig.dtype)
+
+    grid = lambda meta: (triton.cdiv(rows, meta["BLOCK_M"]), triton.cdiv(original_channels, meta["BLOCK_N"]))
+    _reduce_unpacked_grad_kernel[grid](
+        grad_contig.reshape(-1),
+        out.reshape(-1),
+        rows,
+        original_channels,
+        expanded_channels,
+        repeat_mode=(mode == "tile"),
+        BLOCK_M=8,
+        BLOCK_N=64,
+    )
+    return out.reshape(*grad_contig.shape[:-1], original_channels)

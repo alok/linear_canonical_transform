@@ -67,6 +67,9 @@ An Apple MPS sweep is stored in
 A CUDA / Modal GPU sweep is stored in
 [`paper/results/modal_gpu_sweep.json`](/Users/alokbeniwal/LCT/paper/results/modal_gpu_sweep.json).
 
+A parameter-efficiency comparison on MPS is stored in
+[`paper/results/nanogpt_param_efficiency_mps.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_param_efficiency_mps.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -117,6 +120,24 @@ If this line of work is going to be adopted, the right story is currently:
 1. keep `LCTLinear` as the main productized layer,
 2. treat `LCTActivation` as exploratory,
 3. focus the next NanoGPT tuning wave on the linear variant only.
+
+## Parameter efficiency
+
+The strongest current paper angle is not raw standalone layer throughput. It is
+that the structured linear LCT layer can reach better loss with fewer
+parameters.
+
+On a small MPS comparison:
+
+| model | params | final val loss |
+| --- | ---: | ---: |
+| `baseline-56` | `85,073` | `4.2293` |
+| `baseline-64` | `109,505` | `4.0362` |
+| `linear64-frft15` | `77,255` | `3.8816` |
+| `linear64-frft30` | `77,255` | `3.8205` |
+
+So in this setup, the best `LCTLinear` model outperformed both the same-width
+baseline and a narrower baseline with a closer parameter budget.
 
 ## Angle sweep
 

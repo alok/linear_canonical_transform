@@ -185,30 +185,35 @@ The important caveat is that TorchInductor still warned that complex operators
 were not being code-generated efficiently, so the current CUDA compile path is
 using Triton where it can, but not yet for the complex-heavy parts of the LCT.
 That showed up in the 1024-wide compiled microbenchmark, where `LCTLinear` was
-still slower than `nn.Linear` (`lct_over_dense = 2.6131`).
+still slower than `nn.Linear` even after the optimized Fourier backward and the
+Triton pointwise path (`lct_over_dense = 2.5309` for forward, `1.7237` for a
+train step).
 
 On the other hand, the actual CUDA NanoGPT tuning run still favored the linear
 variants:
 
 | variant | final val loss | tokens/s |
 | --- | ---: | ---: |
-| `linear-frft30` | `3.7809` | `12.7k` |
-| `linear-frft15` | `3.8205` | `12.3k` |
-| `linear-frft45` | `3.8680` | `12.5k` |
-| `linear-fourier` | `3.8768` | `18.2k` |
-| `baseline` | `3.9415` | `9.64k` |
+| `linear-frft15` | `3.7979` | `14.3k` |
+| `linear-frft30` | `3.8031` | `14.1k` |
+| `linear-frft45` | `3.8157` | `12.5k` |
+| `linear-fourier` | `3.8523` | `8.85k` |
+| `baseline` | `3.9415` | `11.48k` |
 
 So the current state is:
 
 - the branch now works on Linux CUDA and macOS MPS,
 - `torch.compile` is active and usable on Linux CUDA,
-- but a custom complex-aware Triton kernel is still the next speed step if we
-  want the standalone CUDA microbenchmark to close the gap with dense matmuls.
+- but the standalone CUDA benchmark is still bottlenecked by complex-heavy ops,
+  even after adding the optimized Fourier backward and the Triton pointwise
+  multiply.
 
 ## Next tuning steps
 
 - Sweep `LCTLinear` more finely between `10°` and `40°`.
 - Test `inverse_after_multiply=False` for the structured linear layer.
+- Push more of the complex path into a custom CUDA/Triton implementation if we
+  want the standalone microbenchmark to beat dense `nn.Linear` on GPU too.
 - Run the same ablation at larger widths, where the FFT-backed linear path is
   already faster than `nn.Linear` on CPU.
 - Repeat on upstream `karpathy/nanoGPT` with a clean training config and log a

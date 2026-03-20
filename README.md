@@ -14,6 +14,12 @@ The package now exposes two model-facing building blocks:
 
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
+The finite-dimensional tradeoff is explicit:
+
+- `normalization="unitary"` favors energy preservation and stable optimization
+- `normalization="compositional"` favors behavior that tracks matrix
+  composition more closely
+
 ## Install
 
 ```bash
@@ -59,6 +65,9 @@ z = linear(torch.randn(8, 1024))
 print(z.shape)
 
 dense_equivalent = linear.to_linear()
+
+energy_preserving = LCTLinear(1024, 1024, normalization="unitary")
+matrix_like = LCTLinear(1024, 1024, normalization="compositional")
 ```
 
 Compatibility imports under the older repo name also work:

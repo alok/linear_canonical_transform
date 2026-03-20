@@ -68,6 +68,7 @@ def parse_bench_linear_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--warmup-steps", type=int, default=20)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--mode", choices=("forward", "train"), default="forward")
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     return parser.parse_args()
@@ -83,8 +84,35 @@ def bench_linear_main() -> None:
     dense = _maybe_compile(dense, enabled=args.compile, device=device, mode=args.compile_mode)
     lct = _maybe_compile(lct, enabled=args.compile, device=device, mode=args.compile_mode)
 
-    dense_ms = _benchmark_module(dense, x, steps=args.steps, warmup_steps=args.warmup_steps)
-    lct_ms = _benchmark_module(lct, x, steps=args.steps, warmup_steps=args.warmup_steps)
+    if args.mode == "forward":
+        dense_ms = _benchmark_module(dense, x, steps=args.steps, warmup_steps=args.warmup_steps)
+        lct_ms = _benchmark_module(lct, x, steps=args.steps, warmup_steps=args.warmup_steps)
+    else:
+        target = torch.randn(args.batch_size, args.out_features, device=device)
+
+        def bench_train_step(module: torch.nn.Module) -> float:
+            params = [param for param in module.parameters() if param.requires_grad]
+            for _ in range(args.warmup_steps):
+                out = module(x)
+                loss = (out - target).square().mean()
+                for param in params:
+                    param.grad = None
+                loss.backward()
+            _sync_device(device)
+
+            start = time.perf_counter()
+            for _ in range(args.steps):
+                out = module(x)
+                loss = (out - target).square().mean()
+                for param in params:
+                    param.grad = None
+                loss.backward()
+            _sync_device(device)
+            end = time.perf_counter()
+            return (end - start) / args.steps * 1_000.0
+
+        dense_ms = bench_train_step(dense)
+        lct_ms = bench_train_step(lct)
 
     print(
         {
@@ -92,6 +120,7 @@ def bench_linear_main() -> None:
             "batch_size": args.batch_size,
             "in_features": args.in_features,
             "out_features": args.out_features,
+            "mode": args.mode,
             "compiled": bool(args.compile and device.type == "cuda"),
             "dense_ms": round(dense_ms, 4),
             "lct_ms": round(lct_ms, 4),

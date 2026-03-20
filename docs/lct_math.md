@@ -38,3 +38,20 @@ This repository uses a discrete approximation with two paths:
 
 The dense path is intentionally the ground truth for the package. The fast path
 is tested against it rather than treated as the specification.
+
+## Finite-dimensional tradeoff
+
+In finite dimensions, a discrete LCT cannot generally preserve every continuum
+property at once. The practical tradeoff in this repo is between:
+
+- energy preservation / unitarity
+- exact composition under matrix multiplication of the canonical parameters
+
+The API exposes this directly through the normalization mode:
+
+- `normalization="unitary"` favors energy preservation on the discrete grid
+- `normalization="compositional"` favors matrix-composition behavior
+
+For trainable layers, `unitary` is the default because it is usually the more
+stable optimization regime. `compositional` is still useful when you care more
+about finite-dimensional matrix composition than strict energy preservation.

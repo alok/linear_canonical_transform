@@ -44,3 +44,27 @@ def test_to_linear_round_trips_dense_equivalent() -> None:
     x = torch.randn(6, 14, dtype=torch.float32)
     dense = layer.to_linear()
     assert torch.allclose(layer(x), dense(x), atol=1e-4, rtol=0.0)
+
+
+def test_fourier_fast_path_backward_matches_dense_equivalent() -> None:
+    layer = LCTLinear(16, 16, bias=True, a=0.0, b=1.0, c=0.0)
+    dense = layer.to_linear()
+
+    x1 = torch.randn(4, 16, dtype=torch.float32, requires_grad=True)
+    x2 = x1.detach().clone().requires_grad_(True)
+
+    y1 = layer(x1).square().sum()
+    y2 = dense(x2).square().sum()
+
+    y1.backward()
+    y2.backward()
+
+    assert torch.allclose(x1.grad, x2.grad, atol=1e-4, rtol=0.0)
+    assert torch.allclose(layer(x1.detach()), dense(x2.detach()), atol=1e-4, rtol=0.0)
+
+
+def test_compositional_mode_materializes_consistently() -> None:
+    layer = LCTLinear(12, 12, bias=False, a=0.0, b=1.0, c=0.0, normalization="compositional")
+    x = torch.randn(3, 12, dtype=torch.float32)
+    dense = layer.to_linear()
+    assert torch.allclose(layer(x), dense(x), atol=1e-4, rtol=0.0)

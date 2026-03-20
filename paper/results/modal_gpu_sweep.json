@@ -9,15 +9,27 @@
     "batch_size": 128,
     "in_features": 1024,
     "out_features": 1024,
+    "mode": "forward",
     "compiled": true,
     "dense_ms": 0.1664,
-    "lct_ms": 0.4348,
-    "lct_over_dense": 2.6131
+    "lct_ms": 0.4213,
+    "lct_over_dense": 2.5309
+  },
+  "bench_linear_train_compile": {
+    "device": "cuda",
+    "batch_size": 128,
+    "in_features": 1024,
+    "out_features": 1024,
+    "mode": "train",
+    "compiled": true,
+    "dense_ms": 0.7066,
+    "lct_ms": 1.218,
+    "lct_over_dense": 1.7237
   },
   "bench_nanogpt_compile": {
-    "baseline_tokens_per_second": 241961.76550360007,
-    "linear_tokens_per_second": 139908.8144300182,
-    "linear_over_baseline": 0.578226953084191,
+    "baseline_tokens_per_second": 241780.0146904295,
+    "linear_tokens_per_second": 158201.94263748228,
+    "linear_over_baseline": 0.6543218340028684,
     "compiled": true
   },
   "tune_nanogpt_gpu": {
@@ -25,31 +37,31 @@
     "compiled": false,
     "results": [
       {
-        "name": "linear-frft30",
-        "final_val_loss": 3.7809463143348694,
-        "tokens_per_second": 12700.637661973504
+        "name": "linear-frft15",
+        "final_val_loss": 3.7979027032852173,
+        "tokens_per_second": 14311.903578438745
       },
       {
-        "name": "linear-frft15",
-        "final_val_loss": 3.8205140829086304,
-        "tokens_per_second": 12314.90213029794
+        "name": "linear-frft30",
+        "final_val_loss": 3.803081512451172,
+        "tokens_per_second": 14075.09906927108
       },
       {
         "name": "linear-frft45",
-        "final_val_loss": 3.8680278658866882,
-        "tokens_per_second": 12499.625662252774
+        "final_val_loss": 3.8156869411468506,
+        "tokens_per_second": 12543.261021303026
       },
       {
         "name": "linear-fourier",
-        "final_val_loss": 3.8768041133880615,
-        "tokens_per_second": 18245.604625531672
+        "final_val_loss": 3.8523340225219727,
+        "tokens_per_second": 8848.118132810687
       },
       {
         "name": "baseline",
         "final_val_loss": 3.941460072994232,
-        "tokens_per_second": 9644.974613069959
+        "tokens_per_second": 11477.99650136275
       }
     ],
-    "modal_run_url": "https://modal.com/apps/alok/main/ap-UJ2pvRIJo7G7aGYv3aYdUr"
+    "modal_run_url": "https://modal.com/apps/alok/main/ap-7tQGYXenOXrKohmkVNhua7"
   }
 }

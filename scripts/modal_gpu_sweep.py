@@ -49,6 +49,9 @@ def run_gpu_sweep() -> dict[str, object]:
     results["bench_linear_compile"] = run(
         "uv run lct-bench-linear --device cuda --compile --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5"
     )
+    results["bench_linear_train_compile"] = run(
+        "uv run lct-bench-linear --device cuda --compile --mode train --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5"
+    )
     results["bench_nanogpt_compile"] = run(
         "uv run lct-bench-nanogpt --repo-dir /root/nanogpt --repo-kind local --device cuda --compile --steps 10 --warmup-steps 3 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --variants baseline linear"
     )

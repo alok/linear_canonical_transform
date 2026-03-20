@@ -400,6 +400,7 @@ class LCTLinear(nn.Module):
         learnable_transform: bool = False,
         expansion_mode: Literal["zero", "tile"] = "tile",
         use_triton_kernels: bool | None = None,
+        direct_fourier_backend: Literal["fft", "conv", "auto"] = "fft",
     ) -> None:
         super().__init__()
         if in_features <= 0:
@@ -413,6 +414,7 @@ class LCTLinear(nn.Module):
         self.expansion_mode = expansion_mode
         self.normalization = normalization
         self.use_triton_kernels = HAS_TRITON if use_triton_kernels is None else use_triton_kernels
+        self.direct_fourier_backend = direct_fourier_backend
         self._direct_fft = (
             not learnable_transform
             and abs(a) <= 1e-6
@@ -455,12 +457,69 @@ class LCTLinear(nn.Module):
             if self.bias is not None:
                 self.bias.zero_()
 
+    def _use_fourier_conv_backend(self, x: Tensor, norm_mode: NormMode) -> bool:
+        if not self._direct_fft:
+            return False
+        if not self.inverse_after_multiply:
+            return False
+        if norm_mode != "unitary":
+            return False
+        if self.direct_fourier_backend == "conv":
+            return True
+        if self.direct_fourier_backend == "fft":
+            return False
+        return False
+
+    def _apply_fourier_conv_map(self, x: Tensor, *, use_triton: bool) -> Tensor:
+        selected_mode = self.expansion_mode if self.out_features > self.in_features else "zero"
+        packed = _pack_real_pairs(
+            x,
+            self.padded_features,
+            mode=selected_mode,
+            use_triton=use_triton,
+        )
+        diag = self.spectral_diag.to(packed.dtype)
+        kernel = torch.fft.ifft(diag, dim=-1, norm="backward")
+
+        packed_ri = torch.view_as_real(packed).movedim(-1, -2)  # (..., 2, N)
+        original_shape = packed_ri.shape[:-2]
+        batch = 1
+        for dim in original_shape:
+            batch *= dim
+        packed_ri = packed_ri.reshape(batch, 2, self.complex_features)
+
+        hr = kernel.real.flip(-1)
+        hi = kernel.imag.flip(-1)
+        weight = torch.stack(
+            [
+                torch.stack([hr, -hi], dim=0),
+                torch.stack([hi, hr], dim=0),
+            ],
+            dim=0,
+        ).to(dtype=packed_ri.dtype, device=packed_ri.device)
+
+        padded = F.pad(packed_ri, (self.complex_features - 1, 0), mode="circular")
+        out_ri = F.conv1d(padded, weight)
+        out_complex = torch.view_as_complex(
+            out_ri.reshape(*original_shape, 2, self.complex_features).movedim(-2, -1).contiguous()
+        )
+        out = _unpack_real_pairs(
+            out_complex,
+            original_channels=self.padded_features,
+            use_triton=use_triton,
+        )
+        return out[..., : self.out_features]
+
     def _apply_linear_map(self, x: Tensor) -> Tensor:
         if torch.is_complex(x):
             raise TypeError("LCTLinear expects a real-valued tensor")
 
         selected_mode = self.expansion_mode if self.out_features > self.in_features else "zero"
         norm_mode = _norm_mode(self.normalization)
+        use_triton = bool(self.use_triton_kernels and x.is_cuda)
+
+        if self._use_fourier_conv_backend(x, norm_mode):
+            return self._apply_fourier_conv_map(x, use_triton=use_triton)
 
         if self._direct_fft and norm_mode == "unitary":
             return _DirectFFTLinearFn.apply(
@@ -473,14 +532,14 @@ class LCTLinear(nn.Module):
                 selected_mode,
                 self.inverse_after_multiply,
                 norm_mode,
-                bool(self.use_triton_kernels and x.is_cuda),
+                use_triton,
             )
 
         packed = _pack_real_pairs(
             x,
             self.padded_features,
             mode=selected_mode,
-            use_triton=bool(self.use_triton_kernels and x.is_cuda),
+            use_triton=use_triton,
         )
         if self._direct_fft:
             spectral = torch.fft.fft(packed, dim=-1, norm=_fft_norm(norm_mode))
@@ -491,7 +550,7 @@ class LCTLinear(nn.Module):
         mixed = complex_pointwise_mul(
             spectral,
             diag,
-            use_triton=bool(self.use_triton_kernels and spectral.is_cuda),
+            use_triton=use_triton,
         )
         if self.inverse_after_multiply:
             if self._direct_fft:
@@ -502,7 +561,7 @@ class LCTLinear(nn.Module):
         out = _unpack_real_pairs(
             mixed,
             original_channels=self.padded_features,
-            use_triton=bool(self.use_triton_kernels and mixed.is_cuda),
+            use_triton=use_triton,
         )
         return out[..., : self.out_features]
 
@@ -547,5 +606,6 @@ class LCTLinear(nn.Module):
         return (
             f"in_features={self.in_features}, out_features={self.out_features}, "
             f"bias={self.bias is not None}, inverse_after_multiply={self.inverse_after_multiply}, "
-            f"complex_features={self.complex_features}, expansion_mode={self.expansion_mode}"
+            f"complex_features={self.complex_features}, expansion_mode={self.expansion_mode}, "
+            f"direct_fourier_backend={self.direct_fourier_backend}"
         )

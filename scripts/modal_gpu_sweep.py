@@ -49,11 +49,29 @@ def run_gpu_sweep() -> dict[str, object]:
     results["bench_linear_compile"] = run(
         "uv run lct-bench-linear --device cuda --compile --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5"
     )
+    results["bench_linear_compile_fft"] = run(
+        "uv run lct-bench-linear --device cuda --compile --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5 --direct-fourier-backend fft"
+    )
+    results["bench_linear_compile_conv"] = run(
+        "uv run lct-bench-linear --device cuda --compile --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5 --direct-fourier-backend conv"
+    )
     results["bench_linear_train_compile"] = run(
         "uv run lct-bench-linear --device cuda --compile --mode train --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5"
     )
+    results["bench_linear_train_compile_fft"] = run(
+        "uv run lct-bench-linear --device cuda --compile --mode train --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5 --direct-fourier-backend fft"
+    )
+    results["bench_linear_train_compile_conv"] = run(
+        "uv run lct-bench-linear --device cuda --compile --mode train --batch-size 128 --in-features 1024 --out-features 1024 --steps 20 --warmup-steps 5 --direct-fourier-backend conv"
+    )
     results["bench_nanogpt_compile"] = run(
         "uv run lct-bench-nanogpt --repo-dir /root/nanogpt --repo-kind local --device cuda --compile --steps 10 --warmup-steps 3 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --variants baseline linear"
+    )
+    results["bench_nanogpt_compile_fft"] = run(
+        "uv run lct-bench-nanogpt --repo-dir /root/nanogpt --repo-kind local --device cuda --compile --steps 10 --warmup-steps 3 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --variants baseline linear --direct-fourier-backend fft"
+    )
+    results["bench_nanogpt_compile_conv"] = run(
+        "uv run lct-bench-nanogpt --repo-dir /root/nanogpt --repo-kind local --device cuda --compile --steps 10 --warmup-steps 3 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --variants baseline linear --direct-fourier-backend conv"
     )
     results["tune_nanogpt_gpu"] = run(
         "uv run lct-tune-nanogpt --repo-dir /root/nanogpt --device cuda --steps 20 --eval-iters 4 --batch-size 8 --seq-len 24 --n-layers 2 --n-heads 4 --embed-dim 64 --presets baseline linear-fourier --linear-angle-degrees 15 30 45"

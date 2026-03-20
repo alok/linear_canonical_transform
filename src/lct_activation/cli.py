@@ -82,6 +82,11 @@ def parse_bench_linear_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--direct-fourier-backend",
+        choices=("auto", "fft", "conv"),
+        default="fft",
+    )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     return parser.parse_args()
@@ -99,6 +104,7 @@ def bench_linear_main() -> None:
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
         use_triton_kernels=args.use_triton_kernels,
+        direct_fourier_backend=args.direct_fourier_backend,
     ).to(device)
     dense = _maybe_compile(dense, enabled=args.compile, device=device, mode=args.compile_mode)
     lct = _maybe_compile(lct, enabled=args.compile, device=device, mode=args.compile_mode)
@@ -141,6 +147,7 @@ def bench_linear_main() -> None:
             "out_features": args.out_features,
             "mode": args.mode,
             "normalization": args.normalization,
+            "direct_fourier_backend": args.direct_fourier_backend,
             "compiled": bool(args.compile and device.type == "cuda"),
             "dense_ms": round(dense_ms, 4),
             "lct_ms": round(lct_ms, 4),
@@ -194,6 +201,11 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
         dest="use_triton_kernels",
         action=argparse.BooleanOptionalAction,
         default=True,
+    )
+    parser.add_argument(
+        "--direct-fourier-backend",
+        choices=("auto", "fft", "conv"),
+        default="fft",
     )
     parser.add_argument(
         "--inverse-after-multiply",
@@ -314,6 +326,7 @@ def bench_nanogpt_main() -> None:
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
         use_triton_kernels=args.use_triton_kernels,
+        direct_fourier_backend=args.direct_fourier_backend,
     )
 
     results = []
@@ -387,6 +400,11 @@ def parse_train_nanogpt_args() -> tuple[argparse.Namespace, list[str]]:
         default=True,
     )
     parser.add_argument(
+        "--direct-fourier-backend",
+        choices=("auto", "fft", "conv"),
+        default="fft",
+    )
+    parser.add_argument(
         "--inverse-after-multiply",
         dest="inverse_after_multiply",
         action=argparse.BooleanOptionalAction,
@@ -428,6 +446,7 @@ def train_nanogpt_main() -> None:
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
         use_triton_kernels=args.use_triton_kernels,
+        direct_fourier_backend=args.direct_fourier_backend,
     )
 
     run_upstream_train(
@@ -538,6 +557,11 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
         default=True,
     )
     parser.add_argument(
+        "--direct-fourier-backend",
+        choices=("auto", "fft", "conv"),
+        default="fft",
+    )
+    parser.add_argument(
         "--inverse-after-multiply",
         dest="inverse_after_multiply",
         action=argparse.BooleanOptionalAction,
@@ -596,6 +620,7 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "normalization": args.normalization,
         "unitary_projection": args.unitary_projection,
         "use_triton_kernels": args.use_triton_kernels,
+        "direct_fourier_backend": args.direct_fourier_backend,
     }
     activation_factory = make_lct_activation_factory(**activation_kwargs)
     linear_factory = make_lct_linear_factory(**linear_kwargs)

@@ -210,6 +210,13 @@ still slower than `nn.Linear` even after the optimized Fourier backward and the
 Triton pointwise path (`lct_over_dense = 2.4709` for forward, `1.5272` for a
 train step).
 
+We also tested a convolution-style Fourier backend as a more aggressive CUDA
+replacement. That turned out to be a negative result for this setup: it was
+slower than the FFT backend in both the standalone forward microbenchmark and
+the compiled local NanoGPT benchmark. Because of that, the default backend has
+been set back to `fft`, and the convolution path remains an explicit
+experimental option rather than the default.
+
 On the other hand, the actual CUDA NanoGPT tuning run still favored the linear
 variants:
 

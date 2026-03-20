@@ -117,6 +117,7 @@ def make_lct_linear_factory(
     normalization: NormMode = "unitary",
     unitary_projection: bool = False,
     use_triton_kernels: bool = True,
+    direct_fourier_backend: Literal["fft", "conv", "auto"] = "fft",
 ) -> LinearFactory:
     def factory(linear: nn.Linear) -> nn.Module:
         replacement = LCTLinear(
@@ -132,6 +133,7 @@ def make_lct_linear_factory(
             normalization=normalization,
             unitary_projection=unitary_projection,
             use_triton_kernels=use_triton_kernels,
+            direct_fourier_backend=direct_fourier_backend,
         )
         replacement = replacement.to(device=linear.weight.device, dtype=linear.weight.dtype)
         if linear.bias is not None and replacement.bias is not None:

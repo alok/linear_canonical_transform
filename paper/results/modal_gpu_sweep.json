@@ -11,10 +11,37 @@
     "out_features": 1024,
     "mode": "forward",
     "normalization": "unitary",
+    "direct_fourier_backend": "auto",
     "compiled": true,
-    "dense_ms": 0.1656,
-    "lct_ms": 0.4093,
-    "lct_over_dense": 2.4709
+    "dense_ms": 0.1829,
+    "lct_ms": 1.0332,
+    "lct_over_dense": 5.6473
+  },
+  "bench_linear_compile_fft": {
+    "device": "cuda",
+    "batch_size": 128,
+    "in_features": 1024,
+    "out_features": 1024,
+    "mode": "forward",
+    "normalization": "unitary",
+    "direct_fourier_backend": "fft",
+    "compiled": true,
+    "dense_ms": 0.1783,
+    "lct_ms": 0.4605,
+    "lct_over_dense": 2.5835
+  },
+  "bench_linear_compile_conv": {
+    "device": "cuda",
+    "batch_size": 128,
+    "in_features": 1024,
+    "out_features": 1024,
+    "mode": "forward",
+    "normalization": "unitary",
+    "direct_fourier_backend": "conv",
+    "compiled": true,
+    "dense_ms": 0.1756,
+    "lct_ms": 1.0325,
+    "lct_over_dense": 5.8786
   },
   "bench_linear_train_compile": {
     "device": "cuda",
@@ -23,16 +50,58 @@
     "out_features": 1024,
     "mode": "train",
     "normalization": "unitary",
+    "direct_fourier_backend": "auto",
     "compiled": true,
-    "dense_ms": 0.6916,
-    "lct_ms": 1.0562,
-    "lct_over_dense": 1.5272
+    "dense_ms": 0.7697,
+    "lct_ms": 1.1438,
+    "lct_over_dense": 1.4859
+  },
+  "bench_linear_train_compile_fft": {
+    "device": "cuda",
+    "batch_size": 128,
+    "in_features": 1024,
+    "out_features": 1024,
+    "mode": "train",
+    "normalization": "unitary",
+    "direct_fourier_backend": "fft",
+    "compiled": true,
+    "dense_ms": 0.7876,
+    "lct_ms": 1.2114,
+    "lct_over_dense": 1.5381
+  },
+  "bench_linear_train_compile_conv": {
+    "device": "cuda",
+    "batch_size": 128,
+    "in_features": 1024,
+    "out_features": 1024,
+    "mode": "train",
+    "normalization": "unitary",
+    "direct_fourier_backend": "conv",
+    "compiled": true,
+    "dense_ms": 0.7528,
+    "lct_ms": 1.1037,
+    "lct_over_dense": 1.466
   },
   "bench_nanogpt_compile": {
-    "baseline_tokens_per_second": 239594.66572469118,
-    "linear_tokens_per_second": 132912.2323075812,
-    "linear_over_baseline": 0.5547378607347854,
-    "compiled": true
+    "baseline_tokens_per_second": 216416.3525994188,
+    "linear_tokens_per_second": 5829.127807370403,
+    "linear_over_baseline": 0.026934784443761378,
+    "compiled": true,
+    "direct_fourier_backend": "auto"
+  },
+  "bench_nanogpt_compile_fft": {
+    "baseline_tokens_per_second": 230255.41801735587,
+    "linear_tokens_per_second": 136308.1159770967,
+    "linear_over_baseline": 0.5919865736528391,
+    "compiled": true,
+    "direct_fourier_backend": "fft"
+  },
+  "bench_nanogpt_compile_conv": {
+    "baseline_tokens_per_second": 231922.7677866745,
+    "linear_tokens_per_second": 6385.398042035025,
+    "linear_over_baseline": 0.027532432899853954,
+    "compiled": true,
+    "direct_fourier_backend": "conv"
   },
   "tune_nanogpt_gpu": {
     "device": "cuda",
@@ -45,30 +114,30 @@
       {
         "name": "linear-frft15",
         "final_val_loss": 3.7979027032852173,
-        "tokens_per_second": 8306.456322965525
+        "tokens_per_second": 12107.746190122572
       },
       {
         "name": "linear-frft30",
         "final_val_loss": 3.803081512451172,
-        "tokens_per_second": 9262.004807636105
+        "tokens_per_second": 10956.118428930367
       },
       {
         "name": "linear-frft45",
         "final_val_loss": 3.8156869411468506,
-        "tokens_per_second": 14322.246991668042
+        "tokens_per_second": 12112.585689092792
       },
       {
         "name": "linear-fourier",
-        "final_val_loss": 3.8523340225219727,
-        "tokens_per_second": 3629.9668853433977
+        "final_val_loss": 3.847885549068451,
+        "tokens_per_second": 7351.679774399409
       },
       {
         "name": "baseline",
         "final_val_loss": 3.941460072994232,
-        "tokens_per_second": 7903.308828705498
+        "tokens_per_second": 7968.195545096602
       }
     ],
-    "modal_run_url": "https://modal.com/apps/alok/main/ap-ckDDDyqQhqX3TLvJWosMNs"
+    "modal_run_url": "https://modal.com/apps/alok/main/ap-ynt1mMgLu3lK3TJr8pxQfh"
   },
   "tune_nanogpt_gpu_inverse_false": {
     "device": "cuda",
@@ -81,49 +150,49 @@
       {
         "name": "linear-frft10",
         "final_val_loss": 3.919516086578369,
-        "tokens_per_second": 4751.972820498093
+        "tokens_per_second": 5415.5655827589135
       },
       {
         "name": "linear-frft35",
         "final_val_loss": 3.9392205476760864,
-        "tokens_per_second": 5799.079492176831
+        "tokens_per_second": 5408.907170281428
       },
       {
         "name": "linear-frft25",
         "final_val_loss": 3.9432127475738525,
-        "tokens_per_second": 4855.402251792458
+        "tokens_per_second": 5379.510965804416
       },
       {
         "name": "linear-frft40",
         "final_val_loss": 3.949167013168335,
-        "tokens_per_second": 6248.570517449919
+        "tokens_per_second": 5511.09199833766
       },
       {
         "name": "linear-frft20",
         "final_val_loss": 3.960317373275757,
-        "tokens_per_second": 4804.758200094325
+        "tokens_per_second": 5668.980437412095
       },
       {
         "name": "linear-frft15",
         "final_val_loss": 3.973459839820862,
-        "tokens_per_second": 5753.093669938764
+        "tokens_per_second": 5191.341196544773
       },
       {
         "name": "linear-frft30",
         "final_val_loss": 3.9737067222595215,
-        "tokens_per_second": 6175.6322404831
+        "tokens_per_second": 5341.923279515461
       },
       {
         "name": "baseline",
         "final_val_loss": 4.036170721054077,
-        "tokens_per_second": 2279.8024323210348
+        "tokens_per_second": 1597.3520056860277
       },
       {
         "name": "linear-fourier",
-        "final_val_loss": 4.071378469467163,
-        "tokens_per_second": 4468.917009844077
+        "final_val_loss": 4.065172433853149,
+        "tokens_per_second": 553.2222767331787
       }
     ],
-    "modal_run_url": "https://modal.com/apps/alok/main/ap-ckDDDyqQhqX3TLvJWosMNs"
+    "modal_run_url": "https://modal.com/apps/alok/main/ap-ynt1mMgLu3lK3TJr8pxQfh"
   }
 }

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "unitary-fourier",
+    "initial_val_loss": 4.372152805328369,
+    "final_val_loss": 4.024562239646912
+  },
+  {
+    "name": "unitary-frft15",
+    "initial_val_loss": 4.361407041549683,
+    "final_val_loss": 3.9989752769470215
+  },
+  {
+    "name": "unitary-frft30",
+    "initial_val_loss": 4.334994316101074,
+    "final_val_loss": 3.955519437789917
+  },
+  {
+    "name": "compositional-fourier",
+    "initial_val_loss": 4.276942729949951,
+    "final_val_loss": 3.7918717861175537
+  },
+  {
+    "name": "compositional-frft15",
+    "initial_val_loss": 4.314513444900513,
+    "final_val_loss": 3.8169751167297363
+  },
+  {
+    "name": "compositional-frft30",
+    "initial_val_loss": 4.304713249206543,
+    "final_val_loss": 3.844459652900696
+  }
+]

@@ -70,6 +70,9 @@ A CUDA / Modal GPU sweep is stored in
 A parameter-efficiency comparison on MPS is stored in
 [`paper/results/nanogpt_param_efficiency_mps.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_param_efficiency_mps.json).
 
+A normalization-mode comparison on MPS is stored in
+[`paper/results/nanogpt_norm_tradeoff_mps.json`](/Users/alokbeniwal/LCT/paper/results/nanogpt_norm_tradeoff_mps.json).
+
 ## Results
 
 | variant | final val loss | tokens/s | params |
@@ -138,6 +141,26 @@ On a small MPS comparison:
 
 So in this setup, the best `LCTLinear` model outperformed both the same-width
 baseline and a narrower baseline with a closer parameter budget.
+
+## Normalization tradeoff
+
+The `unitary` vs `compositional` distinction is not just mathematical framing.
+It changes the learning behavior.
+
+On a small MPS comparison at width 64:
+
+| mode | variant | final val loss |
+| --- | --- | ---: |
+| `unitary` | Fourier | `4.0246` |
+| `unitary` | FrFT 15° | `3.9990` |
+| `unitary` | FrFT 30° | `3.9555` |
+| `compositional` | Fourier | `3.7919` |
+| `compositional` | FrFT 15° | `3.8170` |
+| `compositional` | FrFT 30° | `3.8445` |
+
+So at least in this toy setting, the compositional discretization can actually
+be the stronger inductive bias. That makes the finite-dimensional tradeoff a
+real experimental axis for the paper, not just an implementation note.
 
 ## Angle sweep
 

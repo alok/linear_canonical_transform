@@ -78,6 +78,13 @@ lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees
 
 ## Install Doctor
 
+For a first run after install:
+
+```bash
+lct quickstart
+lct quickstart --format json
+```
+
 ```python
 from lct_activation import run_doctor, format_doctor_text
 
@@ -113,7 +120,8 @@ This keeps checked-in NanoGPT and backend artifacts summarized from source JSON
 instead of hand-maintained tables.
 
 All installed commands are also available through the umbrella `lct` command,
-for example `lct check-properties ...` and `lct summarize-results ...`.
+for example `lct quickstart`, `lct check-properties ...`, and
+`lct summarize-results ...`.
 
 Saved `lct-bench-linear --output ...` JSON files are also summarized directly,
 so quick local benchmarks can become paper evidence without manual conversion.

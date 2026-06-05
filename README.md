@@ -58,11 +58,24 @@ uv tool install --from "git+https://github.com/alok/linear_canonical_transform.g
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-doctor
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-quickstart
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
 ```
 
 Quick smoke test after installing:
+
+```bash
+lct quickstart
+```
+
+The same self-contained smoke test can emit JSON:
+
+```bash
+lct quickstart --format json
+```
+
+Manual Python smoke test:
 
 ```bash
 uv run python - <<'PY'
@@ -134,6 +147,7 @@ from linear_canonical_transform import LCTLinear
 Runnable examples live in [`examples/`](examples/):
 
 ```bash
+uv run lct quickstart
 uv run python examples/quickstart.py
 uv run python examples/property_diagnostics.py
 ```

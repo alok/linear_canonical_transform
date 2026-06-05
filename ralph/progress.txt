@@ -228,6 +228,44 @@ Next steps or blockers:
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
 
+2026-06-05 packaged quickstart pass
+
+What changed:
+- Added `lct quickstart` and direct `lct-quickstart` commands.
+- The quickstart runs a self-contained `LCTLinear` smoke test, verifies dense materialization, checks finite output, and reports both sampled LCT-kernel and spectral-FrFT finite-grid diagnostics.
+- Added text output for humans, JSON output for automation, and optional JSON file writing.
+- Added tests for direct quickstart JSON/file output and umbrella quickstart dispatch.
+- Updated README, API docs, release checklist, and console-script metadata tests.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_package_metadata.py` -> `9 passed`
+- `uv run lct quickstart --output /tmp/lct-quickstart.json`
+- `uv run python -m json.tool /tmp/lct-quickstart.json`
+- `uv run lct quickstart --format json | uv run python -m json.tool`
+- `uv run lct-quickstart --format json | uv run python -m json.tool`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct | sed -n '1,140p'`
+- `uv run pytest -q` -> `73 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-quickstart-bench-linear.json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-quickstart-bench-linear.json --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct-quickstart` along with `lct` and all direct commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
 2026-06-05 umbrella CLI pass
 
 What changed:

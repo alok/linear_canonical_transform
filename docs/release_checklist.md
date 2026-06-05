@@ -26,6 +26,7 @@ Run from the repository root:
 ```bash
 uv sync --extra dev
 uv run pytest -q
+uv run lct quickstart --format json
 uv run lct doctor --result-dir paper/results --require-results
 uv run lct-doctor --result-dir paper/results --require-results
 uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from lct_activation.cli import bench_linear_main, lct_main
+from lct_activation.cli import bench_linear_main, lct_main, quickstart_main
 from lct_activation.results import collect_result_rows
 
 
@@ -102,6 +102,40 @@ def test_lct_umbrella_dispatches_doctor_json(
     assert any(check["name"] == "spectral-frft" for check in payload["checks"])
 
 
+def test_quickstart_emits_json_and_writes_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "quickstart.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct-quickstart",
+            "--format",
+            "json",
+            "--features",
+            "8",
+            "--property-length",
+            "8",
+            "--output",
+            str(output),
+        ],
+    )
+
+    quickstart_main()
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output.read_text())
+
+    assert stdout_payload == file_payload
+    assert stdout_payload["ok"] is True
+    assert stdout_payload["input_shape"] == [2, 8]
+    assert stdout_payload["output_shape"] == [2, 8]
+    assert stdout_payload["dense_equivalent_matches"] is True
+    assert stdout_payload["spectral_frft"]["composition_error"] <= 1e-5
+
+
 def test_lct_umbrella_dispatches_property_check(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -130,6 +164,32 @@ def test_lct_umbrella_dispatches_property_check(
     assert payload["composition_error"] <= 1e-5
 
 
+def test_lct_umbrella_dispatches_quickstart_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct",
+            "quickstart",
+            "--format",
+            "json",
+            "--features",
+            "8",
+            "--property-length",
+            "8",
+        ],
+    )
+
+    lct_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is True
+    assert payload["dense_equivalent_matches"] is True
+
+
 def test_lct_umbrella_without_subcommand_prints_help(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -141,5 +201,6 @@ def test_lct_umbrella_without_subcommand_prints_help(
 
     assert "Umbrella command for lct-activation tools." in output
     assert "check-properties" in output
+    assert "quickstart" in output
     assert "Report finite-grid LCT property diagnostics." in output
     assert "summarize-results" in output

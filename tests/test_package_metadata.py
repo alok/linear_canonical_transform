@@ -22,6 +22,7 @@ def test_user_facing_scripts_are_registered() -> None:
         "lct-bench-nanogpt",
         "lct-check-properties",
         "lct-doctor",
+        "lct-quickstart",
         "lct-summarize-results",
         "lct-train-nanogpt",
         "lct-tune-nanogpt",

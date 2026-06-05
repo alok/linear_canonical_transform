@@ -1,6 +1,7 @@
 # lct-activation
 
-`lct-activation` is a small PyTorch research package for testing Linear Canonical Transform layers inside real models.
+`lct-activation` is a small PyTorch research package for testing Linear
+Canonical Transform layers inside real models.
 
 The package keeps two goals in view:
 
@@ -22,23 +23,47 @@ The finite-dimensional tradeoff is explicit:
 
 ## Install
 
+For local development:
+
 ```bash
 cd /Users/alokbeniwal/LCT
 uv sync --extra dev
+uv run pytest -q
 ```
 
-Install directly from GitHub with `uv`:
+Use the package from this checkout in another `uv` project:
 
 ```bash
-uv add "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt"
+uv add "lct-activation @ file:///Users/alokbeniwal/LCT"
+```
+
+Install directly from GitHub with `uv` once the branch or tag you want is
+pushed:
+
+```bash
+uv add "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>"
 ```
 
 If you just want the packaged command-line tools, install them with `uv tool`:
 
 ```bash
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-linear
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-nanogpt
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-tune-nanogpt
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
+```
+
+Quick smoke test after installing:
+
+```bash
+uv run python - <<'PY'
+import torch
+from lct_activation import LCTLinear
+
+layer = LCTLinear(16, 16)
+x = torch.randn(2, 16)
+print(layer(x).shape)
+PY
 ```
 
 ## Quick use
@@ -46,7 +71,7 @@ uv tool install --from "git+https://github.com/alok/linear_canonical_transform.g
 ```python
 import torch
 
-from lct_activation import LCTActivation, LCTLinear
+from lct_activation import LCTActivation, LCTLinear, property_report
 
 act = LCTActivation(
     1024,
@@ -68,6 +93,14 @@ dense_equivalent = linear.to_linear()
 
 energy_preserving = LCTLinear(1024, 1024, normalization="unitary")
 matrix_like = LCTLinear(1024, 1024, normalization="compositional")
+
+report = property_report(
+    16,
+    (0.8660254, 0.5, -0.5),
+    (0.8660254, -0.5, 0.5),
+    normalization="unitary",
+)
+print(report.first_unitarity_error, report.composition_error)
 ```
 
 Compatibility imports under the older repo name also work:
@@ -81,8 +114,48 @@ from linear_canonical_transform import LCTLinear
 - `src/lct_activation/functional/lct.py`: dense reference kernel, `b ~= 0` branch, Fourier/Laplace special cases, and the finite-dimensional symplectic solve `symplectic_d`
 - `src/lct_activation/functional/chirpz.py`: generic `O(N log N)` Bluestein / chirp-z path
 - `src/lct_activation/layers.py`: `LCTLayer`, `LCTActivation`, and `LCTLinear`
+- `src/lct_activation/properties.py`: finite-grid diagnostics for determinant,
+  unitarity, and composition errors
 
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
+
+## Finite-grid property checks
+
+The package includes a small diagnostic CLI for the tradeoff that matters most
+in this project: a finite LCT can be made very nearly unitary, but that
+projection changes how closely finite matrices compose like their continuum
+canonical parameters.
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --normalization unitary \
+  --unitary-projection
+```
+
+The output is JSON with determinant errors, unitarity errors, and composition
+error. To compare the unprojected dense kernel:
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --normalization unitary \
+  --no-unitary-projection
+```
+
+The same diagnostics are available from Python:
+
+```python
+from lct_activation import composition_error, finite_lct_matrix, unitarity_error
+
+params = (0.8660254, 0.5, -0.5)
+matrix = finite_lct_matrix(16, params, normalization="unitary")
+print(unitarity_error(matrix))
+```
 
 ## NanoGPT integration
 
@@ -191,4 +264,5 @@ Core verification used in this repo:
 ```bash
 uv run pytest -q tests/test_lct_core.py tests/test_activation.py tests/test_special_cases.py
 uv run pytest -q tests/test_lct_linear.py
+uv run pytest -q tests/test_lct_properties.py
 ```

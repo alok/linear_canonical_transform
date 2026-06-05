@@ -21,6 +21,7 @@ from .integrations.nanogpt import (
     run_upstream_train,
 )
 from .layers import LCTLinear
+from .properties import property_report
 
 
 def _resolve_device(spec: str) -> torch.device:
@@ -37,6 +38,71 @@ def _sync_device(device: torch.device) -> None:
         torch.cuda.synchronize(device)
     elif device.type == "mps":
         torch.mps.synchronize()
+
+
+def _json_default(value):
+    if isinstance(value, complex):
+        return {"real": value.real, "imag": value.imag}
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _frft_params(angle_degrees: float) -> tuple[float, float, float]:
+    theta = math.radians(angle_degrees)
+    return math.cos(theta), math.sin(theta), -math.sin(theta)
+
+
+def parse_check_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Report finite-grid LCT unitarity and composition diagnostics."
+    )
+    parser.add_argument("--length", type=int, default=16)
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--first-angle-degrees", type=float, default=30.0)
+    parser.add_argument("--second-angle-degrees", type=float, default=-30.0)
+    parser.add_argument(
+        "--first",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override first transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--second",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override second transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    return parser.parse_args()
+
+
+def check_properties_main() -> None:
+    args = parse_check_properties_args()
+    first = tuple(args.first) if args.first is not None else _frft_params(args.first_angle_degrees)
+    second = tuple(args.second) if args.second is not None else _frft_params(args.second_angle_degrees)
+    report = property_report(
+        args.length,
+        first,
+        second,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        device=args.device,
+    )
+    print(json.dumps(report.as_dict(), indent=2, default=_json_default))
 
 
 def _maybe_compile(module: torch.nn.Module, *, enabled: bool, device: torch.device, mode: str) -> torch.nn.Module:

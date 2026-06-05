@@ -46,3 +46,25 @@ Linear updates:
 
 Runner note:
 - The first `ralph-loop.py --runner codex --iterations 1` invocation produced the audit files and progress update, but the wrapper process remained idle and did not exit after several minutes. The parent session stopped the wrapper, reran `git diff --check` and `uv run pytest -q` manually, and committed the completed iteration output.
+
+2026-06-05 installability and finite-grid property diagnostics pass
+
+What changed:
+- Added public finite-grid diagnostics in `src/lct_activation/properties.py`: determinant checks, canonical composition, finite matrix materialization, unitarity error, composition error, and `property_report`.
+- Exported the diagnostics from both `lct_activation` and the compatibility `linear_canonical_transform` package.
+- Added `lct-check-properties`, a JSON CLI for inspecting unitary/composition tradeoffs on finite grids.
+- Added Hypothesis/property coverage in `tests/test_lct_properties.py` for projected unitarity, canonical determinant preservation under composition, exact Fourier shortcut inverse composition, and the measurable projection-vs-composition tradeoff for generic FrFT grids.
+- Expanded install/use docs in `README.md` and clarified the math note around symplectic Fourier parameters versus the historical FFT shortcut.
+- Relaxed package support to Python `>=3.10` and added package metadata for discoverability.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q` -> `46 passed`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --no-unitary-projection`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Next packaging step: decide whether to add a license file and publish flow; the project currently builds locally but does not yet have release automation or a PyPI-ready release checklist.
+- Next research/code step: use the diagnostics to drive a focused fix or replacement for the generic FrFT composition behavior, rather than overclaiming it in docs.

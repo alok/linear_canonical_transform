@@ -30,6 +30,7 @@ uv run lct quickstart --format json
 uv run lct doctor --result-dir paper/results --require-results
 uv run lct-doctor --result-dir paper/results --require-results
 uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
+uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30
 uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json
 uv run python examples/quickstart.py
 uv run python examples/property_diagnostics.py
@@ -48,6 +49,7 @@ Expected current baseline:
 - PEP 561 typed-package markers are present in both import packages
 - examples run without external data
 - property diagnostics emits valid JSON
+- property assertion exits successfully for the spectral-FrFT finite-grid baseline
 - property sweep emits valid JSON and compares sampled-kernel and spectral-FrFT rows
 - result summary emits valid JSON
 - `uv build` creates both an sdist and wheel
@@ -62,6 +64,7 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 - install doctor
 - examples
 - property diagnostics CLI
+- property assertion CLI
 - result summary CLI
 - package build
 - isolated built-wheel smoke test

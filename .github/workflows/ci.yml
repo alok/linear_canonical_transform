@@ -54,6 +54,10 @@ jobs:
             --first-angle-degrees 30 \
             --second-angle-degrees -30 \
             --discretization spectral-frft
+          uv run lct assert-properties \
+            --length 8 \
+            --first-angle-degrees 30 \
+            --second-angle-degrees -30
           uv run lct sweep-properties \
             --length 8 16 \
             --angle-pair 30 -30 \

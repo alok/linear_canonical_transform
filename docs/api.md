@@ -54,6 +54,8 @@ continuum integral kernel.
 
 ```python
 from lct_activation import (
+    FiniteLCTPropertyThresholds,
+    assess_property_report,
     composition_error,
     finite_lct_matrix,
     format_property_sweep_markdown,
@@ -66,16 +68,30 @@ from lct_activation import (
 
 `property_report` is the highest-level diagnostic helper. It reports determinant
 errors, unitarity errors, and composition error for two canonical transforms.
+Use `assess_property_report` when you need a machine-readable pass/fail result
+against explicit thresholds.
 
 Use `discretization="lct"` for the sampled-kernel path and
 `discretization="spectral-frft"` for finite FrFT parameters where unitary
 composition on the finite grid is the priority.
+
+```python
+report = property_report(
+    16,
+    (0.8660254, 0.5, -0.5),
+    (0.8660254, -0.5, 0.5),
+    discretization="spectral-frft",
+)
+assessment = assess_property_report(report, FiniteLCTPropertyThresholds())
+assert assessment.ok
+```
 
 The same checks are available at the command line:
 
 ```bash
 lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30
 lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
+lct assert-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30
 lct sweep-properties --length 8 16 32 --angle-pair 30 -30
 ```
 

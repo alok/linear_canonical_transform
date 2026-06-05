@@ -21,8 +21,11 @@ DiscretizationMode = Literal["lct", "spectral-frft"]
 __all__ = [
     "CanonicalParams",
     "DiscretizationMode",
+    "FiniteLCTPropertyAssessment",
     "FiniteLCTPropertyReport",
     "FiniteLCTPropertySweepRow",
+    "FiniteLCTPropertyThresholds",
+    "assess_property_report",
     "canonical_determinant",
     "compose_canonical",
     "composition_error",
@@ -57,6 +60,45 @@ class FiniteLCTPropertyReport:
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class FiniteLCTPropertyThresholds:
+    """Thresholds for checking finite-grid preservation claims."""
+
+    max_determinant_error: float = 1e-8
+    max_unitarity_error: float = 1e-5
+    max_composition_error: float = 1e-5
+
+    def __post_init__(self) -> None:
+        for name, value in asdict(self).items():
+            if value < 0:
+                raise ValueError(f"{name} must be non-negative")
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FiniteLCTPropertyAssessment:
+    """Pass/fail assessment for a finite-grid property report."""
+
+    report: FiniteLCTPropertyReport
+    thresholds: FiniteLCTPropertyThresholds
+    determinant_ok: bool
+    unitarity_ok: bool
+    composition_ok: bool
+    ok: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "ok": self.ok,
+            "determinant_ok": self.determinant_ok,
+            "unitarity_ok": self.unitarity_ok,
+            "composition_ok": self.composition_ok,
+            "thresholds": self.thresholds.as_dict(),
+            "report": self.report.as_dict(),
+        }
 
 
 @dataclass(frozen=True)
@@ -310,6 +352,34 @@ def property_report(
         second_unitarity_error=unitarity_error(second_matrix),
         composed_unitarity_error=unitarity_error(composed_matrix),
         composition_error=relative_frobenius_error(first_matrix @ second_matrix, composed_matrix),
+    )
+
+
+def assess_property_report(
+    report: FiniteLCTPropertyReport,
+    thresholds: FiniteLCTPropertyThresholds | None = None,
+) -> FiniteLCTPropertyAssessment:
+    """Check determinant, unitarity, and composition errors against thresholds."""
+
+    active_thresholds = thresholds or FiniteLCTPropertyThresholds()
+    determinant_ok = (
+        report.first_determinant_error <= active_thresholds.max_determinant_error
+        and report.second_determinant_error <= active_thresholds.max_determinant_error
+        and report.composed_determinant_error <= active_thresholds.max_determinant_error
+    )
+    unitarity_ok = (
+        report.first_unitarity_error <= active_thresholds.max_unitarity_error
+        and report.second_unitarity_error <= active_thresholds.max_unitarity_error
+        and report.composed_unitarity_error <= active_thresholds.max_unitarity_error
+    )
+    composition_ok = report.composition_error <= active_thresholds.max_composition_error
+    return FiniteLCTPropertyAssessment(
+        report=report,
+        thresholds=active_thresholds,
+        determinant_ok=determinant_ok,
+        unitarity_ok=unitarity_ok,
+        composition_ok=composition_ok,
+        ok=determinant_ok and unitarity_ok and composition_ok,
     )
 
 

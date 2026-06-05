@@ -18,6 +18,7 @@ def test_user_facing_scripts_are_registered() -> None:
 
     assert {
         "lct",
+        "lct-assert-properties",
         "lct-bench-linear",
         "lct-bench-nanogpt",
         "lct-check-properties",

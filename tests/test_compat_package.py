@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from linear_canonical_transform import (
+    FiniteLCTPropertyThresholds,
     LCTLinear,
+    assess_property_report,
     property_report,
     property_sweep,
     run_doctor,
@@ -37,3 +39,16 @@ def test_compat_package_reexports_property_sweep() -> None:
         discretizations=("spectral-frft",),
     )
     assert rows[0].discretization == "spectral-frft"
+
+
+def test_compat_package_reexports_property_assessment() -> None:
+    report = property_report(
+        4,
+        (0.8660254, 0.5, -0.5),
+        (0.8660254, -0.5, 0.5),
+        discretization="spectral-frft",
+    )
+
+    assessment = assess_property_report(report, FiniteLCTPropertyThresholds())
+
+    assert assessment.ok is True

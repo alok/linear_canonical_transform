@@ -24,7 +24,13 @@ from .integrations.nanogpt import (
     run_upstream_train,
 )
 from .layers import LCTLinear
-from .properties import format_property_sweep_markdown, property_report, property_sweep
+from .properties import (
+    FiniteLCTPropertyThresholds,
+    assess_property_report,
+    format_property_sweep_markdown,
+    property_report,
+    property_sweep,
+)
 from .results import summarize_results_main
 
 CommandMain = Callable[[], None]
@@ -77,6 +83,7 @@ def _frft_params(angle_degrees: float) -> tuple[float, float, float]:
 
 def _lct_commands() -> dict[str, tuple[str, CommandMain]]:
     return {
+        "assert-properties": ("Assert finite-grid property thresholds.", assert_properties_main),
         "bench-linear": ("Benchmark nn.Linear against LCTLinear.", bench_linear_main),
         "bench-nanogpt": ("Benchmark baseline and LCT NanoGPT variants.", bench_nanogpt_main),
         "check-properties": ("Report finite-grid LCT property diagnostics.", check_properties_main),
@@ -172,6 +179,73 @@ def check_properties_main() -> None:
         device=args.device,
     )
     print(json.dumps(report.as_dict(), indent=2, default=_json_default))
+
+
+def parse_assert_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Assert finite-grid LCT determinant, unitarity, and composition thresholds."
+    )
+    parser.add_argument("--length", type=int, default=16)
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("lct", "spectral-frft"), default="spectral-frft")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--first-angle-degrees", type=float, default=30.0)
+    parser.add_argument("--second-angle-degrees", type=float, default=-30.0)
+    parser.add_argument(
+        "--first",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override first transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--second",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override second transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--max-determinant-error", type=float, default=1e-8)
+    parser.add_argument("--max-unitarity-error", type=float, default=1e-5)
+    parser.add_argument("--max-composition-error", type=float, default=1e-5)
+    return parser.parse_args()
+
+
+def assert_properties_main() -> None:
+    args = parse_assert_properties_args()
+    first = tuple(args.first) if args.first is not None else _frft_params(args.first_angle_degrees)
+    second = tuple(args.second) if args.second is not None else _frft_params(args.second_angle_degrees)
+    thresholds = FiniteLCTPropertyThresholds(
+        max_determinant_error=args.max_determinant_error,
+        max_unitarity_error=args.max_unitarity_error,
+        max_composition_error=args.max_composition_error,
+    )
+    report = property_report(
+        args.length,
+        first,
+        second,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        discretization=args.discretization,
+        device=args.device,
+    )
+    assessment = assess_property_report(report, thresholds)
+    _emit_json(assessment.as_dict())
+    if not assessment.ok:
+        raise SystemExit(1)
 
 
 def parse_sweep_properties_args() -> argparse.Namespace:

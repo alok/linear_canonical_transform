@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import math
 
+import pytest
 import torch
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from lct_activation import (
+    FiniteLCTPropertyThresholds,
+    assess_property_report,
     canonical_determinant,
     compose_canonical,
     composition_error,
@@ -138,6 +141,45 @@ def test_spectral_frft_report_exposes_low_composition_error() -> None:
     assert report.first_unitarity_error <= 1e-5
     assert report.second_unitarity_error <= 1e-5
     assert report.composition_error <= 1e-5
+
+
+def test_property_assessment_marks_spectral_frft_as_passing() -> None:
+    report = property_report(
+        16,
+        _frft(0.5),
+        _frft(-0.5),
+        discretization="spectral-frft",
+    )
+
+    assessment = assess_property_report(report, FiniteLCTPropertyThresholds())
+
+    assert assessment.ok is True
+    assert assessment.determinant_ok is True
+    assert assessment.unitarity_ok is True
+    assert assessment.composition_ok is True
+    assert assessment.as_dict()["ok"] is True
+
+
+def test_property_assessment_keeps_sampled_tradeoff_visible() -> None:
+    report = property_report(
+        16,
+        _frft(0.5),
+        _frft(-0.5),
+        normalization="unitary",
+        unitary_projection=True,
+    )
+
+    assessment = assess_property_report(report, FiniteLCTPropertyThresholds(max_composition_error=1e-5))
+
+    assert assessment.ok is False
+    assert assessment.determinant_ok is True
+    assert assessment.unitarity_ok is True
+    assert assessment.composition_ok is False
+
+
+def test_property_thresholds_must_be_non_negative() -> None:
+    with pytest.raises(ValueError, match="max_composition_error"):
+        FiniteLCTPropertyThresholds(max_composition_error=-1.0)
 
 
 def test_property_sweep_compares_sampled_and_spectral_discretizations() -> None:

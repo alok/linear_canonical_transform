@@ -370,3 +370,38 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 property assertion pass
+
+What changed:
+- Added `FiniteLCTPropertyThresholds`, `FiniteLCTPropertyAssessment`, and `assess_property_report` for machine-readable finite-grid property pass/fail checks.
+- Added `lct assert-properties` and direct `lct-assert-properties` commands.
+- The assertion command defaults to the spectral-FrFT finite-grid discretization and exits nonzero when determinant, unitarity, or composition errors exceed configured thresholds.
+- Kept `check-properties` and `sweep-properties` as diagnostic/tradeoff commands so sampled-kernel composition gaps remain visible instead of hidden behind loose thresholds.
+- Exported assessment helpers from both `lct_activation` and `linear_canonical_transform`.
+- Added CI coverage for `lct assert-properties`.
+- Expanded wheel smoke checks to run both umbrella and direct assertion commands, and changed the smoke script to pass a hash-qualified wheel reference to uv so same-version local wheel rebuilds do not reuse stale entry points.
+- Updated README, API docs, release checklist, package metadata tests, compatibility tests, and smoke tests.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_lct_properties.py tests/test_cli_outputs.py tests/test_compat_package.py tests/test_package_metadata.py tests/test_smoke_dist.py` -> `35 passed`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv run lct-assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-direct-assert-properties.json`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization lct --max-composition-error 1e-5 >/tmp/lct-expected-failing-assert.json; rc=$?; test "$rc" -eq 1 && uv run python -m json.tool /tmp/lct-expected-failing-assert.json >/tmp/lct-expected-failing-assert.pretty.json`
+- `uv run pytest -q` -> `90 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist.json` -> `property_assert_ok`, `direct_property_assert_ok`, and `assessment_import_ok` were all true
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.

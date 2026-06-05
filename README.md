@@ -219,6 +219,22 @@ spectral projectors. It is less a sampled continuum integral kernel and more a
 finite-dimensional FrFT algebra: unitary and compositional up to floating-point
 error.
 
+Use `assert-properties` when you want a CI-friendly pass/fail check with
+thresholds:
+
+```bash
+lct assert-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30
+```
+
+The assertion command defaults to the spectral FrFT discretization and exits
+nonzero if determinant, unitarity, or composition errors exceed the configured
+thresholds. Use `check-properties` or `sweep-properties` when comparing
+finite-discretization tradeoffs without treating the sampled-kernel path as a
+failure.
+
 To generate a compact tradeoff table across lengths and angles:
 
 ```bash

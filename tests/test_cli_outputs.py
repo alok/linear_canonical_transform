@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from lct_activation.cli import bench_linear_main, lct_main, quickstart_main
+from lct_activation.cli import assert_properties_main, bench_linear_main, lct_main, quickstart_main
 from lct_activation.results import collect_result_rows
 
 
@@ -162,6 +162,90 @@ def test_lct_umbrella_dispatches_property_check(
 
     assert payload["discretization"] == "spectral-frft"
     assert payload["composition_error"] <= 1e-5
+
+
+def test_assert_properties_exits_zero_for_spectral_frft(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct-assert-properties",
+            "--length",
+            "8",
+            "--first-angle-degrees",
+            "30",
+            "--second-angle-degrees",
+            "-30",
+        ],
+    )
+
+    assert_properties_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is True
+    assert payload["report"]["discretization"] == "spectral-frft"
+    assert payload["composition_ok"] is True
+
+
+def test_assert_properties_exits_nonzero_for_strict_sampled_lct_composition(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct-assert-properties",
+            "--length",
+            "8",
+            "--first-angle-degrees",
+            "30",
+            "--second-angle-degrees",
+            "-30",
+            "--discretization",
+            "lct",
+            "--max-composition-error",
+            "1e-5",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        assert_properties_main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exc_info.value.code == 1
+    assert payload["ok"] is False
+    assert payload["composition_ok"] is False
+    assert payload["unitarity_ok"] is True
+
+
+def test_lct_umbrella_dispatches_property_assertion(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct",
+            "assert-properties",
+            "--length",
+            "8",
+            "--first-angle-degrees",
+            "30",
+            "--second-angle-degrees",
+            "-30",
+        ],
+    )
+
+    lct_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is True
+    assert payload["report"]["discretization"] == "spectral-frft"
 
 
 def test_lct_umbrella_dispatches_quickstart_json(

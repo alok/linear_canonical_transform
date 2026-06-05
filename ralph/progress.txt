@@ -1,0 +1,20 @@
+2026-06-05 initial setup
+
+Recovered prior LCT work with agent-history and found the active target repo:
+- /Users/alokbeniwal/LCT on codex/lct-activation-nanogpt
+- base head 291ac0a Record normalization tradeoff results
+- tests are green: uv run pytest -q -> 40 passed
+
+Checked current upstream KellerJordan/modded-nanogpt state:
+- upstream master head from git ls-remote: b19c4d8019e7525dcacc8e363a3cfe6e2b9351dd
+- current listed main-track record in README: 1.353 minutes, record 82, 2026-04-29
+- current record rules still require fixed token streams, <=3.28 mean val loss with statistical evidence unless systems-only, no extra compile/inductor flags, and faster same-hardware timing
+
+Created Linear issue:
+- ALOK-750 Finish LCT code, paper, NanoGPT submission loop
+
+Created loop branch:
+- codex/alok-750-autoresearch-loop
+
+Next suggested loop task:
+- Add paper/submission_audit.md summarizing current local evidence versus the current KellerJordan submission requirements, then commit it.

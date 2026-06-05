@@ -43,6 +43,7 @@ dev = [
 lct-bench-linear = "lct_activation.cli:bench_linear_main"
 lct-bench-nanogpt = "lct_activation.cli:bench_nanogpt_main"
 lct-check-properties = "lct_activation.cli:check_properties_main"
+lct-summarize-results = "lct_activation.cli:summarize_results_main"
 lct-train-nanogpt = "lct_activation.cli:train_nanogpt_main"
 lct-tune-nanogpt = "lct_activation.cli:tune_nanogpt_main"
 

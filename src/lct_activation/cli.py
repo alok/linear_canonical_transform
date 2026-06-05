@@ -22,6 +22,7 @@ from .integrations.nanogpt import (
 )
 from .layers import LCTLinear
 from .properties import property_report
+from .results import summarize_results_main
 
 
 def _resolve_device(spec: str) -> torch.device:

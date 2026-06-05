@@ -50,6 +50,7 @@ If you just want the packaged command-line tools, install them with `uv tool`:
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
 ```
 
@@ -109,6 +110,13 @@ Compatibility imports under the older repo name also work:
 from linear_canonical_transform import LCTLinear
 ```
 
+Runnable examples live in [`examples/`](examples/):
+
+```bash
+uv run python examples/quickstart.py
+uv run python examples/property_diagnostics.py
+```
+
 ## Core package
 
 - `src/lct_activation/functional/lct.py`: dense reference kernel, `b ~= 0` branch, Fourier/Laplace special cases, and the finite-dimensional symplectic solve `symplectic_d`
@@ -155,6 +163,21 @@ from lct_activation import composition_error, finite_lct_matrix, unitarity_error
 params = (0.8660254, 0.5, -0.5)
 matrix = finite_lct_matrix(16, params, normalization="unitary")
 print(unitarity_error(matrix))
+```
+
+## Result summaries
+
+The checked-in NanoGPT and backend artifacts under `paper/results/` can be
+summarized without manual `jq` commands:
+
+```bash
+lct-summarize-results --result-dir paper/results
+```
+
+To emit JSON for a notebook or plotting script:
+
+```bash
+lct-summarize-results --result-dir paper/results --format json
 ```
 
 ## NanoGPT integration

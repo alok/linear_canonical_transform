@@ -68,3 +68,28 @@ Commands/tests run:
 Next steps or blockers:
 - Next packaging step: decide whether to add a license file and publish flow; the project currently builds locally but does not yet have release automation or a PyPI-ready release checklist.
 - Next research/code step: use the diagnostics to drive a focused fix or replacement for the generic FrFT composition behavior, rather than overclaiming it in docs.
+
+2026-06-05 result-summary and examples pass
+
+What changed:
+- Added `src/lct_activation/results.py` with a reusable evidence-row normalizer for the checked-in `paper/results/*.json` artifacts.
+- Added the `lct-summarize-results` CLI, with Markdown output by default and JSON output for notebooks or plotting.
+- Added tests for standard NanoGPT tune artifacts, Modal GPU artifacts, Modal Linux smoke artifacts, and Markdown table rendering.
+- Added runnable examples: `examples/quickstart.py` and `examples/property_diagnostics.py`.
+- Linked the new examples and result-summary command from the README.
+- Hardened the summary CLI against closed pipes so `| head` and similar usage does not show a traceback.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q` -> `50 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-summarize-results --result-dir paper/results`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- The repo is easier to use and reproduce locally now, but still needs an explicit license/release checklist before a serious public push.
+- A future paper/release pass should consume `lct-summarize-results` output rather than manually maintained tables.

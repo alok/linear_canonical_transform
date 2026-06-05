@@ -137,3 +137,32 @@ Commands/tests run:
 Next steps or blockers:
 - Decide whether to route any model-facing layer through the spectral FrFT path, or keep it as diagnostics/research API until a benchmark justifies using it in `LCTLinear`.
 - License selection remains the main public-release blocker.
+
+2026-06-05 install doctor pass
+
+What changed:
+- Added `src/lct_activation/doctor.py` with a reusable install/evidence doctor report.
+- Added the `lct-doctor` CLI with text and JSON output.
+- The doctor checks package metadata, Python version, Torch device availability, `LCTLinear` forward smoke behavior, spectral-FrFT unitarity/composition preservation, compatibility imports, and checked-in paper result artifacts when requested.
+- Exported the doctor helpers from both `lct_activation` and the compatibility package.
+- Added focused tests for success, warning, failure, strict CLI behavior, and compatibility re-export.
+- Added the doctor command to README install guidance, release verification, and CI.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_doctor.py tests/test_compat_package.py` -> `10 passed`
+- `uv run lct-doctor --result-dir paper/results --require-results` -> all checks passed, including 64 evidence rows across 9 JSON artifacts
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run pytest -q` -> `63 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Confirm final package/repository metadata before publishing.
+- Decide whether the model-facing API should expose a spectral-FrFT-backed layer path, or keep it as diagnostics until benchmark evidence justifies using it in `LCTLinear`.

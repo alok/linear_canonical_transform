@@ -50,6 +50,7 @@ If you just want the packaged command-line tools, install them with `uv tool`:
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-doctor
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
 ```
@@ -65,6 +66,18 @@ layer = LCTLinear(16, 16)
 x = torch.randn(2, 16)
 print(layer(x).shape)
 PY
+```
+
+Or run the packaged self-check:
+
+```bash
+lct-doctor
+```
+
+Inside this repository, include the checked-in paper evidence artifacts:
+
+```bash
+uv run lct-doctor --result-dir paper/results --require-results
 ```
 
 ## Quick use
@@ -125,6 +138,7 @@ uv run python examples/property_diagnostics.py
 - `src/lct_activation/layers.py`: `LCTLayer`, `LCTActivation`, and `LCTLinear`
 - `src/lct_activation/properties.py`: finite-grid diagnostics for determinant,
   unitarity, and composition errors
+- `src/lct_activation/doctor.py`: install, smoke-test, and local evidence checks
 
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
 

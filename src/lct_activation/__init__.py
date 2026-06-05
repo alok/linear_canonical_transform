@@ -6,6 +6,7 @@ from .functional import (
     spectral_fractional_fourier_transform,
     symplectic_d,
 )
+from .doctor import DoctorCheck, DoctorReport, format_doctor_text, run_doctor
 from .layers import LCTActivation, LCTLayer, LCTLinear, LCTModReLU
 from .properties import (
     DiscretizationMode,
@@ -22,6 +23,8 @@ from .properties import (
 __all__ = [
     "NormMode",
     "DiscretizationMode",
+    "DoctorCheck",
+    "DoctorReport",
     "FiniteLCTPropertyReport",
     "LCTActivation",
     "LCTLayer",
@@ -32,9 +35,11 @@ __all__ = [
     "compose_canonical",
     "composition_error",
     "finite_lct_matrix",
+    "format_doctor_text",
     "linear_canonical_transform",
     "property_report",
     "relative_frobenius_error",
+    "run_doctor",
     "spectral_fractional_fourier_matrix",
     "spectral_fractional_fourier_transform",
     "symplectic_d",

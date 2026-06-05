@@ -22,6 +22,7 @@ Run from the repository root:
 ```bash
 uv sync --extra dev
 uv run pytest -q
+uv run lct-doctor --result-dir paper/results --require-results
 uv run python examples/quickstart.py
 uv run python examples/property_diagnostics.py
 uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30
@@ -33,6 +34,8 @@ uv build
 Expected current baseline:
 
 - test suite passes
+- install doctor passes core package, layer, compatibility import, spectral FrFT,
+  and checked-in result artifact checks
 - examples run without external data
 - property diagnostics emits valid JSON
 - result summary emits valid JSON
@@ -44,6 +47,7 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 3.12. It intentionally checks the package from the user-facing surfaces:
 
 - full test suite
+- install doctor
 - examples
 - property diagnostics CLI
 - result summary CLI

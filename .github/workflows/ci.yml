@@ -33,6 +33,9 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
+      - name: Run install doctor
+        run: uv run lct-doctor --result-dir paper/results --require-results
+
       - name: Run examples
         run: |
           uv run python examples/quickstart.py

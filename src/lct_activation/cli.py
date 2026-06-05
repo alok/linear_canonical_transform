@@ -9,6 +9,7 @@ from pathlib import Path
 
 import torch
 
+from .doctor import format_doctor_text, run_doctor
 from .integrations.nanogpt import (
     DEFAULT_LOCAL_NANOGPT_REPO,
     DEFAULT_UPSTREAM_NANOGPT_REPO,
@@ -106,6 +107,40 @@ def check_properties_main() -> None:
         device=args.device,
     )
     print(json.dumps(report.as_dict(), indent=2, default=_json_default))
+
+
+def parse_doctor_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Verify an lct-activation install and local evidence artifacts.")
+    parser.add_argument("--device", default="cpu", help="Torch device to smoke-test, or auto.")
+    parser.add_argument("--result-dir", type=Path, help="Optional result artifact directory to verify.")
+    parser.add_argument(
+        "--require-results",
+        action="store_true",
+        help="Fail if result artifacts are missing or unrecognized.",
+    )
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero on warnings as well as failures.",
+    )
+    return parser.parse_args()
+
+
+def doctor_main() -> None:
+    args = parse_doctor_args()
+    report = run_doctor(
+        device=args.device,
+        result_dir=args.result_dir,
+        require_results=args.require_results,
+    )
+    if args.format == "json":
+        print(json.dumps(report.as_dict(), indent=2))
+    else:
+        print(format_doctor_text(report))
+
+    if not report.ok or (args.strict and report.has_warnings):
+        raise SystemExit(1)
 
 
 def _maybe_compile(module: torch.nn.Module, *, enabled: bool, device: torch.device, mode: str) -> torch.nn.Module:

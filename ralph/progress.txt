@@ -93,3 +93,24 @@ Commands/tests run:
 Next steps or blockers:
 - The repo is easier to use and reproduce locally now, but still needs an explicit license/release checklist before a serious public push.
 - A future paper/release pass should consume `lct-summarize-results` output rather than manually maintained tables.
+
+2026-06-05 CI and release checklist pass
+
+What changed:
+- Added `.github/workflows/ci.yml` to run install, tests, examples, property diagnostics, result summary JSON validation, and package build on Python 3.10 and 3.12.
+- Added `docs/release_checklist.md` with local verification, GitHub check expectations, release blockers, and a publishing sketch.
+- Linked the release checklist and CI workflow from the README.
+- Kept license selection as an explicit pre-release blocker rather than silently choosing one.
+
+Commands/tests run:
+- `uv run pytest -q` -> `50 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Add an explicit license after Alok chooses the intended open-source license.
+- A later release automation pass can add trusted publishing once the package name and license are settled.

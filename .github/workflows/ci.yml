@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Run examples
+        run: |
+          uv run python examples/quickstart.py
+          uv run python examples/property_diagnostics.py
+
+      - name: Check property diagnostics CLI
+        run: |
+          uv run lct-check-properties \
+            --length 8 \
+            --first-angle-degrees 30 \
+            --second-angle-degrees -30 \
+            --normalization unitary \
+            --unitary-projection
+
+      - name: Check result summary CLI
+        run: |
+          uv run lct-summarize-results --result-dir paper/results --format json \
+            | uv run python -m json.tool > /tmp/lct-summary.json
+
+      - name: Build package
+        run: uv build

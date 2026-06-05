@@ -289,3 +289,8 @@ uv run pytest -q tests/test_lct_core.py tests/test_activation.py tests/test_spec
 uv run pytest -q tests/test_lct_linear.py
 uv run pytest -q tests/test_lct_properties.py
 ```
+
+Before public release, use [`docs/release_checklist.md`](docs/release_checklist.md).
+The GitHub Actions workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+runs tests, examples, property diagnostics, result summaries, and package build
+checks on Python 3.10 and 3.12.

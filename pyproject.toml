@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.26",
@@ -30,6 +31,7 @@ dependencies = [
 ]
 
 [project.urls]
+Documentation = "https://github.com/alok/linear_canonical_transform#readme"
 Repository = "https://github.com/alok/linear_canonical_transform"
 Issues = "https://github.com/alok/linear_canonical_transform/issues"
 

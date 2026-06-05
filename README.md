@@ -141,6 +141,7 @@ uv run python examples/property_diagnostics.py
 - `src/lct_activation/doctor.py`: install, smoke-test, and local evidence checks
 
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
+The public API surface is summarized in [`docs/api.md`](docs/api.md).
 
 ## Finite-grid property checks
 

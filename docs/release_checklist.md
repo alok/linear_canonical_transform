@@ -6,8 +6,12 @@ Use this checklist before advertising or publishing `lct-activation`.
 
 - Choose and add an explicit open-source license file.
 - Confirm the package name on PyPI is available or choose the final public name.
+  The PyPI JSON API returned `404` for `lct-activation` on 2026-06-05, but
+  this must be re-checked immediately before publishing:
+  `curl -sS -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/lct-activation/json`.
 - Confirm the GitHub repository URL in `pyproject.toml` points to the intended public repo.
-- Review `README.md` from a fresh-user perspective: install, quickstart, property diagnostics, result summaries, NanoGPT notes.
+- Review `README.md` and `docs/api.md` from a fresh-user perspective:
+  install, quickstart, property diagnostics, result summaries, NanoGPT notes.
 - Keep claims aligned with checked-in evidence:
   - `LCTLinear` is the lead component.
   - `LCTActivation` remains exploratory.
@@ -36,6 +40,7 @@ Expected current baseline:
 - test suite passes
 - install doctor passes core package, layer, compatibility import, spectral FrFT,
   and checked-in result artifact checks
+- PEP 561 typed-package markers are present in both import packages
 - examples run without external data
 - property diagnostics emits valid JSON
 - result summary emits valid JSON

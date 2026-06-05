@@ -166,3 +166,33 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Confirm final package/repository metadata before publishing.
 - Decide whether the model-facing API should expose a spectral-FrFT-backed layer path, or keep it as diagnostics until benchmark evidence justifies using it in `LCTLinear`.
+
+2026-06-05 API docs and typed package pass
+
+What changed:
+- Added `docs/api.md` to summarize the current public API: model-facing layers, functional transforms, finite-grid diagnostics, install doctor, and result summaries.
+- Added PEP 561 `py.typed` markers for both `lct_activation` and `linear_canonical_transform`.
+- Added the `Typing :: Typed` classifier and a documentation URL to `pyproject.toml`.
+- Added tests that verify the typed markers are visible as package resources and that all user-facing console scripts are registered.
+- Updated README and the release checklist to point at the API guide.
+- Checked the PyPI JSON endpoint for `lct-activation`; it returned `404` on 2026-06-05, so the checklist now records the command and requires a final re-check before publish.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_package_metadata.py tests/test_doctor.py` -> `8 passed`
+- `uv run pytest -q` -> `65 passed`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'py\\.typed'` -> found both typed markers
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Before publishing, re-check PyPI name availability and repository metadata in the final target state.

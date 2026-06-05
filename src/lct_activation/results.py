@@ -147,6 +147,26 @@ def _rows_from_modal_linux(artifact: Path, payload: dict[str, Any]) -> list[Evid
     return rows
 
 
+def _row_from_linear_bench(artifact: Path, payload: dict[str, Any]) -> EvidenceRow:
+    note = " ".join(
+        str(value)
+        for value in (
+            payload.get("mode"),
+            f"{payload.get('in_features')}x{payload.get('out_features')}",
+            payload.get("direct_fourier_backend"),
+            payload.get("normalization"),
+        )
+        if value is not None and value != ""
+    )
+    return EvidenceRow(
+        artifact=artifact.name,
+        section=str(payload.get("device") or "bench"),
+        name="lct-bench-linear",
+        lct_over_dense=_as_float(payload.get("lct_over_dense")),
+        note=note,
+    )
+
+
 def _rows_from_artifact(path: Path) -> list[EvidenceRow]:
     payload = json.loads(path.read_text())
 
@@ -161,6 +181,9 @@ def _rows_from_artifact(path: Path) -> list[EvidenceRow]:
 
     if path.name == "modal_linux_smoke.json":
         return _rows_from_modal_linux(path, payload)
+
+    if "lct_over_dense" in payload and all(key in payload for key in ("dense_ms", "lct_ms")):
+        return [_row_from_linear_bench(path, payload)]
 
     results = payload.get("results")
     if isinstance(results, list):

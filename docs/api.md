@@ -111,3 +111,6 @@ lct-summarize-results --result-dir paper/results
 
 This keeps checked-in NanoGPT and backend artifacts summarized from source JSON
 instead of hand-maintained tables.
+
+Saved `lct-bench-linear --output ...` JSON files are also summarized directly,
+so quick local benchmarks can become paper evidence without manual conversion.

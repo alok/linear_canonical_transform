@@ -103,6 +103,32 @@ def test_collect_result_rows_from_modal_linux_object_shape() -> None:
     assert bench.note == "cpu 512x512"
 
 
+def test_collect_result_rows_from_saved_linear_bench_artifact(tmp_path: Path) -> None:
+    artifact = tmp_path / "bench_linear.json"
+    _write_json(
+        artifact,
+        {
+            "device": "cpu",
+            "mode": "forward",
+            "in_features": 512,
+            "out_features": 512,
+            "direct_fourier_backend": "fft",
+            "normalization": "unitary",
+            "dense_ms": 1.0,
+            "lct_ms": 2.0,
+            "lct_over_dense": 2.0,
+        },
+    )
+
+    rows = collect_result_rows([artifact])
+
+    assert len(rows) == 1
+    assert rows[0].name == "lct-bench-linear"
+    assert rows[0].section == "cpu"
+    assert rows[0].lct_over_dense == 2.0
+    assert rows[0].note == "forward 512x512 fft unitary"
+
+
 def test_format_markdown_table() -> None:
     rows = collect_result_rows(
         [

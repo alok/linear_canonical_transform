@@ -241,7 +241,8 @@ Benchmark a different checkout explicitly:
 ```bash
 uv run python scripts/bench_nanogpt.py \
   --repo-dir /path/to/nanoGPT \
-  --repo-kind upstream
+  --repo-kind upstream \
+  --output paper/results/bench_nanogpt_upstream.json
 ```
 
 Microbenchmark the structured linear layer against `nn.Linear`:
@@ -251,7 +252,8 @@ lct-bench-linear \
   --device cpu \
   --batch-size 256 \
   --in-features 1024 \
-  --out-features 1024
+  --out-features 1024 \
+  --output paper/results/bench_linear_cpu.json
 ```
 
 On this machine, the current implementation is still slower than `nn.Linear`

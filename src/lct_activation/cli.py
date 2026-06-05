@@ -48,6 +48,17 @@ def _json_default(value):
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
+def _emit_json(payload: object, *, output: Path | None = None) -> None:
+    text = json.dumps(payload, indent=2, default=_json_default)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text + "\n")
+    try:
+        print(text)
+    except BrokenPipeError:
+        pass
+
+
 def _frft_params(angle_degrees: float) -> tuple[float, float, float]:
     theta = math.radians(angle_degrees)
     return math.cos(theta), math.sin(theta), -math.sin(theta)
@@ -193,6 +204,7 @@ def parse_bench_linear_args() -> argparse.Namespace:
     )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
+    parser.add_argument("--output", type=Path, help="Optional JSON file to write the benchmark payload.")
     return parser.parse_args()
 
 
@@ -243,21 +255,20 @@ def bench_linear_main() -> None:
         dense_ms = bench_train_step(dense)
         lct_ms = bench_train_step(lct)
 
-    print(
-        {
-            "device": str(device),
-            "batch_size": args.batch_size,
-            "in_features": args.in_features,
-            "out_features": args.out_features,
-            "mode": args.mode,
-            "normalization": args.normalization,
-            "direct_fourier_backend": args.direct_fourier_backend,
-            "compiled": bool(args.compile and device.type == "cuda"),
-            "dense_ms": round(dense_ms, 4),
-            "lct_ms": round(lct_ms, 4),
-            "lct_over_dense": round(lct_ms / dense_ms, 4) if dense_ms else None,
-        }
-    )
+    payload = {
+        "device": str(device),
+        "batch_size": args.batch_size,
+        "in_features": args.in_features,
+        "out_features": args.out_features,
+        "mode": args.mode,
+        "normalization": args.normalization,
+        "direct_fourier_backend": args.direct_fourier_backend,
+        "compiled": bool(args.compile and device.type == "cuda"),
+        "dense_ms": round(dense_ms, 4),
+        "lct_ms": round(lct_ms, 4),
+        "lct_over_dense": round(lct_ms / dense_ms, 4) if dense_ms else None,
+    }
+    _emit_json(payload, output=args.output)
 
 
 def parse_bench_nanogpt_args() -> argparse.Namespace:
@@ -319,6 +330,7 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
     )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
+    parser.add_argument("--output", type=Path, help="Optional JSON file to write the benchmark payload.")
     return parser.parse_args()
 
 
@@ -474,7 +486,7 @@ def bench_nanogpt_main() -> None:
             for item in results
             if item["variant"] != "baseline"
         }
-    print(json.dumps(summary, indent=2))
+    _emit_json(summary, output=args.output)
 
 
 def parse_train_nanogpt_args() -> tuple[argparse.Namespace, list[str]]:
@@ -816,6 +828,4 @@ def tune_nanogpt_main() -> None:
         "results": results,
     }
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2))
-    print(json.dumps(payload, indent=2))
+    _emit_json(payload, output=args.output)

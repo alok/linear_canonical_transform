@@ -196,3 +196,34 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Decide the spectral-FrFT model-facing API direction.
 - Before publishing, re-check PyPI name availability and repository metadata in the final target state.
+
+2026-06-05 benchmark JSON evidence pass
+
+What changed:
+- Made `lct-bench-linear` emit valid JSON instead of a Python dict repr.
+- Added `--output` to `lct-bench-linear` and `lct-bench-nanogpt` so benchmark payloads can be saved directly.
+- Reused one JSON emitter for benchmark/tune CLI payloads, including closed-pipe handling.
+- Taught `lct-summarize-results` to parse saved `lct-bench-linear --output ...` JSON artifacts directly.
+- Added CLI-output tests that run a small CPU linear benchmark, parse stdout as JSON, compare it to the saved file, and verify result-summary ingestion.
+- Updated README/API docs so local benchmark runs can become paper evidence without manual conversion.
+
+Commands/tests run:
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_results.py` -> `7 passed`
+- `uv run pytest -q` -> `68 passed`
+- `uv run lct-bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-bench-linear.json | uv run python -m json.tool`
+- `uv run lct-summarize-results --path /tmp/lct-bench-linear.json --format json | uv run python -m json.tool` -> recognized the saved benchmark row
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'py\\.typed|lct_activation/cli.py|lct_activation/results.py'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.

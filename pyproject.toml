@@ -42,6 +42,7 @@ dev = [
 ]
 
 [project.scripts]
+lct = "lct_activation.cli:lct_main"
 lct-bench-linear = "lct_activation.cli:bench_linear_main"
 lct-bench-nanogpt = "lct_activation.cli:bench_nanogpt_main"
 lct-check-properties = "lct_activation.cli:check_properties_main"

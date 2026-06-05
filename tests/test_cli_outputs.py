@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from lct_activation.cli import bench_linear_main
+from lct_activation.cli import bench_linear_main, lct_main
 from lct_activation.results import collect_result_rows
 
 
@@ -75,3 +75,71 @@ def test_result_summary_reads_saved_linear_benchmark_json(tmp_path: Path) -> Non
     assert rows[0].name == "lct-bench-linear"
     assert rows[0].lct_over_dense == 2.0
     assert rows[0].note == "forward 8x8 fft unitary"
+
+
+def test_lct_umbrella_dispatches_doctor_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct",
+            "doctor",
+            "--result-dir",
+            "paper/results",
+            "--require-results",
+            "--format",
+            "json",
+        ],
+    )
+
+    lct_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is True
+    assert any(check["name"] == "spectral-frft" for check in payload["checks"])
+
+
+def test_lct_umbrella_dispatches_property_check(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct",
+            "check-properties",
+            "--length",
+            "8",
+            "--first-angle-degrees",
+            "30",
+            "--second-angle-degrees",
+            "-30",
+            "--discretization",
+            "spectral-frft",
+        ],
+    )
+
+    lct_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["discretization"] == "spectral-frft"
+    assert payload["composition_error"] <= 1e-5
+
+
+def test_lct_umbrella_without_subcommand_prints_help(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["lct"])
+
+    lct_main()
+    output = capsys.readouterr().out
+
+    assert "Umbrella command for lct-activation tools." in output
+    assert "check-properties" in output
+    assert "Report finite-grid LCT property diagnostics." in output
+    assert "summarize-results" in output

@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import torch
 
@@ -24,6 +26,8 @@ from .integrations.nanogpt import (
 from .layers import LCTLinear
 from .properties import property_report
 from .results import summarize_results_main
+
+CommandMain = Callable[[], None]
 
 
 def _resolve_device(spec: str) -> torch.device:
@@ -62,6 +66,47 @@ def _emit_json(payload: object, *, output: Path | None = None) -> None:
 def _frft_params(angle_degrees: float) -> tuple[float, float, float]:
     theta = math.radians(angle_degrees)
     return math.cos(theta), math.sin(theta), -math.sin(theta)
+
+
+def _lct_commands() -> dict[str, tuple[str, CommandMain]]:
+    return {
+        "bench-linear": ("Benchmark nn.Linear against LCTLinear.", bench_linear_main),
+        "bench-nanogpt": ("Benchmark baseline and LCT NanoGPT variants.", bench_nanogpt_main),
+        "check-properties": ("Report finite-grid LCT property diagnostics.", check_properties_main),
+        "doctor": ("Verify an install and optional local evidence artifacts.", doctor_main),
+        "summarize-results": ("Summarize experiment JSON artifacts.", summarize_results_main),
+        "train-nanogpt": ("Patch NanoGPT and run upstream train.py.", train_nanogpt_main),
+        "tune-nanogpt": ("Run the local NanoGPT ablation sweep.", tune_nanogpt_main),
+    }
+
+
+def lct_main() -> None:
+    commands = _lct_commands()
+    command_help = "\n".join(
+        f"  {name:<18} {description}"
+        for name, (description, _main) in sorted(commands.items())
+    )
+    parser = argparse.ArgumentParser(
+        prog="lct",
+        description="Umbrella command for lct-activation tools.",
+        epilog=f"commands:\n{command_help}",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("command", nargs="?", choices=sorted(commands), help="Command to run.")
+    parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments passed to the command.")
+
+    args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        return
+
+    _description, main = commands[args.command]
+    old_argv = sys.argv
+    sys.argv = [f"lct-{args.command}", *args.args]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
 
 
 def parse_check_properties_args() -> argparse.Namespace:

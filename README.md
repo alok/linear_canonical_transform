@@ -44,7 +44,14 @@ pushed:
 uv add "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>"
 ```
 
-If you just want the packaged command-line tools, install them with `uv tool`:
+If you just want one packaged command-line entry point, install `lct` with
+`uv tool`:
+
+```bash
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct
+```
+
+The older direct command names remain available for scripts and CI:
 
 ```bash
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
@@ -71,13 +78,13 @@ PY
 Or run the packaged self-check:
 
 ```bash
-lct-doctor
+lct doctor
 ```
 
 Inside this repository, include the checked-in paper evidence artifacts:
 
 ```bash
-uv run lct-doctor --result-dir paper/results --require-results
+uv run lct doctor --result-dir paper/results --require-results
 ```
 
 ## Quick use
@@ -157,6 +164,16 @@ lct-check-properties \
   --second-angle-degrees -30 \
   --normalization unitary \
   --unitary-projection
+```
+
+The same check is available through the umbrella command:
+
+```bash
+lct check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --discretization spectral-frft
 ```
 
 The output is JSON with determinant errors, unitarity errors, and composition

@@ -88,13 +88,13 @@ print(format_doctor_text(report))
 The matching CLI is:
 
 ```bash
-lct-doctor
+lct doctor
 ```
 
 Inside this repository, include checked-in result artifacts:
 
 ```bash
-lct-doctor --result-dir paper/results --require-results
+lct doctor --result-dir paper/results --require-results
 ```
 
 ## Result Summaries
@@ -111,6 +111,9 @@ lct-summarize-results --result-dir paper/results
 
 This keeps checked-in NanoGPT and backend artifacts summarized from source JSON
 instead of hand-maintained tables.
+
+All installed commands are also available through the umbrella `lct` command,
+for example `lct check-properties ...` and `lct summarize-results ...`.
 
 Saved `lct-bench-linear --output ...` JSON files are also summarized directly,
 so quick local benchmarks can become paper evidence without manual conversion.

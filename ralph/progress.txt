@@ -227,3 +227,39 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 umbrella CLI pass
+
+What changed:
+- Added a top-level `lct` console script.
+- Added subcommands for the existing user-facing tools: `doctor`, `check-properties`, `summarize-results`, `bench-linear`, `bench-nanogpt`, `train-nanogpt`, and `tune-nanogpt`.
+- The umbrella command dispatches to the existing command implementations, so the direct `lct-*` entry points remain compatible.
+- Top-level `lct` help now lists subcommands with descriptions.
+- Added tests for `lct doctor`, `lct check-properties`, and bare `lct` help.
+- Updated README, API docs, and release checklist to show the umbrella command.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_package_metadata.py` -> `7 passed`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-umbrella-bench-linear.json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-umbrella-bench-linear.json --format json | uv run python -m json.tool`
+- `uv run lct | sed -n '1,120p'`
+- `uv run pytest -q` -> `71 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct` and all direct `lct-*` commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.

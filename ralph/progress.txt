@@ -18,3 +18,31 @@ Created loop branch:
 
 Next suggested loop task:
 - Add paper/submission_audit.md summarizing current local evidence versus the current KellerJordan submission requirements, then commit it.
+
+2026-06-05 submission audit pass
+
+What changed:
+- Created the Linear Project Document `LCT Activation PRD` from `ralph/PRD.md` and treated it as the authoritative PRD for this iteration.
+- Added `paper/submission_audit.md` with recovered repo state, current KellerJordan/modded-nanogpt rule and record status, a table of local `paper/results/*.json` evidence, a submission gap matrix, claim boundaries, and a ranked next-task shortlist.
+- Kept the iteration bounded: no GPU, H100, Modal, or long training jobs were launched.
+
+Commands/tests run:
+- `fd -a '^(AGENTS|CLAUDE)\.md$|^\.claude$' /Users/alokbeniwal/LCT` -> no repo-local instruction files found beyond the prompt-provided AGENTS.md instructions.
+- `git ls-remote https://github.com/KellerJordan/modded-nanogpt.git HEAD refs/heads/master` -> upstream `master` at `b19c4d8019e7525dcacc8e363a3cfe6e2b9351dd`.
+- `uv run python - <<'PY' ...` -> parsed `paper/results/*.json` and `paper/results/modal_gpu_sweep.json` for audit numbers.
+- `uv run pytest -q` -> `40 passed in 0.54s`.
+- `git diff --check` -> clean.
+
+Next steps or blockers:
+- Next recommended task: add a small result-summary command or script that reads `paper/results/*.json` and emits the paper/audit evidence tables reproducibly.
+- KellerJordan record PR remains blocked by lack of FineWeb `<= 3.28` statistical logs, lack of 8xH100 same-hardware timing, and current CUDA compiled-path speed gaps.
+- Exploratory KellerJordan work should wait for a fresh upstream patchability audit against current `KellerJordan/modded-nanogpt` `master`.
+
+Linear updates:
+- Used `ALOK-750` as the tracking issue; it was already assigned to Alok, in progress, high priority, labeled `enhancement`, attached to `LCT Activation`, and assigned to current Cycle 32.
+- Created Linear Project Document `LCT Activation PRD`: https://linear.app/aloksingh/document/lct-activation-prd-2463d3a9be06
+- Confirmed Linear project `LCT Activation` exists. No relevant LCT Initiative was found to associate.
+- GitHub remote for the repo is `https://github.com/alok/linear_canonical_transform.git`; the available Linear project tool did not expose a project-resource link field, so the repo URL was recorded in this log and will be attached to the tracking issue update.
+
+Runner note:
+- The first `ralph-loop.py --runner codex --iterations 1` invocation produced the audit files and progress update, but the wrapper process remained idle and did not exit after several minutes. The parent session stopped the wrapper, reran `git diff --check` and `uv run pytest -q` manually, and committed the completed iteration output.

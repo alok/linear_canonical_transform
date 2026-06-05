@@ -11,17 +11,25 @@ def frft(angle_degrees: float) -> tuple[float, float, float]:
 
 
 def main() -> None:
-    report = property_report(
+    lct_kernel = property_report(
         16,
         frft(30),
         frft(-30),
         normalization="unitary",
         unitary_projection=True,
     )
+    spectral = property_report(
+        16,
+        frft(30),
+        frft(-30),
+        normalization="unitary",
+        discretization="spectral-frft",
+    )
 
-    print("first determinant error", report.first_determinant_error)
-    print("first unitarity error", report.first_unitarity_error)
-    print("composition error", report.composition_error)
+    print("lct-kernel unitarity error", lct_kernel.first_unitarity_error)
+    print("lct-kernel composition error", lct_kernel.composition_error)
+    print("spectral-frft unitarity error", spectral.first_unitarity_error)
+    print("spectral-frft composition error", spectral.composition_error)
 
 
 if __name__ == "__main__":

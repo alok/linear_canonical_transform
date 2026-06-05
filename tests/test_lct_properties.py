@@ -122,3 +122,17 @@ def test_property_report_exposes_diagnostics() -> None:
     assert report.second_unitarity_error <= 5e-5
     assert report.composition_error > 1e-2
     assert report.as_dict()["length"] == 16
+
+
+def test_spectral_frft_report_exposes_low_composition_error() -> None:
+    report = property_report(
+        16,
+        _frft(0.5),
+        _frft(-0.5),
+        discretization="spectral-frft",
+    )
+
+    assert report.discretization == "spectral-frft"
+    assert report.first_unitarity_error <= 1e-5
+    assert report.second_unitarity_error <= 1e-5
+    assert report.composition_error <= 1e-5

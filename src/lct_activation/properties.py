@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
+from typing import Literal
 
 import torch
 from torch import Tensor
 
-from .functional import NormMode, linear_canonical_transform, symplectic_d
+from .functional import (
+    NormMode,
+    linear_canonical_transform,
+    spectral_fractional_fourier_matrix,
+    symplectic_d,
+)
 
 Scalar = float | complex
 CanonicalParams = tuple[Scalar, Scalar, Scalar] | tuple[Scalar, Scalar, Scalar, Scalar]
+DiscretizationMode = Literal["lct", "spectral-frft"]
 
 __all__ = [
     "CanonicalParams",
+    "DiscretizationMode",
     "FiniteLCTPropertyReport",
     "canonical_determinant",
     "compose_canonical",
@@ -28,6 +37,7 @@ class FiniteLCTPropertyReport:
     """Finite-grid diagnostics for a pair of canonical transforms."""
 
     length: int
+    discretization: DiscretizationMode
     normalization: NormMode
     unitary_projection: bool
     centered: bool
@@ -66,6 +76,18 @@ def canonical_determinant(params: CanonicalParams) -> complex:
     return a * d - b * c
 
 
+def _frft_angle(params: CanonicalParams) -> float:
+    a, b, c, d = _complete(params)
+    tol = 1e-5
+    if any(abs(value.imag) > tol for value in (a, b, c, d)):
+        raise ValueError("spectral-frft discretization expects real FrFT parameters")
+    if abs(c.real + b.real) > tol or abs(d.real - a.real) > tol:
+        raise ValueError("spectral-frft discretization expects (cos(theta), sin(theta), -sin(theta))")
+    if abs(a.real * a.real + b.real * b.real - 1.0) > 1e-4:
+        raise ValueError("spectral-frft discretization expects a^2 + b^2 ~= 1")
+    return math.atan2(b.real, a.real)
+
+
 def compose_canonical(first: CanonicalParams, second: CanonicalParams) -> tuple[complex, complex, complex, complex]:
     """Compose two canonical matrices for applying ``first`` then ``second``.
 
@@ -93,6 +115,7 @@ def finite_lct_matrix(
     centered: bool = True,
     unitary_projection: bool = True,
     dense_threshold: int | None = None,
+    discretization: DiscretizationMode = "lct",
     device: torch.device | str | None = None,
 ) -> Tensor:
     """Materialize the finite LCT matrix used by this package.
@@ -107,6 +130,16 @@ def finite_lct_matrix(
 
     dev = torch.device("cpu") if device is None else torch.device(device)
     a, b, c, d = _complete(params)
+    if discretization == "spectral-frft":
+        if normalization != "unitary":
+            raise ValueError("spectral-frft discretization is unitary-only")
+        return spectral_fractional_fourier_matrix(
+            length,
+            _frft_angle((a, b, c, d)),
+            dtype=torch.complex64,
+            device=dev,
+        ).detach()
+
     eye = torch.eye(length, dtype=torch.complex64, device=dev)
     threshold = max(length + 1, 256) if dense_threshold is None else dense_threshold
     return linear_canonical_transform(
@@ -148,6 +181,7 @@ def composition_error(
     centered: bool = True,
     unitary_projection: bool = True,
     dense_threshold: int | None = None,
+    discretization: DiscretizationMode = "lct",
     device: torch.device | str | None = None,
 ) -> float:
     """Measure finite-grid composition error for applying ``first`` then ``second``."""
@@ -159,6 +193,7 @@ def composition_error(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
     second_matrix = finite_lct_matrix(
@@ -168,6 +203,7 @@ def composition_error(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
     composed_matrix = finite_lct_matrix(
@@ -177,6 +213,7 @@ def composition_error(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
     return relative_frobenius_error(first_matrix @ second_matrix, composed_matrix)
@@ -191,6 +228,7 @@ def property_report(
     centered: bool = True,
     unitary_projection: bool = True,
     dense_threshold: int | None = None,
+    discretization: DiscretizationMode = "lct",
     device: torch.device | str | None = None,
 ) -> FiniteLCTPropertyReport:
     """Summarize determinant, unitarity, and composition diagnostics."""
@@ -205,6 +243,7 @@ def property_report(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
     second_matrix = finite_lct_matrix(
@@ -214,6 +253,7 @@ def property_report(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
     composed_matrix = finite_lct_matrix(
@@ -223,11 +263,13 @@ def property_report(
         centered=centered,
         unitary_projection=unitary_projection,
         dense_threshold=dense_threshold,
+        discretization=discretization,
         device=device,
     )
 
     return FiniteLCTPropertyReport(
         length=length,
+        discretization=discretization,
         normalization=normalization,
         unitary_projection=unitary_projection,
         centered=centered,

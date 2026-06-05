@@ -1,6 +1,7 @@
 """Compatibility exports for the older package name."""
 
 from lct_activation import (
+    DiscretizationMode,
     LCTActivation,
     LCTLayer,
     LCTLinear,
@@ -14,12 +15,15 @@ from lct_activation import (
     linear_canonical_transform,
     property_report,
     relative_frobenius_error,
+    spectral_fractional_fourier_matrix,
+    spectral_fractional_fourier_transform,
     symplectic_d,
     unitarity_error,
 )
 
 __all__ = [
     "NormMode",
+    "DiscretizationMode",
     "LCTActivation",
     "LCTLayer",
     "LCTLinear",
@@ -32,6 +36,8 @@ __all__ = [
     "linear_canonical_transform",
     "property_report",
     "relative_frobenius_error",
+    "spectral_fractional_fourier_matrix",
+    "spectral_fractional_fourier_transform",
     "symplectic_d",
     "unitarity_error",
 ]

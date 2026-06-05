@@ -58,6 +58,7 @@ def parse_check_properties_args() -> argparse.Namespace:
     )
     parser.add_argument("--length", type=int, default=16)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("lct", "spectral-frft"), default="lct")
     parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
     parser.add_argument(
         "--unitary-projection",
@@ -101,6 +102,7 @@ def check_properties_main() -> None:
         normalization=args.normalization,
         centered=args.centered,
         unitary_projection=args.unitary_projection,
+        discretization=args.discretization,
         device=args.device,
     )
     print(json.dumps(report.as_dict(), indent=2, default=_json_default))

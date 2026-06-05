@@ -114,3 +114,26 @@ Commands/tests run:
 Next steps or blockers:
 - Add an explicit license after Alok chooses the intended open-source license.
 - A later release automation pass can add trusted publishing once the package name and license are settled.
+
+2026-06-05 spectral FrFT finite-grid composition pass
+
+What changed:
+- Added `src/lct_activation/functional/frft.py` with `spectral_fractional_fourier_matrix` and `spectral_fractional_fourier_transform`.
+- Exposed a new diagnostics discretization mode: `discretization="spectral-frft"`.
+- Kept the existing sampled LCT kernel as `discretization="lct"` so existing semantics and diagnostics remain intact.
+- Added tests proving the spectral FrFT path matches FFT/ifft at integer powers, is unitary, composes by angle addition, and integrates with `property_report`.
+- Updated examples/docs/CI/release checklist to distinguish the sampled LCT-kernel tradeoff from the finite spectral FrFT algebra.
+
+Commands/tests run:
+- `uv run pytest -q` -> `56 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py` -> showed LCT-kernel composition error around `1.366` and spectral-FrFT composition error around `1e-7`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Decide whether to route any model-facing layer through the spectral FrFT path, or keep it as diagnostics/research API until a benchmark justifies using it in `LCTLinear`.
+- License selection remains the main public-release blocker.

@@ -100,6 +100,7 @@ report = property_report(
     (0.8660254, 0.5, -0.5),
     (0.8660254, -0.5, 0.5),
     normalization="unitary",
+    discretization="spectral-frft",
 )
 print(report.first_unitarity_error, report.composition_error)
 ```
@@ -130,7 +131,7 @@ Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_
 ## Finite-grid property checks
 
 The package includes a small diagnostic CLI for the tradeoff that matters most
-in this project: a finite LCT can be made very nearly unitary, but that
+in this project: finite LCT kernels can be made very nearly unitary, but that
 projection changes how closely finite matrices compose like their continuum
 canonical parameters.
 
@@ -154,6 +155,22 @@ lct-check-properties \
   --normalization unitary \
   --no-unitary-projection
 ```
+
+For finite fractional Fourier transforms where exact finite-grid composition is
+the priority, use the spectral FrFT discretization:
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --discretization spectral-frft
+```
+
+That path constructs a fractional power of the unitary DFT from its four
+spectral projectors. It is less a sampled continuum integral kernel and more a
+finite-dimensional FrFT algebra: unitary and compositional up to floating-point
+error.
 
 The same diagnostics are available from Python:
 

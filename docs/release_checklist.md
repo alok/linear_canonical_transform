@@ -11,7 +11,8 @@ Use this checklist before advertising or publishing `lct-activation`.
 - Keep claims aligned with checked-in evidence:
   - `LCTLinear` is the lead component.
   - `LCTActivation` remains exploratory.
-  - Generic finite-grid FrFT composition is diagnostic/tradeoff evidence, not a solved exact-composition claim.
+  - The sampled LCT-kernel FrFT path is diagnostic/tradeoff evidence, not a solved exact-composition claim.
+  - The finite spectral FrFT path is the compositional/unitary finite-grid FrFT option.
   - Current KellerJordan/modded-nanogpt evidence is not a record-submission claim.
 
 ## Local Verification
@@ -24,6 +25,7 @@ uv run pytest -q
 uv run python examples/quickstart.py
 uv run python examples/property_diagnostics.py
 uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30
+uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
 uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json
 uv build
 ```
@@ -75,6 +77,13 @@ from lct_activation import LCTLinear, property_report
 layer = LCTLinear(16, 16)
 x = torch.randn(2, 16)
 print(layer(x).shape)
-print(property_report(8, (0.8660254, 0.5, -0.5), (0.8660254, -0.5, 0.5)).composition_error)
+print(
+    property_report(
+        8,
+        (0.8660254, 0.5, -0.5),
+        (0.8660254, -0.5, 0.5),
+        discretization="spectral-frft",
+    ).composition_error
+)
 PY
 ```

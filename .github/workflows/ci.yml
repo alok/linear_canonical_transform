@@ -46,6 +46,11 @@ jobs:
             --second-angle-degrees -30 \
             --normalization unitary \
             --unitary-projection
+          uv run lct-check-properties \
+            --length 8 \
+            --first-angle-degrees 30 \
+            --second-angle-degrees -30 \
+            --discretization spectral-frft
 
       - name: Check result summary CLI
         run: |

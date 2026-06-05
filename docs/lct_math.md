@@ -63,6 +63,18 @@ The API exposes this through both normalization and projection choices:
   matrix, which strongly improves unitarity but can increase composition error
   for generic fractional transforms
 
+There is also a separate finite spectral FrFT discretization for the fractional
+Fourier subfamily. It constructs `F ** alpha` from the unitary DFT matrix's four
+spectral projectors, with `alpha = 2 theta / pi`. This path is not the sampled
+continuum LCT kernel, but it has the finite-dimensional algebra users often
+want from an FrFT:
+
+- `spectral_fractional_fourier_matrix(n, pi / 2)` matches the unitary DFT
+- `spectral_fractional_fourier_matrix(n, -pi / 2)` matches the unitary inverse
+  DFT
+- spectral FrFT matrices are unitary up to floating-point error
+- spectral FrFT matrices compose as angle addition up to floating-point error
+
 For trainable layers, `unitary` is the default because it is usually the more
 stable optimization regime. `compositional` is still useful when you care more
 about finite-dimensional matrix behavior than strict energy preservation.
@@ -77,7 +89,7 @@ report = property_report(
     (0.8660254, 0.5, -0.5),
     (0.8660254, -0.5, 0.5),
     normalization="unitary",
-    unitary_projection=True,
+    discretization="spectral-frft",
 )
 
 print(report.first_unitarity_error)

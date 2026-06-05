@@ -190,6 +190,70 @@ def test_lct_umbrella_dispatches_quickstart_json(
     assert payload["dense_equivalent_matches"] is True
 
 
+def test_sweep_properties_emits_json_and_writes_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "property_sweep.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct-sweep-properties",
+            "--length",
+            "8",
+            "--angle-pair",
+            "30",
+            "-30",
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    from lct_activation.cli import sweep_properties_main
+
+    sweep_properties_main()
+    stdout_payload = json.loads(capsys.readouterr().out)
+    file_payload = json.loads(output.read_text())
+
+    assert stdout_payload == file_payload
+    assert [row["discretization"] for row in stdout_payload] == ["lct", "spectral-frft"]
+    assert stdout_payload[1]["composition_error"] <= 1e-5
+
+
+def test_lct_umbrella_dispatches_property_sweep_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "lct",
+            "sweep-properties",
+            "--length",
+            "8",
+            "--angle-pair",
+            "30",
+            "-30",
+            "--discretization",
+            "spectral-frft",
+            "--format",
+            "json",
+        ],
+    )
+
+    lct_main()
+    payload = json.loads(capsys.readouterr().out)
+
+    assert len(payload) == 1
+    assert payload[0]["discretization"] == "spectral-frft"
+    assert payload[0]["composition_error"] <= 1e-5
+
+
 def test_lct_umbrella_without_subcommand_prints_help(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -204,3 +268,4 @@ def test_lct_umbrella_without_subcommand_prints_help(
     assert "quickstart" in output
     assert "Report finite-grid LCT property diagnostics." in output
     assert "summarize-results" in output
+    assert "sweep-properties" in output

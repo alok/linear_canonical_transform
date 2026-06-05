@@ -49,6 +49,7 @@ lct-check-properties = "lct_activation.cli:check_properties_main"
 lct-doctor = "lct_activation.cli:doctor_main"
 lct-quickstart = "lct_activation.cli:quickstart_main"
 lct-summarize-results = "lct_activation.cli:summarize_results_main"
+lct-sweep-properties = "lct_activation.cli:sweep_properties_main"
 lct-train-nanogpt = "lct_activation.cli:train_nanogpt_main"
 lct-tune-nanogpt = "lct_activation.cli:tune_nanogpt_main"
 

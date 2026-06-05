@@ -11,7 +11,9 @@ from lct_activation import (
     compose_canonical,
     composition_error,
     finite_lct_matrix,
+    format_property_sweep_markdown,
     property_report,
+    property_sweep,
     relative_frobenius_error,
     unitarity_error,
 )
@@ -136,3 +138,32 @@ def test_spectral_frft_report_exposes_low_composition_error() -> None:
     assert report.first_unitarity_error <= 1e-5
     assert report.second_unitarity_error <= 1e-5
     assert report.composition_error <= 1e-5
+
+
+def test_property_sweep_compares_sampled_and_spectral_discretizations() -> None:
+    rows = property_sweep(
+        lengths=[8],
+        angle_pairs_degrees=[(30.0, -30.0)],
+        discretizations=("lct", "spectral-frft"),
+    )
+
+    assert [row.discretization for row in rows] == ["lct", "spectral-frft"]
+    sampled = rows[0]
+    spectral = rows[1]
+    assert sampled.first_unitarity_error <= 5e-5
+    assert sampled.composition_error > 1e-2
+    assert spectral.first_unitarity_error <= 1e-5
+    assert spectral.composition_error <= 1e-5
+
+
+def test_property_sweep_markdown_table() -> None:
+    rows = property_sweep(
+        lengths=[8],
+        angle_pairs_degrees=[(30.0, -30.0)],
+        discretizations=("spectral-frft",),
+    )
+
+    table = format_property_sweep_markdown(rows)
+
+    assert "| length | first deg | second deg |" in table
+    assert "| 8 | 30 | -30 | spectral-frft |" in table

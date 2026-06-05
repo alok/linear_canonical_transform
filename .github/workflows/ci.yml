@@ -54,6 +54,11 @@ jobs:
             --first-angle-degrees 30 \
             --second-angle-degrees -30 \
             --discretization spectral-frft
+          uv run lct sweep-properties \
+            --length 8 16 \
+            --angle-pair 30 -30 \
+            --format json \
+            | uv run python -m json.tool > /tmp/lct-property-sweep.json
 
       - name: Check result summary CLI
         run: |

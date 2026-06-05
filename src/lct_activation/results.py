@@ -25,6 +25,8 @@ class EvidenceRow:
     params: int | None = None
     speed_ratio: float | None = None
     lct_over_dense: float | None = None
+    unitarity_error: float | None = None
+    composition_error: float | None = None
     note: str = ""
 
     def as_dict(self) -> dict[str, object]:
@@ -84,6 +86,30 @@ def _rows_from_result_array(artifact: Path, section: str, values: list[Any]) -> 
             row.name,
         ),
     )
+
+
+def _rows_from_property_sweep(artifact: Path, values: list[Any]) -> list[EvidenceRow]:
+    rows: list[EvidenceRow] = []
+    for item in values:
+        if not isinstance(item, dict):
+            continue
+        unitary_errors = [
+            _as_float(item.get("first_unitarity_error")),
+            _as_float(item.get("second_unitarity_error")),
+            _as_float(item.get("composed_unitarity_error")),
+        ]
+        max_unitary_error = max((value for value in unitary_errors if value is not None), default=None)
+        rows.append(
+            EvidenceRow(
+                artifact=artifact.name,
+                section=f"length={item.get('length')}",
+                name=str(item.get("discretization") or "property-sweep"),
+                unitarity_error=max_unitary_error,
+                composition_error=_as_float(item.get("composition_error")),
+                note=f"{item.get('first_angle_degrees')}/{item.get('second_angle_degrees')} deg",
+            )
+        )
+    return rows
 
 
 def _rows_from_modal_gpu(artifact: Path, payload: dict[str, Any]) -> list[EvidenceRow]:
@@ -171,6 +197,13 @@ def _rows_from_artifact(path: Path) -> list[EvidenceRow]:
     payload = json.loads(path.read_text())
 
     if isinstance(payload, list):
+        if any(
+            isinstance(item, dict)
+            and "composition_error" in item
+            and "first_unitarity_error" in item
+            for item in payload
+        ):
+            return _rows_from_property_sweep(path, payload)
         return _rows_from_result_array(path, "results", payload)
 
     if not isinstance(payload, dict):
@@ -204,6 +237,8 @@ def collect_result_rows(paths: Iterable[Path]) -> list[EvidenceRow]:
 def _format_float(value: float | None) -> str:
     if value is None:
         return ""
+    if value != 0.0 and abs(value) < 1e-3:
+        return f"{value:.3e}"
     if abs(value) >= 1000:
         return f"{value:,.1f}"
     return f"{value:.4f}"
@@ -223,6 +258,8 @@ def format_markdown_table(rows: list[EvidenceRow]) -> str:
         "params",
         "speed ratio",
         "lct/dense",
+        "unitarity",
+        "composition",
         "note",
     ]
     lines = [
@@ -239,6 +276,8 @@ def format_markdown_table(rows: list[EvidenceRow]) -> str:
             "" if row.params is None else f"{row.params:,}",
             _format_float(row.speed_ratio),
             _format_float(row.lct_over_dense),
+            _format_float(row.unitarity_error),
+            _format_float(row.composition_error),
             row.note,
         ]
         lines.append("| " + " | ".join(_markdown_escape(value) for value in values) + " |")

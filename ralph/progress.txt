@@ -228,6 +228,45 @@ Next steps or blockers:
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
 
+2026-06-05 property sweep evidence pass
+
+What changed:
+- Added `property_sweep` and `FiniteLCTPropertySweepRow` to the public Python diagnostics API.
+- Added `format_property_sweep_markdown` for compact finite-grid tradeoff tables.
+- Added `lct sweep-properties` and direct `lct-sweep-properties` commands with Markdown, JSON, and optional output-file support.
+- The sweep compares sampled LCT-kernel and spectral-FrFT rows across lengths and FrFT angle pairs.
+- Exported the sweep API from both `lct_activation` and `linear_canonical_transform`.
+- Taught `lct-summarize-results` to parse saved property-sweep JSON artifacts with unitarity and composition columns.
+- Added tests for sweep API behavior, Markdown formatting, CLI output, umbrella dispatch, compatibility exports, console-script registration, and result-summary parsing.
+- Added CI coverage for `lct sweep-properties` JSON validation.
+- Updated README/API/release docs with sweep commands and paper-artifact usage.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_lct_properties.py tests/test_cli_outputs.py tests/test_results.py tests/test_compat_package.py tests/test_package_metadata.py` -> `30 passed`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --angle-pair 45 -45 --output /tmp/lct-property-sweep.md`
+- `uv run lct sweep-properties --length 8 --angle-pair 30 -30 --format json --output /tmp/lct-property-sweep.json | uv run python -m json.tool`
+- `uv run lct-sweep-properties --length 8 --angle-pair 30 -30 --discretization spectral-frft --format json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-property-sweep.json --format json | uv run python -m json.tool` -> recognized property sweep rows with unitarity/composition metrics
+- `uv run lct | sed -n '1,150p'`
+- `uv run pytest -q` -> `79 passed`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool`
+- `uv run lct quickstart --format json | uv run python -m json.tool`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct-sweep-properties` along with `lct` and all direct commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
 2026-06-05 packaged quickstart pass
 
 What changed:

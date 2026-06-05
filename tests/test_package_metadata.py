@@ -24,6 +24,7 @@ def test_user_facing_scripts_are_registered() -> None:
         "lct-doctor",
         "lct-quickstart",
         "lct-summarize-results",
+        "lct-sweep-properties",
         "lct-train-nanogpt",
         "lct-tune-nanogpt",
     } <= scripts

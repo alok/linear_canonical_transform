@@ -56,7 +56,9 @@ continuum integral kernel.
 from lct_activation import (
     composition_error,
     finite_lct_matrix,
+    format_property_sweep_markdown,
     property_report,
+    property_sweep,
     relative_frobenius_error,
     unitarity_error,
 )
@@ -74,6 +76,17 @@ The same checks are available at the command line:
 ```bash
 lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30
 lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
+lct sweep-properties --length 8 16 32 --angle-pair 30 -30
+```
+
+For paper tables:
+
+```python
+rows = property_sweep(
+    lengths=[8, 16, 32],
+    angle_pairs_degrees=[(30.0, -30.0), (45.0, -45.0)],
+)
+print(format_property_sweep_markdown(rows))
 ```
 
 ## Install Doctor
@@ -125,3 +138,5 @@ for example `lct quickstart`, `lct check-properties ...`, and
 
 Saved `lct-bench-linear --output ...` JSON files are also summarized directly,
 so quick local benchmarks can become paper evidence without manual conversion.
+Saved `lct sweep-properties --format json --output ...` artifacts are
+summarized with unitarity and composition columns as well.

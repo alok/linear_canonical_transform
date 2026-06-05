@@ -24,7 +24,7 @@ from .integrations.nanogpt import (
     run_upstream_train,
 )
 from .layers import LCTLinear
-from .properties import property_report
+from .properties import format_property_sweep_markdown, property_report, property_sweep
 from .results import summarize_results_main
 
 CommandMain = Callable[[], None]
@@ -82,6 +82,7 @@ def _lct_commands() -> dict[str, tuple[str, CommandMain]]:
         "check-properties": ("Report finite-grid LCT property diagnostics.", check_properties_main),
         "doctor": ("Verify an install and optional local evidence artifacts.", doctor_main),
         "quickstart": ("Run a self-contained LCTLinear and property smoke test.", quickstart_main),
+        "sweep-properties": ("Sweep finite-grid property diagnostics.", sweep_properties_main),
         "summarize-results": ("Summarize experiment JSON artifacts.", summarize_results_main),
         "train-nanogpt": ("Patch NanoGPT and run upstream train.py.", train_nanogpt_main),
         "tune-nanogpt": ("Run the local NanoGPT ablation sweep.", tune_nanogpt_main),
@@ -171,6 +172,64 @@ def check_properties_main() -> None:
         device=args.device,
     )
     print(json.dumps(report.as_dict(), indent=2, default=_json_default))
+
+
+def parse_sweep_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Sweep finite-grid LCT property diagnostics.")
+    parser.add_argument("--length", "--lengths", dest="lengths", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument(
+        "--angle-pair",
+        nargs=2,
+        action="append",
+        type=float,
+        metavar=("FIRST_DEGREES", "SECOND_DEGREES"),
+        help="FrFT angle pair in degrees. May be repeated.",
+    )
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("all", "lct", "spectral-frft"), default="all")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    parser.add_argument("--output", type=Path, help="Optional file to write the sweep output.")
+    return parser.parse_args()
+
+
+def sweep_properties_main() -> None:
+    args = parse_sweep_properties_args()
+    angle_pairs = [tuple(pair) for pair in args.angle_pair] if args.angle_pair else [(30.0, -30.0), (45.0, -45.0)]
+    discretizations = (
+        ("lct", "spectral-frft")
+        if args.discretization == "all"
+        else (args.discretization,)
+    )
+    rows = property_sweep(
+        lengths=args.lengths,
+        angle_pairs_degrees=angle_pairs,
+        discretizations=discretizations,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        device=args.device,
+    )
+    if args.format == "json":
+        _emit_json([row.as_dict() for row in rows], output=args.output)
+    else:
+        output = format_property_sweep_markdown(rows)
+        if args.output is not None:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(output + "\n")
+        _emit_text(output)
 
 
 def parse_quickstart_args() -> argparse.Namespace:

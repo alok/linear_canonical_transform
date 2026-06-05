@@ -129,6 +129,40 @@ def test_collect_result_rows_from_saved_linear_bench_artifact(tmp_path: Path) ->
     assert rows[0].note == "forward 512x512 fft unitary"
 
 
+def test_collect_result_rows_from_property_sweep_artifact(tmp_path: Path) -> None:
+    artifact = tmp_path / "property_sweep.json"
+    _write_json(
+        artifact,
+        [
+            {
+                "length": 8,
+                "first_angle_degrees": 30.0,
+                "second_angle_degrees": -30.0,
+                "discretization": "spectral-frft",
+                "normalization": "unitary",
+                "unitary_projection": True,
+                "first_unitarity_error": 1e-7,
+                "second_unitarity_error": 2e-7,
+                "composed_unitarity_error": 3e-7,
+                "composition_error": 4e-7,
+            }
+        ],
+    )
+
+    rows = collect_result_rows([artifact])
+
+    assert len(rows) == 1
+    assert rows[0].section == "length=8"
+    assert rows[0].name == "spectral-frft"
+    assert rows[0].unitarity_error == 3e-7
+    assert rows[0].composition_error == 4e-7
+    assert rows[0].note == "30.0/-30.0 deg"
+
+    table = format_markdown_table(rows)
+    assert "3.000e-07" in table
+    assert "4.000e-07" in table
+
+
 def test_format_markdown_table() -> None:
     rows = collect_result_rows(
         [

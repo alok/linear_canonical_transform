@@ -60,6 +60,7 @@ uv tool install --from "git+https://github.com/alok/linear_canonical_transform.g
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-doctor
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-quickstart
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-sweep-properties
 uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
 ```
 
@@ -218,14 +219,42 @@ spectral projectors. It is less a sampled continuum integral kernel and more a
 finite-dimensional FrFT algebra: unitary and compositional up to floating-point
 error.
 
+To generate a compact tradeoff table across lengths and angles:
+
+```bash
+lct sweep-properties \
+  --length 8 16 32 \
+  --angle-pair 30 -30 \
+  --angle-pair 45 -45
+```
+
+Use JSON when collecting paper artifacts:
+
+```bash
+lct sweep-properties \
+  --length 8 16 32 \
+  --angle-pair 30 -30 \
+  --format json \
+  --output paper/results/property_sweep.json
+```
+
+Saved sweep JSON is understood by `lct-summarize-results`, including unitarity
+and composition columns.
+
 The same diagnostics are available from Python:
 
 ```python
-from lct_activation import composition_error, finite_lct_matrix, unitarity_error
+from lct_activation import composition_error, finite_lct_matrix, property_sweep, unitarity_error
 
 params = (0.8660254, 0.5, -0.5)
 matrix = finite_lct_matrix(16, params, normalization="unitary")
 print(unitarity_error(matrix))
+
+rows = property_sweep(
+    lengths=[8, 16],
+    angle_pairs_degrees=[(30.0, -30.0)],
+)
+print(rows[0].as_dict())
 ```
 
 ## Result summaries

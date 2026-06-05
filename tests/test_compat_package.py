@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from linear_canonical_transform import LCTLinear, property_report, run_doctor, spectral_fractional_fourier_matrix
+from linear_canonical_transform import (
+    LCTLinear,
+    property_report,
+    property_sweep,
+    run_doctor,
+    spectral_fractional_fourier_matrix,
+)
 
 
 def test_compat_package_reexports_lctlinear() -> None:
@@ -22,3 +28,12 @@ def test_compat_package_reexports_spectral_frft() -> None:
 def test_compat_package_reexports_doctor() -> None:
     report = run_doctor(result_dir=None)
     assert report.ok
+
+
+def test_compat_package_reexports_property_sweep() -> None:
+    rows = property_sweep(
+        lengths=[4],
+        angle_pairs_degrees=[(30.0, -30.0)],
+        discretizations=("spectral-frft",),
+    )
+    assert rows[0].discretization == "spectral-frft"

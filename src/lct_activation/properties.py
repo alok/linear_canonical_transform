@@ -22,11 +22,14 @@ __all__ = [
     "CanonicalParams",
     "DiscretizationMode",
     "FiniteLCTPropertyReport",
+    "FiniteLCTPropertySweepRow",
     "canonical_determinant",
     "compose_canonical",
     "composition_error",
     "finite_lct_matrix",
+    "format_property_sweep_markdown",
     "property_report",
+    "property_sweep",
     "relative_frobenius_error",
     "unitarity_error",
 ]
@@ -47,6 +50,25 @@ class FiniteLCTPropertyReport:
     first_determinant_error: float
     second_determinant_error: float
     composed_determinant_error: float
+    first_unitarity_error: float
+    second_unitarity_error: float
+    composed_unitarity_error: float
+    composition_error: float
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class FiniteLCTPropertySweepRow:
+    """Compact finite-grid diagnostics for one FrFT angle pair."""
+
+    length: int
+    first_angle_degrees: float
+    second_angle_degrees: float
+    discretization: DiscretizationMode
+    normalization: NormMode
+    unitary_projection: bool
     first_unitarity_error: float
     second_unitarity_error: float
     composed_unitarity_error: float
@@ -86,6 +108,11 @@ def _frft_angle(params: CanonicalParams) -> float:
     if abs(a.real * a.real + b.real * b.real - 1.0) > 1e-4:
         raise ValueError("spectral-frft discretization expects a^2 + b^2 ~= 1")
     return math.atan2(b.real, a.real)
+
+
+def _frft_params_degrees(angle_degrees: float) -> tuple[float, float, float]:
+    theta = math.radians(angle_degrees)
+    return math.cos(theta), math.sin(theta), -math.sin(theta)
 
 
 def compose_canonical(first: CanonicalParams, second: CanonicalParams) -> tuple[complex, complex, complex, complex]:
@@ -284,3 +311,86 @@ def property_report(
         composed_unitarity_error=unitarity_error(composed_matrix),
         composition_error=relative_frobenius_error(first_matrix @ second_matrix, composed_matrix),
     )
+
+
+def property_sweep(
+    *,
+    lengths: list[int] | tuple[int, ...],
+    angle_pairs_degrees: list[tuple[float, float]] | tuple[tuple[float, float], ...],
+    discretizations: list[DiscretizationMode] | tuple[DiscretizationMode, ...] = ("lct", "spectral-frft"),
+    normalization: NormMode = "unitary",
+    centered: bool = True,
+    unitary_projection: bool = True,
+    device: torch.device | str | None = None,
+) -> list[FiniteLCTPropertySweepRow]:
+    """Sweep finite-grid diagnostics over FrFT angle pairs and grid lengths."""
+
+    rows: list[FiniteLCTPropertySweepRow] = []
+    for length in lengths:
+        if length <= 0:
+            raise ValueError("lengths must be positive")
+        for first_angle, second_angle in angle_pairs_degrees:
+            first = _frft_params_degrees(first_angle)
+            second = _frft_params_degrees(second_angle)
+            for discretization in discretizations:
+                report = property_report(
+                    length,
+                    first,
+                    second,
+                    normalization=normalization,
+                    centered=centered,
+                    unitary_projection=unitary_projection,
+                    discretization=discretization,
+                    device=device,
+                )
+                rows.append(
+                    FiniteLCTPropertySweepRow(
+                        length=length,
+                        first_angle_degrees=float(first_angle),
+                        second_angle_degrees=float(second_angle),
+                        discretization=discretization,
+                        normalization=normalization,
+                        unitary_projection=unitary_projection,
+                        first_unitarity_error=report.first_unitarity_error,
+                        second_unitarity_error=report.second_unitarity_error,
+                        composed_unitarity_error=report.composed_unitarity_error,
+                        composition_error=report.composition_error,
+                    )
+                )
+    return rows
+
+
+def _format_sweep_float(value: float) -> str:
+    return f"{value:.3e}"
+
+
+def format_property_sweep_markdown(rows: list[FiniteLCTPropertySweepRow]) -> str:
+    """Format property sweep rows as a compact Markdown table."""
+
+    headers = [
+        "length",
+        "first deg",
+        "second deg",
+        "discretization",
+        "first unit",
+        "second unit",
+        "composed unit",
+        "composition",
+    ]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join("---" for _ in headers) + " |",
+    ]
+    for row in rows:
+        values = [
+            str(row.length),
+            f"{row.first_angle_degrees:g}",
+            f"{row.second_angle_degrees:g}",
+            row.discretization,
+            _format_sweep_float(row.first_unitarity_error),
+            _format_sweep_float(row.second_unitarity_error),
+            _format_sweep_float(row.composed_unitarity_error),
+            _format_sweep_float(row.composition_error),
+        ]
+        lines.append("| " + " | ".join(values) + " |")
+    return "\n".join(lines)

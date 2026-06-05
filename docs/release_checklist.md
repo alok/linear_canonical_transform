@@ -37,6 +37,7 @@ uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-d
 uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
 uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json
 uv build
+uv run python scripts/smoke_dist.py
 ```
 
 Expected current baseline:
@@ -50,6 +51,7 @@ Expected current baseline:
 - property sweep emits valid JSON and compares sampled-kernel and spectral-FrFT rows
 - result summary emits valid JSON
 - `uv build` creates both an sdist and wheel
+- built wheel passes an isolated install smoke test outside the source project
 
 ## GitHub Checks
 
@@ -62,6 +64,7 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 - property diagnostics CLI
 - result summary CLI
 - package build
+- isolated built-wheel smoke test
 
 ## Publishing Sketch
 
@@ -75,6 +78,9 @@ uv publish
 If publishing to TestPyPI first, use the relevant `uv publish` options and
 install from the TestPyPI index in a clean environment before publishing to
 PyPI.
+
+Before publishing, run `uv run python scripts/smoke_dist.py` against the exact
+wheel you intend to upload.
 
 ## Post-Release Smoke Test
 

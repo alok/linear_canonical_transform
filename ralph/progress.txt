@@ -340,3 +340,33 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 isolated wheel smoke pass
+
+What changed:
+- Added `scripts/smoke_dist.py` to install the built wheel in isolated `uv run --isolated --no-project --with ...` runs.
+- The smoke check exercises packaged `lct quickstart`, packaged `lct sweep-properties`, and import compatibility for both `lct_activation` and `linear_canonical_transform`.
+- Added focused tests for wheel selection and smoke-output validation.
+- Added the smoke script to CI after `uv build`.
+- Updated README and release checklist verification steps to include the isolated built-wheel smoke test.
+
+Commands/tests run:
+- `uv run --isolated --no-project --with dist/lct_activation-0.1.0-py3-none-any.whl lct quickstart --format json | uv run python -m json.tool`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool`
+- `uv run pytest -q tests/test_smoke_dist.py tests/test_package_metadata.py` -> `5 passed`
+- `uv run pytest -q` -> `82 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool`
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.

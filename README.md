@@ -384,7 +384,14 @@ uv run pytest -q tests/test_lct_linear.py
 uv run pytest -q tests/test_lct_properties.py
 ```
 
+After building a wheel, smoke-test it outside the source project:
+
+```bash
+uv build
+uv run python scripts/smoke_dist.py
+```
+
 Before public release, use [`docs/release_checklist.md`](docs/release_checklist.md).
 The GitHub Actions workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-runs tests, examples, property diagnostics, result summaries, and package build
-checks on Python 3.10 and 3.12.
+runs tests, examples, property diagnostics, result summaries, package build, and
+isolated wheel smoke checks on Python 3.10 and 3.12.

@@ -465,3 +465,36 @@ Commands/tests run:
 
 Next steps or blockers:
 - Final publish pass should re-check PyPI name availability immediately before upload and run the release checklist against the exact artifacts to publish.
+
+2026-06-06 release verifier pass
+
+What changed:
+- Added `scripts/verify_release.py` to turn the remaining publish-time checklist into an executable release gate.
+- The verifier checks fresh wheel and source distribution metadata, Apache-2.0 license packaging, source LICENSE text, public project URLs, local git origin, isolated exact-wheel smoke, and optional PyPI current-version availability.
+- Made the PyPI check version-aware: a package-level `404` means the current local version is uploadable, while an existing package only fails when the same version is already present unless `--allow-existing-version` is passed.
+- Added focused tests for success, existing-version failure, explicit existing-version allowance, PyPI/network error handling, bad license metadata, and missing artifacts.
+- Added CI coverage after build and wheel smoke with `uv run python scripts/verify_release.py --skip-smoke`.
+- Updated README and the release checklist so pre-publish verification is `uv run python scripts/verify_release.py --check-pypi`.
+- Updated Linear `ALOK-750` with commit and verification details.
+
+Commands/tests run:
+- `uv run pytest -q tests/test_verify_release.py tests/test_smoke_dist.py tests/test_package_metadata.py tests/test_public_docs.py` -> `15 passed`
+- `uv run pytest -q` -> `99 passed`
+- `uv run lct quickstart --format json > /tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 > /tmp/lct-assert-properties.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool > /tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool > /tmp/lct-summary.json`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft > /tmp/lct-check-properties-spectral.json`
+- `uv build` -> built source distribution and wheel successfully
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool > /tmp/lct-smoke-dist-release.json` -> `quickstart_ok`, `property_assert_ok`, `license_metadata_ok`, and `repo_url_ok` were true
+- `uv run python scripts/verify_release.py --check-pypi > /tmp/lct-verify-release.json` -> `ok: true`, `failures: []`, git origin ok, wheel/sdist metadata ok, source license ok, smoke ok, PyPI returned `404`, and current version `0.1.0` was marked uploadable
+- `uv run python scripts/verify_release.py --skip-smoke > /tmp/lct-verify-release-ci.json`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- No local code, docs, packaging, property-test, or release-verifier blocker remains for a pre-publish package pass.
+- The explicit non-code action is still not done: no PyPI or GitHub publication was performed.

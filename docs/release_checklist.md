@@ -4,7 +4,7 @@ Use this checklist before advertising or publishing `lct-activation`.
 
 ## Required Before Public Release
 
-- Choose and add an explicit open-source license file.
+- Confirm the Apache-2.0 license file and package metadata are present.
 - Confirm the package name on PyPI is available or choose the final public name.
   The PyPI JSON API returned `404` for `lct-activation` on 2026-06-05, but
   this must be re-checked immediately before publishing:
@@ -71,7 +71,7 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 
 ## Publishing Sketch
 
-Only run this after adding a license and confirming package name/metadata.
+Only run this after confirming package name/metadata.
 
 ```bash
 uv build

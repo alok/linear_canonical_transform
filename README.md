@@ -165,6 +165,11 @@ uv run python examples/property_diagnostics.py
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
 The public API surface is summarized in [`docs/api.md`](docs/api.md).
 
+## License
+
+`lct-activation` is distributed under the Apache License, Version 2.0. See
+[`LICENSE`](LICENSE). Copyright 2026 Alok Singh.
+
 ## Finite-grid property checks
 
 The package includes a small diagnostic CLI for the tradeoff that matters most

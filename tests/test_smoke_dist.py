@@ -53,6 +53,14 @@ def test_smoke_dist_validates_isolated_outputs(monkeypatch: pytest.MonkeyPatch, 
             return json.dumps({"ok": True})
         if args[0] == "lct-assert-properties":
             return json.dumps({"ok": True})
+        if args[:2] == ["python", "-c"] and "importlib.metadata" in args[2]:
+            return json.dumps(
+                {
+                    "license": "Apache-2.0",
+                    "classifier_ok": True,
+                    "license_file_present": True,
+                }
+            )
         if args[0] == "python":
             return json.dumps(
                 {
@@ -72,5 +80,6 @@ def test_smoke_dist_validates_isolated_outputs(monkeypatch: pytest.MonkeyPatch, 
     assert report["sweep_rows"] == 1
     assert report["property_assert_ok"] is True
     assert report["direct_property_assert_ok"] is True
+    assert report["license_metadata_ok"] is True
     assert report["compat_import_ok"] is True
     assert report["assessment_import_ok"] is True

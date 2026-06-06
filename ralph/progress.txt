@@ -405,3 +405,29 @@ Next steps or blockers:
 - License selection remains the main public-release blocker.
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 Apache license pass
+
+What changed:
+- Added the Apache License 2.0 text in `LICENSE`.
+- Declared `license = "Apache-2.0"` in `pyproject.toml`.
+- Added the `License :: OSI Approved :: Apache Software License` classifier.
+- Added package metadata tests for the Apache-2.0 license expression and classifier.
+- Updated README and release checklist so the license decision is resolved.
+- Expanded `scripts/smoke_dist.py` to verify built-wheel license metadata, classifier, and installed license file from an isolated wheel install.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_package_metadata.py` -> `3 passed`
+- `uv run pytest -q tests/test_package_metadata.py tests/test_smoke_dist.py` -> `7 passed`
+- `uv run pytest -q` -> `91 passed`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist-license.json` -> `license_metadata_ok` was true
+- `unzip -p dist/lct_activation-0.1.0-py3-none-any.whl lct_activation-0.1.0.dist-info/METADATA | rg -n "Metadata-Version|Name|Version|License|Classifier"` -> `License-Expression: Apache-2.0`, `License-File: LICENSE`, and Apache classifier present
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'LICENSE|METADATA|entry_points|py\\.typed'` -> wheel includes `lct_activation-0.1.0.dist-info/licenses/LICENSE`
+
+Next steps or blockers:
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.

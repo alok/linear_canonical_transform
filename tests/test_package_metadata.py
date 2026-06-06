@@ -9,6 +9,14 @@ def test_pep561_markers_are_packaged() -> None:
     assert importlib.resources.files("linear_canonical_transform").joinpath("py.typed").is_file()
 
 
+def test_license_metadata_is_apache_2() -> None:
+    metadata = importlib.metadata.metadata("lct-activation")
+    classifiers = metadata.get_all("Classifier") or []
+
+    assert (metadata.get("License-Expression") or metadata.get("License")) == "Apache-2.0"
+    assert "License :: OSI Approved :: Apache Software License" in classifiers
+
+
 def test_user_facing_scripts_are_registered() -> None:
     scripts = {
         entry.name

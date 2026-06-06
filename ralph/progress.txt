@@ -431,3 +431,37 @@ Commands/tests run:
 Next steps or blockers:
 - Decide the spectral-FrFT model-facing API direction.
 - Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-06 spectral API positioning pass
+
+What changed:
+- Made the release stance explicit: `LCTLinear` is the lead model-facing layer.
+- Documented `LCTActivation` as experimental.
+- Documented spectral FrFT as a diagnostics/research API, not a model-facing `LCTLinear` execution path until benchmark evidence justifies promotion.
+- Added `tests/test_public_docs.py` to guard the public docs against accidentally promoting spectral FrFT beyond the evidence.
+- Updated the release checklist claim boundary for spectral FrFT.
+- Refreshed the PyPI JSON check for `lct-activation`; it returned `404` on 2026-06-06.
+- Recorded that package repository metadata matches local `origin`.
+- Added package metadata tests for project URLs.
+- Expanded `scripts/smoke_dist.py` to verify the installed wheel exposes the expected repository URL.
+
+Commands/tests run:
+- `curl -sS -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/lct-activation/json` -> `404`
+- `git remote -v` -> origin is `https://github.com/alok/linear_canonical_transform.git`
+- `uv lock`
+- `uv run pytest -q tests/test_public_docs.py tests/test_package_metadata.py tests/test_smoke_dist.py` -> `9 passed`
+- `uv run pytest -q` -> `93 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist-positioning.json` -> `repo_url_ok`, `license_metadata_ok`, and property checks were true
+- `unzip -p dist/lct_activation-0.1.0-py3-none-any.whl lct_activation-0.1.0.dist-info/METADATA | rg -n "License|Project-URL|Classifier"` -> repository URL, issues URL, docs URL, Apache license, and classifiers present
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Final publish pass should re-check PyPI name availability immediately before upload and run the release checklist against the exact artifacts to publish.

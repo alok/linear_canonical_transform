@@ -106,12 +106,14 @@ def smoke_dist(wheel: Path) -> dict[str, object]:
                     "import importlib.metadata as md, json;"
                     "metadata = md.metadata('lct-activation');"
                     "classifiers = metadata.get_all('Classifier') or [];"
+                    "urls = metadata.get_all('Project-URL') or [];"
                     "files = [str(path) for path in (md.files('lct-activation') or [])];"
                     "license_value = metadata.get('License-Expression') or metadata.get('License');"
                     "print(json.dumps({"
                     "'license': license_value,"
                     "'classifier_ok': 'License :: OSI Approved :: Apache Software License' in classifiers,"
-                    "'license_file_present': any(path.endswith('LICENSE') for path in files)"
+                    "'license_file_present': any(path.endswith('LICENSE') for path in files),"
+                    "'repo_url_ok': 'Repository, https://github.com/alok/linear_canonical_transform' in urls"
                     "}))"
                 ),
             ],
@@ -155,6 +157,7 @@ def smoke_dist(wheel: Path) -> dict[str, object]:
         metadata.get("license") != "Apache-2.0"
         or metadata.get("classifier_ok") is not True
         or metadata.get("license_file_present") is not True
+        or metadata.get("repo_url_ok") is not True
     ):
         raise SystemExit(f"license metadata smoke failed from wheel: {metadata}")
     if (
@@ -171,6 +174,7 @@ def smoke_dist(wheel: Path) -> dict[str, object]:
         "property_assert_ok": assertion["ok"],
         "direct_property_assert_ok": direct_assertion["ok"],
         "license_metadata_ok": True,
+        "repo_url_ok": True,
         "spectral_composition_error": sweep[0]["composition_error"],
         "compat_import_ok": imports["same_compat_class"],
         "assessment_import_ok": imports["assessment_ok"],

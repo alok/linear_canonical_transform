@@ -17,6 +17,15 @@ def test_license_metadata_is_apache_2() -> None:
     assert "License :: OSI Approved :: Apache Software License" in classifiers
 
 
+def test_project_urls_point_to_public_repo() -> None:
+    metadata = importlib.metadata.metadata("lct-activation")
+    urls = metadata.get_all("Project-URL") or []
+
+    assert "Documentation, https://github.com/alok/linear_canonical_transform#readme" in urls
+    assert "Repository, https://github.com/alok/linear_canonical_transform" in urls
+    assert "Issues, https://github.com/alok/linear_canonical_transform/issues" in urls
+
+
 def test_user_facing_scripts_are_registered() -> None:
     scripts = {
         entry.name

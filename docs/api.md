@@ -4,7 +4,7 @@ This guide summarizes the public surfaces that are stable enough to use from
 the current research package. It intentionally separates model-facing APIs from
 diagnostic APIs so finite-grid tradeoffs stay visible.
 
-## Model-Facing Layers
+## Model-Facing Layer
 
 Use these from `lct_activation`:
 
@@ -20,6 +20,10 @@ comparison layer.
 `LCTActivation(features, ...)` is a nonlinear modReLU-style activation in the
 LCT domain. It is useful for experiments, but the release notes should continue
 to describe it as exploratory unless benchmark evidence changes.
+
+The spectral FrFT helpers below are not model-facing layer backends in this
+release. They remain diagnostics/research APIs until benchmark evidence
+justifies wiring them into `LCTLinear`.
 
 Compatibility imports are available under the older package name:
 

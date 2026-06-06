@@ -6,17 +6,19 @@ Use this checklist before advertising or publishing `lct-activation`.
 
 - Confirm the Apache-2.0 license file and package metadata are present.
 - Confirm the package name on PyPI is available or choose the final public name.
-  The PyPI JSON API returned `404` for `lct-activation` on 2026-06-05, but
+  The PyPI JSON API returned `404` for `lct-activation` on 2026-06-06, but
   this must be re-checked immediately before publishing:
   `curl -sS -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/lct-activation/json`.
 - Confirm the GitHub repository URL in `pyproject.toml` points to the intended public repo.
+  Current local `origin` matches the package URL:
+  `https://github.com/alok/linear_canonical_transform.git`.
 - Review `README.md` and `docs/api.md` from a fresh-user perspective:
   install, quickstart, property diagnostics, result summaries, NanoGPT notes.
 - Keep claims aligned with checked-in evidence:
   - `LCTLinear` is the lead component.
   - `LCTActivation` remains exploratory.
   - The sampled LCT-kernel FrFT path is diagnostic/tradeoff evidence, not a solved exact-composition claim.
-  - The finite spectral FrFT path is the compositional/unitary finite-grid FrFT option.
+  - The finite spectral FrFT path is the compositional/unitary finite-grid FrFT option and remains a diagnostics/research API, not a model-facing `LCTLinear` execution path.
   - Current KellerJordan/modded-nanogpt evidence is not a record-submission claim.
 
 ## Local Verification

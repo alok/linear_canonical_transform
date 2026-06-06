@@ -8,10 +8,12 @@ The package keeps two goals in view:
 - correctness on finite grids, via a dense reference kernel and explicit tests for special cases
 - speed where it matters, via FFT and Bluestein / chirp-z fast paths instead of Python loops
 
-The package now exposes two model-facing building blocks:
+The package now exposes one lead model-facing building block and one
+experimental activation:
 
-- `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT domain
 - `LCTLinear`, a structured `nn.Linear`-style layer that uses fast spectral mixing instead of a dense learned matrix
+- `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT
+  domain for experiments
 
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
@@ -223,6 +225,10 @@ That path constructs a fractional power of the unitary DFT from its four
 spectral projectors. It is less a sampled continuum integral kernel and more a
 finite-dimensional FrFT algebra: unitary and compositional up to floating-point
 error.
+
+The spectral FrFT path is intentionally a diagnostics/research API in this
+release. It is not wired into `LCTLinear` as a model-facing execution path until
+benchmark evidence justifies that promotion.
 
 Use `assert-properties` when you want a CI-friendly pass/fail check with
 thresholds:

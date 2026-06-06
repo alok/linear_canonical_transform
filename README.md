@@ -418,7 +418,16 @@ uv build
 uv run python scripts/smoke_dist.py
 ```
 
+Before publishing, run the release verifier against the exact artifacts. It
+checks wheel and sdist metadata, the Apache license, public project URLs, local
+git origin, the isolated wheel smoke test, and whether the current version is
+still uploadable on PyPI:
+
+```bash
+uv run python scripts/verify_release.py --check-pypi
+```
+
 Before public release, use [`docs/release_checklist.md`](docs/release_checklist.md).
 The GitHub Actions workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 runs tests, examples, property diagnostics, result summaries, package build, and
-isolated wheel smoke checks on Python 3.10 and 3.12.
+isolated wheel smoke and release-metadata checks on Python 3.10 and 3.12.

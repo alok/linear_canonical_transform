@@ -74,3 +74,6 @@ jobs:
 
       - name: Smoke-test built wheel
         run: uv run python scripts/smoke_dist.py
+
+      - name: Verify release metadata
+        run: uv run python scripts/verify_release.py --skip-smoke

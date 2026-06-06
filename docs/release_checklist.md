@@ -41,6 +41,7 @@ uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-d
 uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json
 uv build
 uv run python scripts/smoke_dist.py
+uv run python scripts/verify_release.py --check-pypi
 ```
 
 Expected current baseline:
@@ -56,6 +57,9 @@ Expected current baseline:
 - result summary emits valid JSON
 - `uv build` creates both an sdist and wheel
 - built wheel passes an isolated install smoke test outside the source project
+- release verifier confirms wheel and sdist metadata, Apache-2.0 license
+  packaging, public project URLs, local git origin, exact-wheel smoke, and
+  current-version availability on PyPI
 
 ## GitHub Checks
 
@@ -70,6 +74,7 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 - result summary CLI
 - package build
 - isolated built-wheel smoke test
+- release metadata verifier, without the live PyPI gate
 
 ## Publishing Sketch
 
@@ -77,6 +82,7 @@ Only run this after confirming package name/metadata.
 
 ```bash
 uv build
+uv run python scripts/verify_release.py --check-pypi
 uv publish
 ```
 
@@ -84,8 +90,9 @@ If publishing to TestPyPI first, use the relevant `uv publish` options and
 install from the TestPyPI index in a clean environment before publishing to
 PyPI.
 
-Before publishing, run `uv run python scripts/smoke_dist.py` against the exact
-wheel you intend to upload.
+Before publishing, run `uv run python scripts/verify_release.py --check-pypi`
+against the exact wheel and sdist you intend to upload. Pass `--wheel` and
+`--sdist` if `dist/` contains older artifacts.
 
 ## Post-Release Smoke Test
 

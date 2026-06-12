@@ -51,11 +51,11 @@ def _mlx_lct(x: np.ndarray, **params) -> np.ndarray:
         ({"a": 0.0, "b": 1.0, "c": 0.0}, 64, 1e-5),
         # Inverse FFT special case.
         ({"a": 0.0, "b": -1.0, "c": 0.0}, 64, 1e-5),
-        # |b| = 1 chirp-FFT-chirp path. The torch backend builds its chirp
-        # tables in float32 while MLX precomputes them in float64, so the
-        # parity floor here is torch's own ~1e-3 phase noise (see
-        # test_chirp_path_accuracy_vs_float64 for the ground-truth check).
-        ({"a": 0.5, "b": 1.0, "c": -0.5}, 64, 2e-3),
+        # |b| = 1 chirp-FFT-chirp path (chirp tables shared with torch).
+        ({"a": 0.5, "b": 1.0, "c": -0.5}, 64, 1e-4),
+        # Same path at large N, where float32 chirp-phase noise would blow up
+        # cross-backend parity if the tables were not shared.
+        ({"a": 0.5, "b": 1.0, "c": -0.5}, 2048, 1e-4),
         # Dense kernel path (fractional Fourier, 30 degrees).
         (
             {
@@ -79,6 +79,82 @@ def test_functional_parity(params: dict, length: int, atol: float) -> None:
     expected = _torch_lct(x, **params)
     actual = _mlx_lct(x, **params)
     np.testing.assert_allclose(actual, expected, atol=atol, rtol=1e-4)
+
+
+@pytest.mark.parametrize("angle", [0.1, 0.5, 0.9, 1.0, 1.3])
+def test_projected_dense_layer_parity(angle: float) -> None:
+    """The dense kernel is numerically rank-deficient, so its QR projection
+    amplifies any ulp-level build difference into O(1) divergence. These
+    angles previously broke parity; the kernel is now taken verbatim from
+    the torch reference."""
+
+    x = _rand_complex(4, 64, seed=20)
+    torch_layer = ref.LCTLayer.fractional_fourier(angle)
+    with torch.no_grad():
+        expected = torch_layer(torch.from_numpy(x)).numpy()
+    mlx_layer = mlx_lct.LCTLayer.fractional_fourier(angle)
+    actual = np.array(mlx_layer(mx.array(x)))
+    np.testing.assert_allclose(actual, expected, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize("channels", [128, 256])
+def test_activation_parity_on_dense_path(channels: int) -> None:
+    """LCTModReLU with a generic frFT transform exercises dense+QR and the
+    float32 ``d`` computation that the torch layer performs."""
+
+    angle = 1.0
+    a = float(np.cos(angle))
+    b = float(np.sin(angle))
+    x = _rand(2, 4, channels, seed=21)
+
+    torch_act = ref.LCTActivation(channels, a=a, b=b, c=-b)
+    with torch.no_grad():
+        expected = torch_act(torch.from_numpy(x)).numpy()
+
+    mlx_act = mlx_lct.LCTActivation(channels, a=a, b=b, c=-b)
+    actual = np.array(mlx_act(mx.array(x)))
+    np.testing.assert_allclose(actual, expected, atol=1e-4, rtol=1e-4)
+
+
+def test_resample_branch_gradients_on_default_device() -> None:
+    """The b~=0 branch must stay differentiable on the GPU: complex64 take
+    has no Metal scatter vjp, so the plan gathers real/imag planes."""
+
+    import mlx.nn as mlx_nn
+
+    layer = mlx_lct.LCTLinear(32, 32, a=2.0, b=0.0, c=0.0)
+    x = mx.array(_rand(4, 32, seed=22))
+
+    def loss_fn(model):
+        return mx.mean(mx.square(model(x)))
+
+    loss, grads = mlx_nn.value_and_grad(layer, loss_fn)(layer)
+    mx.eval(loss, grads)
+    assert np.isfinite(loss.item())
+    for key in ("spectral_real", "spectral_imag"):
+        grad = np.array(grads[key])
+        assert np.isfinite(grad).all(), key
+        assert np.abs(grad).sum() > 0, key
+
+
+def test_activation_half_precision_dtype_and_parity() -> None:
+    x32 = _rand(2, 32, seed=23)
+    x16 = x32.astype(np.float16)
+
+    torch_act = ref.LCTActivation(32)
+    with torch.no_grad():
+        expected = torch_act(torch.from_numpy(x16))
+    assert expected.dtype == torch.float16
+
+    mlx_act = mlx_lct.LCTActivation(32)
+    actual = mlx_act(mx.array(x16))
+    assert actual.dtype == mx.float16
+    np.testing.assert_allclose(
+        np.array(actual.astype(mx.float32)),
+        expected.float().numpy(),
+        atol=2e-3,
+        rtol=2e-3,
+    )
 
 
 def test_chirp_path_accuracy_vs_float64() -> None:

@@ -2,16 +2,18 @@
 
 This module mirrors the PyTorch implementation in ``lct_activation.layers`` and
 ``lct_activation.functional.lct`` closely enough that the two backends agree
-numerically on the same inputs, with one deliberate difference:
+numerically on the same inputs (to roughly float32 ulp-level differences in
+the FFTs; dense kernels and chirp tables are taken verbatim from the torch
+reference at plan-compile time), with one deliberate difference:
 
 - Transform parameters ``(a, b, c)`` are **fixed at construction time** in the
   MLX backend. MLX traces computation lazily, so the data-dependent branch
   selection the PyTorch code performs per forward (``b ~= 0`` vs FFT vs chirp
   vs dense) cannot depend on traced parameter values. Instead, each layer
   compiles a *plan* per feature length: chirps, Bluestein tables, and dense
-  kernels are precomputed once in NumPy complex128 (matching the PyTorch CPU
-  work precision) and the runtime forward is pure MLX FFTs, elementwise
-  complex multiplies, and matmuls.
+  kernels are precomputed once (reusing the torch reference's own arithmetic
+  where its float32 rounding is observable) and the runtime forward is pure
+  MLX FFTs, elementwise complex multiplies, and matmuls.
 
 The genuinely learnable parts remain learnable: the modReLU bias, output gain,
 and residual mix of :class:`LCTModReLU`, and the spectral diagonal and bias of
@@ -85,11 +87,28 @@ def _global_amplitude(*, b: complex, length: int, mode: NormMode) -> complex:
     return complex(1.0 / np.sqrt(1j * b * length))
 
 
-def _chirp(*, length: int, coeff: complex, centered: bool) -> np.ndarray:
-    idx = np.arange(length, dtype=np.float64)
-    if centered:
-        idx = idx - (length - 1) / 2.0
-    return np.exp(1j * PI * coeff * idx**2)
+def _torch_layer_d(
+    a: complex | float, b: complex | float, c: complex | float
+) -> complex:
+    """Mirror the torch ``LCTLayer.d`` property bit-for-bit.
+
+    The torch layer stores ``(a, b, c)`` as float32/complex64 parameters and
+    solves for ``d`` in that precision. The MLX layer must reproduce the same
+    rounded ``d``: the dense+QR plan downstream amplifies even 1-ulp parameter
+    differences into O(1) kernel differences (the kernel is numerically
+    rank-deficient), so a float64-accurate ``d`` would *break* parity.
+    """
+
+    import torch
+
+    from .functional.lct import symplectic_d as torch_symplectic_d
+
+    def as_param(value: complex | float) -> "torch.Tensor":
+        dtype = torch.complex64 if isinstance(value, complex) else torch.float32
+        return torch.tensor(value, dtype=dtype)
+
+    d = torch_symplectic_d(as_param(a), as_param(b), as_param(c))
+    return complex(torch.as_tensor(d, dtype=torch.complex64).item())
 
 
 def _const(values: np.ndarray) -> mx.array:
@@ -114,58 +133,69 @@ def _ifft(x: mx.array, norm: str) -> mx.array:
     return y
 
 
-def _dense_kernel(
+def _torch_reference_kernel(
     *,
     length: int,
     a: complex,
     b: complex,
+    c: complex,
     d: complex,
     mode: NormMode,
     centered: bool,
     unitary_projection: bool,
 ) -> np.ndarray:
-    """Dense LCT kernel, built exactly like the PyTorch CPU path (complex128)."""
+    """Dense LCT kernel taken verbatim from the PyTorch reference.
 
-    idx = np.arange(length, dtype=np.float64)
-    if centered:
-        idx = idx - (length - 1) / 2.0
+    Built by applying the torch implementation to an identity matrix, so the
+    MLX backend reuses the exact same bits, QR projection included. This is
+    not pedantry: the centered dense kernel is numerically rank-deficient at
+    moderate lengths (condition number ~1e9 at N=64), so the QR projection
+    amplifies even 1-ulp build differences (np.exp vs torch.exp) into O(1)
+    kernel differences. Sharing the construction is the only robust way to
+    keep the backends in agreement on this branch. Precompute-only; torch is
+    already a hard dependency of the package.
+    """
 
-    n_idx = idx.reshape(length, 1)
-    k_idx = idx.reshape(1, length)
+    import torch
 
-    phase = (
-        1j * PI * (a / b) * n_idx**2
-        - 1j * 2.0 * PI * n_idx * k_idx / (b * length)
-        + 1j * PI * (d / b) * k_idx**2
+    from .functional.lct import linear_canonical_transform as torch_lct
+
+    eye = torch.eye(length, dtype=torch.complex64)
+    kernel = torch_lct(
+        eye,
+        a=a,
+        b=b,
+        c=c,
+        d=d,
+        dim=-1,
+        normalization=mode,
+        centered=centered,
+        dense_threshold=length,
+        unitary_projection=unitary_projection,
     )
+    return kernel.numpy()
 
-    if centered:
-        s = (length - 1) / 2.0
-        lin_phase = (
-            1j
-            * 2.0
-            * PI
-            * s
-            / b
-            * ((a - 1.0 / length) * n_idx + (d - 1.0 / length) * k_idx)
-        )
-        const_phase = np.exp(1j * PI * (s**2) * (a + d - 2.0 / length) / b)
-        kernel = const_phase * np.exp(phase + lin_phase)
-    else:
-        kernel = np.exp(phase)
 
-    amp = _global_amplitude(b=b, length=length, mode=mode)
-    kernel = (amp * kernel).astype(np.complex64)
+def _torch_chirp_table(*, length: int, coeff: complex, centered: bool) -> np.ndarray:
+    """Chirp table built with the torch reference's own float32 arithmetic.
 
-    if mode == "unitary" and unitary_projection:
-        # The PyTorch backend projects with torch.linalg.qr; complex QR is only
-        # unique up to per-column phases, so reuse torch here (precompute-only)
-        # to keep the two backends numerically identical.
-        import torch
+    The torch backend computes chirp phases in complex64; at Bluestein-scale
+    phases the float32 rounding is the dominant numerical effect, so the MLX
+    plan must bake in the *same* tables (not more accurate float64 ones) for
+    the backends to agree at large N. Precompute-only.
+    """
 
-        q, _ = torch.linalg.qr(torch.from_numpy(kernel))
-        kernel = q.numpy().astype(np.complex64)
-    return kernel
+    import torch
+
+    from .functional.lct import _chirp as torch_chirp
+
+    return torch_chirp(
+        length=length,
+        coeff=torch.tensor(coeff, dtype=torch.complex64),
+        dtype=torch.complex64,
+        device=torch.device("cpu"),
+        centered=centered,
+    ).numpy()
 
 
 def _resample_plan(
@@ -200,21 +230,31 @@ def _resample_plan(
     i_lo = np.clip(i_lo, 0, length - 1)
     i_hi = np.clip(i_hi, 0, length - 1)
 
-    chirp = _chirp(length=length, coeff=complex(np.complex64(c * d)), centered=centered)
+    chirp = _torch_chirp_table(
+        length=length, coeff=complex(np.complex64(c * d)), centered=centered
+    )
     amp = 1.0 if mode == "unitary" else complex(np.sqrt(np.complex128(d)))
     scale = _const(amp * chirp)
 
     idx_lo = mx.array(i_lo.astype(np.int32))
     idx_hi = mx.array(i_hi.astype(np.int32))
-    weight_lo = _const(w_lo.astype(np.complex128))
-    weight_hi = _const(w_hi.astype(np.complex128))
+    weight_lo = mx.array(w_lo.astype(np.float32))
+    weight_hi = mx.array(w_hi.astype(np.float32))
 
     def plan(x: mx.array) -> mx.array:
-        resampled = (
-            mx.take(x, idx_lo, axis=-1) * weight_lo
-            + mx.take(x, idx_hi, axis=-1) * weight_hi
+        # Gather the float32 real/imag planes separately: the vjp of take is
+        # a scatter, and MLX's Metal backend has no complex64 scatter, so a
+        # complex gather would make this branch non-differentiable on GPU.
+        x_re, x_im = mx.real(x), mx.imag(x)
+        re = (
+            mx.take(x_re, idx_lo, axis=-1) * weight_lo
+            + mx.take(x_re, idx_hi, axis=-1) * weight_hi
         )
-        return resampled * scale
+        im = (
+            mx.take(x_im, idx_lo, axis=-1) * weight_lo
+            + mx.take(x_im, idx_hi, axis=-1) * weight_hi
+        )
+        return (re + 1j * im).astype(mx.complex64) * scale
 
     return plan
 
@@ -300,20 +340,31 @@ def _compile_plan(
         return lambda x: _ifft(x, norm)
 
     if abs(a) <= 1e-8 and abs(b - 1j) <= 1e-5 and abs(c - 1j) <= 1e-5:
-        idx = np.arange(length, dtype=np.float64)
-        expo = -1j * 2.0 * PI * idx.reshape(-1, 1) * idx.reshape(1, -1) / length
-        kernel = _const(-1j * np.exp(expo) / math.sqrt(length))
+        kernel = _const(
+            _torch_reference_kernel(
+                length=length,
+                a=a,
+                b=b,
+                c=c,
+                d=d,
+                mode=mode,
+                centered=centered,
+                unitary_projection=unitary_projection,
+            )
+        )
         return lambda x: mx.matmul(x, kernel)
 
     if abs(abs_b - 1.0) <= 1e-6:
         coeff_in = complex(np.complex64(a / b))
         coeff_out = complex(np.complex64(d / b))
-        chirp_in = _const(_chirp(length=length, coeff=coeff_in, centered=centered))
+        chirp_in = _const(
+            _torch_chirp_table(length=length, coeff=coeff_in, centered=centered)
+        )
         amp = _global_amplitude(b=b, length=length, mode=mode)
         chirp_out = _const(
             amp
             * math.sqrt(length)
-            * _chirp(length=length, coeff=coeff_out, centered=centered)
+            * _torch_chirp_table(length=length, coeff=coeff_out, centered=centered)
         )
         return lambda x: _fft(x * chirp_in, "ortho") * chirp_out
 
@@ -321,10 +372,11 @@ def _compile_plan(
         return _chirpz_plan(length=length, a=a, b=b, d=d, mode=mode)
 
     kernel = _const(
-        _dense_kernel(
+        _torch_reference_kernel(
             length=length,
             a=a,
             b=b,
+            c=c,
             d=d,
             mode=mode,
             centered=centered,
@@ -432,7 +484,7 @@ class LCTLayer(mlx_nn.Module):
         self._a = complex(a)
         self._b = complex(b)
         self._c = complex(c)
-        self._d = symplectic_d(self._a, self._b, self._c)
+        self._d = _torch_layer_d(a, b, c)
         self._mode: NormMode = _mode(normalized, normalization)
         self._centered = centered
         self._dense_threshold = dense_threshold
@@ -488,8 +540,13 @@ class LCTLayer(mlx_nn.Module):
 
     @staticmethod
     def fractional_fourier(angle: float, **kwargs) -> "LCTLayer":
-        a = math.cos(angle)
-        b = math.sin(angle)
+        # Mirror the torch staticmethod exactly: float32 cos/sin, because the
+        # dense+QR path amplifies even 1-ulp parameter differences.
+        import torch
+
+        theta = torch.tensor(float(angle))
+        a = torch.cos(theta).item()
+        b = torch.sin(theta).item()
         return LCTLayer(a=a, b=b, c=-b, **kwargs)
 
 

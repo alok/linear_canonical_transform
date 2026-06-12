@@ -41,6 +41,10 @@ Issues = "https://github.com/alok/linear_canonical_transform/issues"
 dev = [
     "hypothesis>=6.130",
     "pytest>=8.3.5",
+    "mlx>=0.31; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+mlx = [
+    "mlx>=0.31",
 ]
 
 [project.scripts]

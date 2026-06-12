@@ -393,15 +393,23 @@ forward pass, median of 30 steps; see
 
 | dim  | backend   | `nn.Linear` | `LCTLinear` | GELU    | `LCTActivation` |
 |------|-----------|-------------|-------------|---------|-----------------|
-| 1024 | torch MPS | 0.56 ms     | 0.40 ms     | 0.29 ms | 1.60 ms         |
-| 1024 | MLX       | 0.48 ms     | 0.46 ms     | 0.16 ms | 0.68 ms         |
-| 4096 | torch MPS | 6.18 ms     | 1.23 ms     | 0.30 ms | 2.99 ms         |
-| 4096 | MLX       | 5.85 ms     | 2.25 ms     | 0.29 ms | 3.12 ms         |
+| 1024 | torch MPS | 0.54 ms     | 0.39 ms     | 0.29 ms | 1.49 ms         |
+| 1024 | MLX       | 0.49 ms     | 0.49 ms     | 0.18 ms | 0.74 ms         |
+| 4096 | torch MPS | 5.64 ms     | 1.11 ms     | 0.47 ms | 2.53 ms         |
+| 4096 | MLX       | 5.40 ms     | 1.96 ms     | 0.27 ms | 2.59 ms         |
 
 The structured `LCTLinear` overtakes the dense matmul around 1024-2048
 features and is about 5x faster at 4096 on MPS. The nonlinear
-`LCTActivation` costs a few GELUs, with MLX the fastest backend at
-transformer-typical widths.
+`LCTActivation` costs roughly 4-10 GELUs; MLX is the fastest backend for it
+up to ~2048 features, with torch MPS edging ahead at 4096.
+
+Methodology notes: both layers are benchmarked at their default transform
+`(a, b, c) = (0, 1, 0)`, i.e. the FFT fast path. The torch numbers include
+per-call branch dispatch (several scalar GPU-to-CPU syncs per forward on
+MPS), which the MLX backend compiles away into per-length plans during
+warmup; that is an honest end-to-end cost of each implementation, not a
+like-for-like kernel comparison. Forward+backward timings differentiate
+with respect to both the input and the layer parameters on both frameworks.
 
 Run the local NanoGPT ablation sweep:
 

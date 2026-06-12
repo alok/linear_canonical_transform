@@ -74,6 +74,9 @@ def bench_torch_module(
 
     def fwd_bwd() -> None:
         module.zero_grad(set_to_none=True)
+        # Clear the input gradient too, otherwise every iteration after the
+        # first pays an AccumulateGrad add the MLX side never performs.
+        x_grad.grad = None
         y = module(x_grad)
         y.square().mean().backward()
         _torch_sync(device)

@@ -45,6 +45,8 @@ dev = [
 ]
 mlx = [
     "mlx>=0.31",
+    # On Linux the backend library (libmlx.so) ships in the cpu extra.
+    "mlx[cpu]>=0.31; sys_platform == 'linux'",
 ]
 
 [project.scripts]

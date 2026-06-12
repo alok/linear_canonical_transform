@@ -292,3 +292,38 @@ So the current recommendation stays the same:
   already faster than `nn.Linear` on CPU.
 - Repeat on upstream `karpathy/nanoGPT` with a clean training config and log a
   longer loss curve, not just a 20-step snapshot.
+
+## Gradient-fix rerun (2026-06-12)
+
+A cross-backend parity probe against the new MLX implementation exposed an
+input-gradient bug in the PyTorch fast path: the tile-expansion adjoint in
+`reduce_unpacked_grad` scattered with `i // repeats` (the adjoint of
+`repeat_interleave`) where the forward expands with `repeat` (`i % original`).
+Every `linear-*` and `hybrid-*` result above trained the layers *upstream* of
+an expanding `LCTLinear` (the MLP up-projection, `d -> 4d`) with corrupted
+gradients; parameter gradients of the expanding layer itself, the `baseline`
+rows, and the `activation-*` rows were unaffected.
+
+After the fix, the two CPU evidence runs were repeated with identical
+configs and seeds. The `baseline` rows reproduce bit-for-bit (validating the
+comparison); the linear variants mostly improve:
+
+| variant | old val loss | fixed val loss | delta |
+|---|---|---|---|
+| `linear-fourier` (20 steps) | `3.8768` | `3.8419` | `-0.035` |
+| `linear-frft15` | `3.8205` | `3.7900` | `-0.031` |
+| `linear-frft30` | `3.7809` | `3.7949` | `+0.014` |
+| `linear-frft45` | `3.8680` | `3.8095` | `-0.059` |
+| `linear-frft60` | `3.8460` | `3.8099` | `-0.036` |
+| `linear-frft75` | `3.8636` | `3.8387` | `-0.025` |
+| `linear-fourier` (40 steps) | `3.6575` | `3.6467` | `-0.011` |
+| `linear-frft45` (40 steps) | `3.6563` | `3.6264` | `-0.030` |
+
+Artifacts: [`nanogpt_linear_angle_sweep_gradfix.json`](results/nanogpt_linear_angle_sweep_gradfix.json),
+[`nanogpt_local_tune_linear_only_gradfix.json`](results/nanogpt_local_tune_linear_only_gradfix.json).
+The qualitative conclusion is unchanged (structured linear variants beat the
+parameter-matched baseline at these scales) and the margins widen slightly
+with correct gradients. Earlier MPS/CUDA linear-variant tables retain their
+recorded values for provenance; treat them as lower bounds on the fixed
+implementation. The regression test for the adjoint lives in
+`tests/test_linear_input_gradients.py`.

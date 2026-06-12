@@ -1,0 +1,453 @@
+{
+  "benchmark": "bench_mac_local",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "torch_version": "2.10.0",
+  "mlx_version": "0.31.2",
+  "config": {
+    "batch_size": 8,
+    "seq_len": 256,
+    "dims": [
+      768,
+      1024,
+      2048,
+      4096
+    ],
+    "steps": 30,
+    "warmup_steps": 10
+  },
+  "results": [
+    {
+      "name": "torch-cpu/gelu/dim768",
+      "framework": "torch-cpu",
+      "module": "gelu",
+      "dim": 768,
+      "fwd_ms": 0.17774999992070661,
+      "fwd_bwd_ms": 1.091979500074558,
+      "tokens_per_second": 11521800.28643377
+    },
+    {
+      "name": "torch-cpu/lct-activation/dim768",
+      "framework": "torch-cpu",
+      "module": "lct-activation",
+      "dim": 768,
+      "fwd_ms": 1.8267500000774817,
+      "fwd_bwd_ms": 5.293875500001377,
+      "tokens_per_second": 1121116.7373275675
+    },
+    {
+      "name": "torch-cpu/linear/dim768",
+      "framework": "torch-cpu",
+      "module": "linear",
+      "dim": 768,
+      "fwd_ms": 0.8616875001052904,
+      "fwd_bwd_ms": 3.1569374999662614,
+      "tokens_per_second": 2376731.7034885073
+    },
+    {
+      "name": "torch-cpu/lct-linear/dim768",
+      "framework": "torch-cpu",
+      "module": "lct-linear",
+      "dim": 768,
+      "fwd_ms": 1.9903955001154827,
+      "fwd_bwd_ms": 5.286875000024338,
+      "tokens_per_second": 1028941.2329766497
+    },
+    {
+      "name": "torch-mps/gelu/dim768",
+      "framework": "torch-mps",
+      "module": "gelu",
+      "dim": 768,
+      "fwd_ms": 0.25112499986335024,
+      "fwd_bwd_ms": 0.5001244999220944,
+      "tokens_per_second": 8155301.149285893
+    },
+    {
+      "name": "torch-mps/lct-activation/dim768",
+      "framework": "torch-mps",
+      "module": "lct-activation",
+      "dim": 768,
+      "fwd_ms": 1.5177295000512459,
+      "fwd_bwd_ms": 3.0223750000004657,
+      "tokens_per_second": 1349384.0634519192
+    },
+    {
+      "name": "torch-mps/linear/dim768",
+      "framework": "torch-mps",
+      "module": "linear",
+      "dim": 768,
+      "fwd_ms": 0.6593745001737261,
+      "fwd_bwd_ms": 1.3431665000780413,
+      "tokens_per_second": 3105973.9184035948
+    },
+    {
+      "name": "torch-mps/lct-linear/dim768",
+      "framework": "torch-mps",
+      "module": "lct-linear",
+      "dim": 768,
+      "fwd_ms": 0.7240004999857774,
+      "fwd_bwd_ms": 1.0118540000121357,
+      "tokens_per_second": 2828727.328282552
+    },
+    {
+      "name": "mlx/gelu/dim768",
+      "framework": "mlx",
+      "module": "gelu",
+      "dim": 768,
+      "fwd_ms": 0.14472899999873334,
+      "fwd_bwd_ms": 0.6521245001067655,
+      "tokens_per_second": 14150584.8863595
+    },
+    {
+      "name": "mlx/lct-activation/dim768",
+      "framework": "mlx",
+      "module": "lct-activation",
+      "dim": 768,
+      "fwd_ms": 0.6570209999381404,
+      "fwd_bwd_ms": 1.4967710000064471,
+      "tokens_per_second": 3117099.7581398804
+    },
+    {
+      "name": "mlx/linear/dim768",
+      "framework": "mlx",
+      "module": "linear",
+      "dim": 768,
+      "fwd_ms": 0.3443960000595325,
+      "fwd_bwd_ms": 0.9593124999582869,
+      "tokens_per_second": 5946642.817123258
+    },
+    {
+      "name": "mlx/lct-linear/dim768",
+      "framework": "mlx",
+      "module": "lct-linear",
+      "dim": 768,
+      "fwd_ms": 0.4293120000511408,
+      "fwd_bwd_ms": 1.0270000000218715,
+      "tokens_per_second": 4770423.374506272
+    },
+    {
+      "name": "torch-cpu/gelu/dim1024",
+      "framework": "torch-cpu",
+      "module": "gelu",
+      "dim": 1024,
+      "fwd_ms": 0.23158350006724504,
+      "fwd_bwd_ms": 1.4859579999892958,
+      "tokens_per_second": 8843462.506635062
+    },
+    {
+      "name": "torch-cpu/lct-activation/dim1024",
+      "framework": "torch-cpu",
+      "module": "lct-activation",
+      "dim": 1024,
+      "fwd_ms": 2.5387085000829757,
+      "fwd_bwd_ms": 7.148916999994981,
+      "tokens_per_second": 806709.3957156021
+    },
+    {
+      "name": "torch-cpu/linear/dim1024",
+      "framework": "torch-cpu",
+      "module": "linear",
+      "dim": 1024,
+      "fwd_ms": 1.6000005000478268,
+      "fwd_bwd_ms": 5.549666499973682,
+      "tokens_per_second": 1279999.5999618636
+    },
+    {
+      "name": "torch-cpu/lct-linear/dim1024",
+      "framework": "torch-cpu",
+      "module": "lct-linear",
+      "dim": 1024,
+      "fwd_ms": 2.8796665000072608,
+      "fwd_bwd_ms": 7.940958500057604,
+      "tokens_per_second": 711193.4663249499
+    },
+    {
+      "name": "torch-mps/gelu/dim1024",
+      "framework": "torch-mps",
+      "module": "gelu",
+      "dim": 1024,
+      "fwd_ms": 0.292354499947578,
+      "fwd_bwd_ms": 0.6114369999750124,
+      "tokens_per_second": 7005194.037947855
+    },
+    {
+      "name": "torch-mps/lct-activation/dim1024",
+      "framework": "torch-mps",
+      "module": "lct-activation",
+      "dim": 1024,
+      "fwd_ms": 1.6019789999290879,
+      "fwd_bwd_ms": 2.7696459999333456,
+      "tokens_per_second": 1278418.7558580078
+    },
+    {
+      "name": "torch-mps/linear/dim1024",
+      "framework": "torch-mps",
+      "module": "linear",
+      "dim": 1024,
+      "fwd_ms": 0.5560829999922134,
+      "fwd_bwd_ms": 1.7647915000225112,
+      "tokens_per_second": 3682903.4515147507
+    },
+    {
+      "name": "torch-mps/lct-linear/dim1024",
+      "framework": "torch-mps",
+      "module": "lct-linear",
+      "dim": 1024,
+      "fwd_ms": 0.3998539999656714,
+      "fwd_bwd_ms": 1.1216669998930229,
+      "tokens_per_second": 5121869.482800789
+    },
+    {
+      "name": "mlx/gelu/dim1024",
+      "framework": "mlx",
+      "module": "gelu",
+      "dim": 1024,
+      "fwd_ms": 0.15887499989730713,
+      "fwd_bwd_ms": 0.702270499914448,
+      "tokens_per_second": 12890637.301801898
+    },
+    {
+      "name": "mlx/lct-activation/dim1024",
+      "framework": "mlx",
+      "module": "lct-activation",
+      "dim": 1024,
+      "fwd_ms": 0.6758954999668276,
+      "fwd_bwd_ms": 1.9264790000761423,
+      "tokens_per_second": 3030054.20231458
+    },
+    {
+      "name": "mlx/linear/dim1024",
+      "framework": "mlx",
+      "module": "linear",
+      "dim": 1024,
+      "fwd_ms": 0.47558350001963845,
+      "fwd_bwd_ms": 1.3292500000261498,
+      "tokens_per_second": 4306289.011110418
+    },
+    {
+      "name": "mlx/lct-linear/dim1024",
+      "framework": "mlx",
+      "module": "lct-linear",
+      "dim": 1024,
+      "fwd_ms": 0.46014550002837495,
+      "fwd_bwd_ms": 1.2756455000726419,
+      "tokens_per_second": 4450766.116095256
+    },
+    {
+      "name": "torch-cpu/gelu/dim2048",
+      "framework": "torch-cpu",
+      "module": "gelu",
+      "dim": 2048,
+      "fwd_ms": 0.47931250003330206,
+      "fwd_bwd_ms": 2.5445620000255076,
+      "tokens_per_second": 4272786.542929106
+    },
+    {
+      "name": "torch-cpu/lct-activation/dim2048",
+      "framework": "torch-cpu",
+      "module": "lct-activation",
+      "dim": 2048,
+      "fwd_ms": 4.714707999937673,
+      "fwd_bwd_ms": 12.854874999902677,
+      "tokens_per_second": 434385.33203478856
+    },
+    {
+      "name": "torch-cpu/linear/dim2048",
+      "framework": "torch-cpu",
+      "module": "linear",
+      "dim": 2048,
+      "fwd_ms": 5.54772899999989,
+      "fwd_bwd_ms": 18.78470799988463,
+      "tokens_per_second": 369160.06531682436
+    },
+    {
+      "name": "torch-cpu/lct-linear/dim2048",
+      "framework": "torch-cpu",
+      "module": "lct-linear",
+      "dim": 2048,
+      "fwd_ms": 5.976812999961112,
+      "fwd_bwd_ms": 14.848041499931242,
+      "tokens_per_second": 342657.53337327525
+    },
+    {
+      "name": "torch-mps/gelu/dim2048",
+      "framework": "torch-mps",
+      "module": "gelu",
+      "dim": 2048,
+      "fwd_ms": 0.3731875000312357,
+      "fwd_bwd_ms": 1.147791999983383,
+      "tokens_per_second": 5487857.979778484
+    },
+    {
+      "name": "torch-mps/lct-activation/dim2048",
+      "framework": "torch-mps",
+      "module": "lct-activation",
+      "dim": 2048,
+      "fwd_ms": 2.04899999994268,
+      "fwd_bwd_ms": 4.503333000002385,
+      "tokens_per_second": 999511.9570801816
+    },
+    {
+      "name": "torch-mps/linear/dim2048",
+      "framework": "torch-mps",
+      "module": "linear",
+      "dim": 2048,
+      "fwd_ms": 1.7358335001063097,
+      "fwd_bwd_ms": 5.5498125000212895,
+      "tokens_per_second": 1179836.6605291187
+    },
+    {
+      "name": "torch-mps/lct-linear/dim2048",
+      "framework": "torch-mps",
+      "module": "lct-linear",
+      "dim": 2048,
+      "fwd_ms": 0.6562085000041407,
+      "fwd_bwd_ms": 2.2964374999219217,
+      "tokens_per_second": 3120959.2682616534
+    },
+    {
+      "name": "mlx/gelu/dim2048",
+      "framework": "mlx",
+      "module": "gelu",
+      "dim": 2048,
+      "fwd_ms": 0.2111459999696308,
+      "fwd_bwd_ms": 1.4264995000985436,
+      "tokens_per_second": 9699449.671291735
+    },
+    {
+      "name": "mlx/lct-activation/dim2048",
+      "framework": "mlx",
+      "module": "lct-activation",
+      "dim": 2048,
+      "fwd_ms": 1.3876669999035585,
+      "fwd_bwd_ms": 4.304103999970721,
+      "tokens_per_second": 1475858.401289599
+    },
+    {
+      "name": "mlx/linear/dim2048",
+      "framework": "mlx",
+      "module": "linear",
+      "dim": 2048,
+      "fwd_ms": 1.5413744999932533,
+      "fwd_bwd_ms": 4.572291500039682,
+      "tokens_per_second": 1328684.236056172
+    },
+    {
+      "name": "mlx/lct-linear/dim2048",
+      "framework": "mlx",
+      "module": "lct-linear",
+      "dim": 2048,
+      "fwd_ms": 0.9734584998568607,
+      "fwd_bwd_ms": 2.912437499958287,
+      "tokens_per_second": 2103839.044295306
+    },
+    {
+      "name": "torch-cpu/gelu/dim4096",
+      "framework": "torch-cpu",
+      "module": "gelu",
+      "dim": 4096,
+      "fwd_ms": 0.7248539999409331,
+      "fwd_bwd_ms": 4.718957999898521,
+      "tokens_per_second": 2825396.562848363
+    },
+    {
+      "name": "torch-cpu/lct-activation/dim4096",
+      "framework": "torch-cpu",
+      "module": "lct-activation",
+      "dim": 4096,
+      "fwd_ms": 9.65564600005564,
+      "fwd_bwd_ms": 25.908770499995626,
+      "tokens_per_second": 212103.88201765047
+    },
+    {
+      "name": "torch-cpu/linear/dim4096",
+      "framework": "torch-cpu",
+      "module": "linear",
+      "dim": 4096,
+      "fwd_ms": 23.438000500050293,
+      "fwd_bwd_ms": 75.72152049999659,
+      "tokens_per_second": 87379.46737374655
+    },
+    {
+      "name": "torch-cpu/lct-linear/dim4096",
+      "framework": "torch-cpu",
+      "module": "lct-linear",
+      "dim": 4096,
+      "fwd_ms": 13.385791000018799,
+      "fwd_bwd_ms": 31.604312500007836,
+      "tokens_per_second": 152998.0559234134
+    },
+    {
+      "name": "torch-mps/gelu/dim4096",
+      "framework": "torch-mps",
+      "module": "gelu",
+      "dim": 4096,
+      "fwd_ms": 0.29985449998548575,
+      "fwd_bwd_ms": 2.091479000000618,
+      "tokens_per_second": 6829979.20691246
+    },
+    {
+      "name": "torch-mps/lct-activation/dim4096",
+      "framework": "torch-mps",
+      "module": "lct-activation",
+      "dim": 4096,
+      "fwd_ms": 2.993833000118684,
+      "fwd_bwd_ms": 8.73902100011037,
+      "tokens_per_second": 684072.8924822498
+    },
+    {
+      "name": "torch-mps/linear/dim4096",
+      "framework": "torch-mps",
+      "module": "linear",
+      "dim": 4096,
+      "fwd_ms": 6.178103999900486,
+      "fwd_bwd_ms": 19.194978999962586,
+      "tokens_per_second": 331493.2866188378
+    },
+    {
+      "name": "torch-mps/lct-linear/dim4096",
+      "framework": "torch-mps",
+      "module": "lct-linear",
+      "dim": 4096,
+      "fwd_ms": 1.2344169999778387,
+      "fwd_bwd_ms": 4.657916499922976,
+      "tokens_per_second": 1659082.789719169
+    },
+    {
+      "name": "mlx/gelu/dim4096",
+      "framework": "mlx",
+      "module": "gelu",
+      "dim": 4096,
+      "fwd_ms": 0.28614600000764767,
+      "fwd_bwd_ms": 3.1012915001156216,
+      "tokens_per_second": 7157185.492529213
+    },
+    {
+      "name": "mlx/lct-activation/dim4096",
+      "framework": "mlx",
+      "module": "lct-activation",
+      "dim": 4096,
+      "fwd_ms": 3.125458500107925,
+      "fwd_bwd_ms": 9.54212500016638,
+      "tokens_per_second": 655263.85966388
+    },
+    {
+      "name": "mlx/linear/dim4096",
+      "framework": "mlx",
+      "module": "linear",
+      "dim": 4096,
+      "fwd_ms": 5.847187499966822,
+      "fwd_bwd_ms": 17.977582999947117,
+      "tokens_per_second": 350253.8613669599
+    },
+    {
+      "name": "mlx/lct-linear/dim4096",
+      "framework": "mlx",
+      "module": "lct-linear",
+      "dim": 4096,
+      "fwd_ms": 2.248270999984925,
+      "fwd_bwd_ms": 6.323687500071173,
+      "tokens_per_second": 910922.2153440276
+    }
+  ]
+}

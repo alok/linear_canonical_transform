@@ -31,6 +31,29 @@ Compatibility imports are available under the older package name:
 from linear_canonical_transform import LCTLinear
 ```
 
+## MLX Backend (Apple Silicon)
+
+With the optional `mlx` extra installed, the same two model-facing layers are
+available as native MLX modules:
+
+```python
+from lct_activation.mlx import LCTActivation, LCTLinear
+```
+
+The MLX backend mirrors the PyTorch numerics branch by branch (FFT special
+case, chirp-FFT-chirp, Bluestein chirp-z, dense kernel, and the `b ~= 0`
+resample path) and is covered by parity tests against the PyTorch reference.
+
+One deliberate difference: transform parameters `(a, b, c)` are fixed at
+construction in MLX and compiled into precomputed per-length plans, because
+MLX's lazy tracing cannot branch on traced parameter values. The learnable
+parts of each layer (modReLU bias, output gain, residual mix, spectral
+diagonal, bias) remain trainable through `mlx.nn.value_and_grad`.
+
+`lct_activation.mlx.linear_canonical_transform` exposes the same functional
+transform for fixed parameters, plus `symplectic_d` for completing the
+canonical matrix.
+
 ## Functional Transforms
 
 ```python

@@ -15,6 +15,10 @@ experimental activation:
 - `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT
   domain for experiments
 
+Both layers are also available as native [MLX](https://github.com/ml-explore/mlx)
+modules for Apple silicon via the optional `mlx` extra (see
+[MLX backend](#mlx-backend-apple-silicon) below).
+
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
 The finite-dimensional tradeoff is explicit:
@@ -146,6 +150,35 @@ Compatibility imports under the older repo name also work:
 ```python
 from linear_canonical_transform import LCTLinear
 ```
+
+## MLX backend (Apple silicon)
+
+The optional MLX backend provides the same two layers as native
+`mlx.nn.Module`s. On Apple silicon, `uv sync --extra dev` already pulls in
+`mlx`; downstream projects can use the extra explicitly:
+
+```bash
+uv add "lct-activation[mlx]"
+```
+
+```python
+import mlx.core as mx
+
+from lct_activation.mlx import LCTActivation, LCTLinear
+
+act = LCTActivation(1024)
+y = act(mx.random.normal((8, 128, 1024)))
+
+linear = LCTLinear(1024, 1024)
+z = linear(mx.random.normal((8, 1024)))
+```
+
+The MLX backend matches the PyTorch numerics branch by branch and is covered
+by parity tests (`tests/test_mlx_backend.py`). Transform parameters `(a, b, c)`
+are fixed at construction and compiled into precomputed per-length plans
+(chirps, Bluestein tables, dense kernels), because MLX's lazy tracing cannot
+branch on traced parameter values; the modReLU bias/gain/residual mix and the
+spectral diagonal/bias remain trainable.
 
 Runnable examples live in [`examples/`](examples/):
 
@@ -346,6 +379,29 @@ lct-bench-linear \
 On this machine, the current implementation is still slower than `nn.Linear`
 for small 512-wide CPU layers, but already faster around 4096 features where
 the structured FFT path starts to dominate the dense matmul.
+
+Benchmark all local Mac backends (torch CPU, torch MPS, MLX) in one run:
+
+```bash
+uv run python scripts/bench_mac_local.py \
+  --output paper/results/bench_mac_local.json
+```
+
+Representative numbers from an Apple-silicon laptop (batch 8, seq 256,
+forward pass, median of 30 steps; see
+[`paper/results/bench_mac_local.json`](paper/results/bench_mac_local.json)):
+
+| dim  | backend   | `nn.Linear` | `LCTLinear` | GELU    | `LCTActivation` |
+|------|-----------|-------------|-------------|---------|-----------------|
+| 1024 | torch MPS | 0.56 ms     | 0.40 ms     | 0.29 ms | 1.60 ms         |
+| 1024 | MLX       | 0.48 ms     | 0.46 ms     | 0.16 ms | 0.68 ms         |
+| 4096 | torch MPS | 6.18 ms     | 1.23 ms     | 0.30 ms | 2.99 ms         |
+| 4096 | MLX       | 5.85 ms     | 2.25 ms     | 0.29 ms | 3.12 ms         |
+
+The structured `LCTLinear` overtakes the dense matmul around 1024-2048
+features and is about 5x faster at 4096 on MPS. The nonlinear
+`LCTActivation` costs a few GELUs, with MLX the fastest backend at
+transformer-typical widths.
 
 Run the local NanoGPT ablation sweep:
 

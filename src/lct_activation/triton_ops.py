@@ -393,12 +393,11 @@ def reduce_unpacked_grad(
         if mode == "zero":
             return grad[..., :original_channels]
 
-        repeats = (expanded_channels + original_channels - 1) // original_channels
-        indices = torch.div(
-            torch.arange(expanded_channels, device=grad.device),
-            repeats,
-            rounding_mode="floor",
-        ).clamp(max=original_channels - 1)
+        # Adjoint of the tile expansion expanded[i] = x[i % original_channels]
+        # used by pack_real_pairs (repeat, not repeat_interleave).
+        indices = (
+            torch.arange(expanded_channels, device=grad.device) % original_channels
+        )
         out = torch.zeros(*grad.shape[:-1], original_channels, dtype=grad.dtype, device=grad.device)
         out.index_add_(-1, indices, grad)
         return out

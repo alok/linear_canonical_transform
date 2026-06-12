@@ -370,7 +370,10 @@ class LCTModReLU(nn.Module):
 
         out = _unpack_real_pairs(activated, original_channels=self.channels)
         out = self.output_gain.to(out.dtype) * out
-        return out + self.residual_mix.to(out.dtype) * residual
+        out = out + self.residual_mix.to(out.dtype) * residual
+        # Match LCTLinear's contract: output dtype follows input dtype even
+        # when half-precision inputs are upcast to float32 internally.
+        return out.to(x.dtype)
 
 
 LCTActivation = LCTModReLU

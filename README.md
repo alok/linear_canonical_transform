@@ -186,6 +186,7 @@ Runnable examples live in [`examples/`](examples/):
 uv run lct quickstart
 uv run python examples/quickstart.py
 uv run python examples/property_diagnostics.py
+uv run python examples/mlx_quickstart.py  # trains a tiny MLX LCT-MLP
 ```
 
 ## Core package

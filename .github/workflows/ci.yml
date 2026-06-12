@@ -42,6 +42,7 @@ jobs:
         run: |
           uv run python examples/quickstart.py
           uv run python examples/property_diagnostics.py
+          uv run python examples/mlx_quickstart.py
 
       - name: Check property diagnostics CLI
         run: |

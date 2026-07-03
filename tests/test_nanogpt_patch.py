@@ -1,7 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 import torch
 from torch import nn
+
+_LOCAL_NANOGPT = Path("/Users/alokbeniwal/nanogpt/nanogpt/__init__.py")
+requires_local_nanogpt = pytest.mark.skipif(
+    not _LOCAL_NANOGPT.exists(),
+    reason="local nanogpt checkout not available",
+)
 
 from lct_activation.integrations.nanogpt import (
     NonlinearLCTActivation,
@@ -97,6 +106,7 @@ def test_lazy_activation_params_materialize_and_train() -> None:
     assert not torch.allclose(bias_before, wrapper.activation.bias)
 
 
+@requires_local_nanogpt
 def test_build_local_nanogpt_seed_controls_init() -> None:
     """The exec'd nanogpt source reseeds torch to 1337 at import time; the
     seed kwarg must reseed after that, or every 'seed' is the same run."""
@@ -120,6 +130,7 @@ def test_build_local_nanogpt_seed_controls_init() -> None:
     assert not torch.equal(fingerprint(1), fingerprint(2))
 
 
+@requires_local_nanogpt
 def test_paired_get_batch_is_identical_across_configs() -> None:
     from lct_activation.cli import _make_paired_get_batch
     from lct_activation.integrations.nanogpt import (

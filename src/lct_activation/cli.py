@@ -1011,21 +1011,67 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _make_paired_get_batch(namespace, *, seed: int, batch_size: int, ctx_len: int):
+    """Batch sampler with a dedicated generator, decoupled from the global RNG.
+
+    The exec'd nanogpt module's get_batch draws from the global torch RNG,
+    which every model init also consumes - so different variants see different
+    training streams even at the same seed. This sampler gives every config at
+    a given seed the *identical* batch sequence, enabling paired comparisons.
+    """
+
+    train = namespace["train"]
+    val = namespace["val"]
+    generator = torch.Generator().manual_seed(seed)
+
+    def get_batch(mode: str):
+        data = train if mode == "train" else val
+        idx = torch.randint(high=len(data) - ctx_len, size=(batch_size,), generator=generator)
+        inputs = torch.stack([data[i : i + ctx_len] for i in idx])
+        targets = torch.stack([data[i + 1 : i + 1 + ctx_len] for i in idx])
+        return inputs, targets
+
+    return get_batch
+
+
 @torch.no_grad()
-def _evaluate_loss(model: torch.nn.Module, get_batch, split: str, eval_iters: int, device: torch.device) -> float:
+def _evaluate_split_deterministic(
+    model: torch.nn.Module,
+    data: torch.Tensor,
+    *,
+    ctx_len: int,
+    batch_size: int,
+    device: torch.device,
+    max_windows: int | None = None,
+) -> float:
+    """Mean loss over non-overlapping windows of ``data`` - no sampling noise.
+
+    The val split is small enough (~435 windows at ctx 256) to sweep fully,
+    which removes eval-batch randomness from best-val selection entirely. For
+    large splits, ``max_windows`` subsamples windows at an even stride.
+    """
+
     model.eval()
-    losses: list[float] = []
-    for _ in range(eval_iters):
-        xb, yb = get_batch(split)
-        xb = xb.to(device)
-        yb = yb.to(device)
+    n_windows = (len(data) - 1) // ctx_len
+    starts = [w * ctx_len for w in range(n_windows)]
+    if max_windows is not None and n_windows > max_windows:
+        stride = n_windows / max_windows
+        starts = [starts[int(i * stride)] for i in range(max_windows)]
+
+    total = 0.0
+    count = 0
+    for offset in range(0, len(starts), batch_size):
+        chunk = starts[offset : offset + batch_size]
+        xb = torch.stack([data[s : s + ctx_len] for s in chunk]).to(device)
+        yb = torch.stack([data[s + 1 : s + 1 + ctx_len] for s in chunk]).to(device)
         _logits, loss = model(xb, yb)
-        losses.append(float(loss.item()))
-    return sum(losses) / len(losses)
+        total += float(loss.item()) * len(chunk)
+        count += len(chunk)
+    return total / count
 
 
 def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.device, seed_offset: int) -> dict[str, object]:
-    torch.manual_seed(args.seed + seed_offset)
+    seed = args.seed + seed_offset
     activation_kwargs = {
         **spec.activation_kwargs,
         "normalization": args.normalization,
@@ -1057,12 +1103,22 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         drop_frac=args.dropout,
         vocab_size=args.vocab_size,
         device=device,
+        seed=seed,
     )
     model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
-    get_batch = namespace["get_batch"]
+    get_batch = _make_paired_get_batch(
+        namespace, seed=seed, batch_size=args.batch_size, ctx_len=args.seq_len
+    )
+    val_data = namespace["val"]
+    train_data = namespace["train"]
 
-    initial_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
+    def eval_val() -> float:
+        return _evaluate_split_deterministic(
+            model, val_data, ctx_len=args.seq_len, batch_size=args.batch_size, device=device
+        )
+
+    initial_val_loss = eval_val()
 
     # The optimizer must be created after the first forward pass: the lazy
     # activation wrapper materializes its trainable parameters (modReLU bias,
@@ -1086,17 +1142,22 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         if args.eval_every and (step + 1) % args.eval_every == 0 and (step + 1) < args.steps:
             _sync_device(device)
             train_elapsed += time.perf_counter() - start
-            val_history.append(
-                (step + 1, _evaluate_loss(model, get_batch, "val", args.eval_iters, device))
-            )
+            val_history.append((step + 1, eval_val()))
             model.train()
             _sync_device(device)
             start = time.perf_counter()
     _sync_device(device)
     train_elapsed += time.perf_counter() - start
 
-    final_train_loss = _evaluate_loss(model, get_batch, "train", args.eval_iters, device)
-    final_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
+    final_train_loss = _evaluate_split_deterministic(
+        model,
+        train_data,
+        ctx_len=args.seq_len,
+        batch_size=args.batch_size,
+        device=device,
+        max_windows=args.batch_size * max(args.eval_iters, 1),
+    )
+    final_val_loss = eval_val()
     val_history.append((args.steps, final_val_loss))
     best_step, best_val_loss = min(val_history, key=lambda item: item[1])
 
@@ -1129,8 +1190,11 @@ def tune_nanogpt_main() -> None:
     device = _resolve_device(args.device)
     specs = [_default_trial_specs(name) for name in args.presets]
     specs.extend(_angle_trial_spec(angle) for angle in args.linear_angle_degrees)
-    results = [_run_tune_trial(args, spec, device=device, seed_offset=i * 1000) for i, spec in enumerate(specs)]
-    results.sort(key=lambda item: float(item["final_val_loss"]))
+    # All specs share the same seed (paired design): identical init stream and,
+    # via the dedicated batch generator, identical training batches - so
+    # per-seed deltas between variants are directly comparable.
+    results = [_run_tune_trial(args, spec, device=device, seed_offset=0) for spec in specs]
+    results.sort(key=lambda item: float(item["best_val_loss"]))
 
     payload = {
         "device": str(device),

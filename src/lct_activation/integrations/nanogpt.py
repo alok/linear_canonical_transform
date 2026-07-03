@@ -683,6 +683,7 @@ def build_local_nanogpt(
     drop_frac: float = 0.0,
     vocab_size: int | None = None,
     device: torch.device | None = None,
+    seed: int | None = None,
 ) -> tuple[nn.Module, dict[str, Any]]:
     namespace = load_local_nanogpt_definitions(
         repo_dir,
@@ -700,6 +701,12 @@ def build_local_nanogpt(
         n_layers=n_layers,
         drop_frac=drop_frac,
     )
+    # The exec'd nanogpt source calls torch.manual_seed(1337) at import time,
+    # clobbering any seed the caller set beforehand. Reseed here, after the
+    # module load and immediately before model construction, so `seed`
+    # actually controls the initialization.
+    if seed is not None:
+        torch.manual_seed(seed)
     GPT = namespace["GPT"]
     model = GPT(
         vocab_size=int(vocab_size or namespace.get("VOCAB_SIZE", 65)),

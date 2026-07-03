@@ -95,3 +95,54 @@ def test_lazy_activation_params_materialize_and_train() -> None:
         loss.backward()
         optimizer.step()
     assert not torch.allclose(bias_before, wrapper.activation.bias)
+
+
+def test_build_local_nanogpt_seed_controls_init() -> None:
+    """The exec'd nanogpt source reseeds torch to 1337 at import time; the
+    seed kwarg must reseed after that, or every 'seed' is the same run."""
+
+    from lct_activation.integrations.nanogpt import build_local_nanogpt
+
+    def fingerprint(seed: int) -> torch.Tensor:
+        model, _ = build_local_nanogpt(
+            variant="baseline",
+            batch_size=2,
+            ctx_len=16,
+            n_heads=2,
+            embed_dim=32,
+            n_layers=1,
+            vocab_size=65,
+            seed=seed,
+        )
+        return next(model.parameters()).detach().clone()
+
+    assert torch.equal(fingerprint(1), fingerprint(1))
+    assert not torch.equal(fingerprint(1), fingerprint(2))
+
+
+def test_paired_get_batch_is_identical_across_configs() -> None:
+    from lct_activation.cli import _make_paired_get_batch
+    from lct_activation.integrations.nanogpt import (
+        build_local_nanogpt,
+        make_lct_linear_factory,
+    )
+
+    batches = []
+    for variant in ("baseline", "linear"):
+        model, namespace = build_local_nanogpt(
+            variant=variant,
+            linear_factory=make_lct_linear_factory(),
+            batch_size=4,
+            ctx_len=16,
+            n_heads=2,
+            embed_dim=32,
+            n_layers=1,
+            vocab_size=65,
+            seed=7,
+        )
+        # Consume some global RNG differently per variant, as training would.
+        torch.randn(10 if variant == "baseline" else 33)
+        get_batch = _make_paired_get_batch(namespace, seed=7, batch_size=4, ctx_len=16)
+        xb, _ = get_batch("train")
+        batches.append(xb)
+    assert torch.equal(batches[0], batches[1])

@@ -1,0 +1,248 @@
+{
+  "device": "mps",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 300,
+    "eval_iters": 8,
+    "batch_size": 64,
+    "seq_len": 256,
+    "n_layers": 4,
+    "n_heads": 4,
+    "embed_dim": 256,
+    "dropout": 0.2,
+    "vocab_size": 65,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "normalization": "unitary",
+    "inverse_after_multiply": true,
+    "unitary_projection": false
+  },
+  "results": [
+    {
+      "name": "hybrid-fourier",
+      "variant": "hybrid",
+      "compiled": false,
+      "activation_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "bias_init": 0.1,
+        "residual_mix": 0.0,
+        "dense_threshold": 128,
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.3251146557687346,
+      "final_train_loss": 2.451763540506363,
+      "final_val_loss": 2.4792599497170285,
+      "best_val_loss": 2.4792599497170285,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.504642803367527
+        ],
+        [
+          200,
+          2.4851563809931965
+        ],
+        [
+          300,
+          2.4792599497170285
+        ]
+      ],
+      "lr": 0.001,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 99870.89976365025,
+      "parameter_count": 2216033
+    },
+    {
+      "name": "linear-frft45",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.7071067811865476,
+        "b": 0.7071067811865475,
+        "c": -0.7071067811865475,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.347965699776836,
+      "final_train_loss": 2.4516642093658447,
+      "final_val_loss": 2.48052994793859,
+      "best_val_loss": 2.48052994793859,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.505101554695217
+        ],
+        [
+          200,
+          2.485299904593106
+        ],
+        [
+          300,
+          2.48052994793859
+        ]
+      ],
+      "lr": 0.001,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 75690.85493974948,
+      "parameter_count": 2213965
+    },
+    {
+      "name": "linear-frft30",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.8660254037844387,
+        "b": 0.49999999999999994,
+        "c": -0.49999999999999994,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.292913874264421,
+      "final_train_loss": 2.4498640298843384,
+      "final_val_loss": 2.481001990965043,
+      "best_val_loss": 2.481001990965043,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.503449715691051
+        ],
+        [
+          200,
+          2.4845423429861837
+        ],
+        [
+          300,
+          2.481001990965043
+        ]
+      ],
+      "lr": 0.001,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 75425.48476046555,
+      "parameter_count": 2213965
+    },
+    {
+      "name": "linear-fourier",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.352186828920211,
+      "final_train_loss": 2.4493497908115387,
+      "final_val_loss": 2.481488358289346,
+      "best_val_loss": 2.481488358289346,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.5037431146906712
+        ],
+        [
+          200,
+          2.4833595681464535
+        ],
+        [
+          300,
+          2.481488358289346
+        ]
+      ],
+      "lr": 0.001,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 144978.1389370697,
+      "parameter_count": 2213965
+    },
+    {
+      "name": "linear-frft15",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.9659258262890683,
+        "b": 0.25881904510252074,
+        "c": -0.25881904510252074,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.361307332707548,
+      "final_train_loss": 2.4501811265945435,
+      "final_val_loss": 2.4817877396769905,
+      "best_val_loss": 2.4817877396769905,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.506045438503397
+        ],
+        [
+          200,
+          2.485303216693045
+        ],
+        [
+          300,
+          2.4817877396769905
+        ]
+      ],
+      "lr": 0.001,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 76647.1002138885,
+      "parameter_count": 2213965
+    }
+  ]
+}

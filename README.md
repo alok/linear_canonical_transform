@@ -1,16 +1,23 @@
 # lct-activation
 
-`lct-activation` is a small PyTorch research package for testing Linear Canonical Transform layers inside real models.
+`lct-activation` is a small PyTorch research package for testing Linear
+Canonical Transform layers inside real models.
 
 The package keeps two goals in view:
 
 - correctness on finite grids, via a dense reference kernel and explicit tests for special cases
 - speed where it matters, via FFT and Bluestein / chirp-z fast paths instead of Python loops
 
-The package now exposes two model-facing building blocks:
+The package now exposes one lead model-facing building block and one
+experimental activation:
 
-- `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT domain
 - `LCTLinear`, a structured `nn.Linear`-style layer that uses fast spectral mixing instead of a dense learned matrix
+- `LCTActivation`, a genuinely nonlinear modReLU-style activation in the LCT
+  domain for experiments
+
+Both layers are also available as native [MLX](https://github.com/ml-explore/mlx)
+modules for Apple silicon via the optional `mlx` extra (see
+[MLX backend](#mlx-backend-apple-silicon) below).
 
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
@@ -22,23 +29,82 @@ The finite-dimensional tradeoff is explicit:
 
 ## Install
 
+For local development:
+
 ```bash
 cd /Users/alokbeniwal/LCT
 uv sync --extra dev
+uv run pytest -q
 ```
 
-Install directly from GitHub with `uv`:
+Use the package from this checkout in another `uv` project:
 
 ```bash
-uv add "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt"
+uv add "lct-activation @ file:///Users/alokbeniwal/LCT"
 ```
 
-If you just want the packaged command-line tools, install them with `uv tool`:
+Install directly from GitHub with `uv` once the branch or tag you want is
+pushed:
 
 ```bash
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-linear
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-bench-nanogpt
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@codex/lct-activation-nanogpt" lct-tune-nanogpt
+uv add "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>"
+```
+
+If you just want one packaged command-line entry point, install `lct` with
+`uv tool`:
+
+```bash
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct
+```
+
+The older direct command names remain available for scripts and CI:
+
+```bash
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-doctor
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-quickstart
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-sweep-properties
+uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
+```
+
+Quick smoke test after installing:
+
+```bash
+lct quickstart
+```
+
+The same self-contained smoke test can emit JSON:
+
+```bash
+lct quickstart --format json
+```
+
+Manual Python smoke test:
+
+```bash
+uv run python - <<'PY'
+import torch
+from lct_activation import LCTLinear
+
+layer = LCTLinear(16, 16)
+x = torch.randn(2, 16)
+print(layer(x).shape)
+PY
+```
+
+Or run the packaged self-check:
+
+```bash
+lct doctor
+```
+
+Inside this repository, include the checked-in paper evidence artifacts:
+
+```bash
+uv run lct doctor --result-dir paper/results --require-results
 ```
 
 ## Quick use
@@ -46,7 +112,7 @@ uv tool install --from "git+https://github.com/alok/linear_canonical_transform.g
 ```python
 import torch
 
-from lct_activation import LCTActivation, LCTLinear
+from lct_activation import LCTActivation, LCTLinear, property_report
 
 act = LCTActivation(
     1024,
@@ -68,6 +134,15 @@ dense_equivalent = linear.to_linear()
 
 energy_preserving = LCTLinear(1024, 1024, normalization="unitary")
 matrix_like = LCTLinear(1024, 1024, normalization="compositional")
+
+report = property_report(
+    16,
+    (0.8660254, 0.5, -0.5),
+    (0.8660254, -0.5, 0.5),
+    normalization="unitary",
+    discretization="spectral-frft",
+)
+print(report.first_unitarity_error, report.composition_error)
 ```
 
 Compatibility imports under the older repo name also work:
@@ -76,13 +151,187 @@ Compatibility imports under the older repo name also work:
 from linear_canonical_transform import LCTLinear
 ```
 
+## MLX backend (Apple silicon)
+
+The optional MLX backend provides the same two layers as native
+`mlx.nn.Module`s. On Apple silicon, `uv sync --extra dev` already pulls in
+`mlx`; downstream projects can use the extra explicitly:
+
+```bash
+uv add "lct-activation[mlx]"
+```
+
+```python
+import mlx.core as mx
+
+from lct_activation.mlx import LCTActivation, LCTLinear
+
+act = LCTActivation(1024)
+y = act(mx.random.normal((8, 128, 1024)))
+
+linear = LCTLinear(1024, 1024)
+z = linear(mx.random.normal((8, 1024)))
+```
+
+The MLX backend matches the PyTorch numerics branch by branch and is covered
+by parity tests (`tests/test_mlx_backend.py`). Transform parameters `(a, b, c)`
+are fixed at construction and compiled into precomputed per-length plans
+(chirps, Bluestein tables, dense kernels), because MLX's lazy tracing cannot
+branch on traced parameter values; the modReLU bias/gain/residual mix and the
+spectral diagonal/bias remain trainable.
+
+Runnable examples live in [`examples/`](examples/):
+
+```bash
+uv run lct quickstart
+uv run python examples/quickstart.py
+uv run python examples/property_diagnostics.py
+uv run python examples/mlx_quickstart.py  # trains a tiny MLX LCT-MLP
+```
+
 ## Core package
 
 - `src/lct_activation/functional/lct.py`: dense reference kernel, `b ~= 0` branch, Fourier/Laplace special cases, and the finite-dimensional symplectic solve `symplectic_d`
 - `src/lct_activation/functional/chirpz.py`: generic `O(N log N)` Bluestein / chirp-z path
 - `src/lct_activation/layers.py`: `LCTLayer`, `LCTActivation`, and `LCTLinear`
+- `src/lct_activation/properties.py`: finite-grid diagnostics for determinant,
+  unitarity, and composition errors
+- `src/lct_activation/doctor.py`: install, smoke-test, and local evidence checks
 
 Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
+The public API surface is summarized in [`docs/api.md`](docs/api.md).
+
+## License
+
+`lct-activation` is distributed under the Apache License, Version 2.0. See
+[`LICENSE`](LICENSE). Copyright 2026 Alok Singh.
+
+## Finite-grid property checks
+
+The package includes a small diagnostic CLI for the tradeoff that matters most
+in this project: finite LCT kernels can be made very nearly unitary, but that
+projection changes how closely finite matrices compose like their continuum
+canonical parameters.
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --normalization unitary \
+  --unitary-projection
+```
+
+The same check is available through the umbrella command:
+
+```bash
+lct check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --discretization spectral-frft
+```
+
+The output is JSON with determinant errors, unitarity errors, and composition
+error. To compare the unprojected dense kernel:
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --normalization unitary \
+  --no-unitary-projection
+```
+
+For finite fractional Fourier transforms where exact finite-grid composition is
+the priority, use the spectral FrFT discretization:
+
+```bash
+lct-check-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30 \
+  --discretization spectral-frft
+```
+
+That path constructs a fractional power of the unitary DFT from its four
+spectral projectors. It is less a sampled continuum integral kernel and more a
+finite-dimensional FrFT algebra: unitary and compositional up to floating-point
+error.
+
+The spectral FrFT path is intentionally a diagnostics/research API in this
+release. It is not wired into `LCTLinear` as a model-facing execution path until
+benchmark evidence justifies that promotion.
+
+Use `assert-properties` when you want a CI-friendly pass/fail check with
+thresholds:
+
+```bash
+lct assert-properties \
+  --length 16 \
+  --first-angle-degrees 30 \
+  --second-angle-degrees -30
+```
+
+The assertion command defaults to the spectral FrFT discretization and exits
+nonzero if determinant, unitarity, or composition errors exceed the configured
+thresholds. Use `check-properties` or `sweep-properties` when comparing
+finite-discretization tradeoffs without treating the sampled-kernel path as a
+failure.
+
+To generate a compact tradeoff table across lengths and angles:
+
+```bash
+lct sweep-properties \
+  --length 8 16 32 \
+  --angle-pair 30 -30 \
+  --angle-pair 45 -45
+```
+
+Use JSON when collecting paper artifacts:
+
+```bash
+lct sweep-properties \
+  --length 8 16 32 \
+  --angle-pair 30 -30 \
+  --format json \
+  --output paper/results/property_sweep.json
+```
+
+Saved sweep JSON is understood by `lct-summarize-results`, including unitarity
+and composition columns.
+
+The same diagnostics are available from Python:
+
+```python
+from lct_activation import composition_error, finite_lct_matrix, property_sweep, unitarity_error
+
+params = (0.8660254, 0.5, -0.5)
+matrix = finite_lct_matrix(16, params, normalization="unitary")
+print(unitarity_error(matrix))
+
+rows = property_sweep(
+    lengths=[8, 16],
+    angle_pairs_degrees=[(30.0, -30.0)],
+)
+print(rows[0].as_dict())
+```
+
+## Result summaries
+
+The checked-in NanoGPT and backend artifacts under `paper/results/` can be
+summarized without manual `jq` commands:
+
+```bash
+lct-summarize-results --result-dir paper/results
+```
+
+To emit JSON for a notebook or plotting script:
+
+```bash
+lct-summarize-results --result-dir paper/results --format json
+```
 
 ## NanoGPT integration
 
@@ -113,7 +362,8 @@ Benchmark a different checkout explicitly:
 ```bash
 uv run python scripts/bench_nanogpt.py \
   --repo-dir /path/to/nanoGPT \
-  --repo-kind upstream
+  --repo-kind upstream \
+  --output paper/results/bench_nanogpt_upstream.json
 ```
 
 Microbenchmark the structured linear layer against `nn.Linear`:
@@ -123,12 +373,44 @@ lct-bench-linear \
   --device cpu \
   --batch-size 256 \
   --in-features 1024 \
-  --out-features 1024
+  --out-features 1024 \
+  --output paper/results/bench_linear_cpu.json
 ```
 
 On this machine, the current implementation is still slower than `nn.Linear`
 for small 512-wide CPU layers, but already faster around 4096 features where
 the structured FFT path starts to dominate the dense matmul.
+
+Benchmark all local Mac backends (torch CPU, torch MPS, MLX) in one run:
+
+```bash
+uv run python scripts/bench_mac_local.py \
+  --output paper/results/bench_mac_local.json
+```
+
+Representative numbers from an Apple-silicon laptop (batch 8, seq 256,
+forward pass, median of 30 steps; see
+[`paper/results/bench_mac_local.json`](paper/results/bench_mac_local.json)):
+
+| dim  | backend   | `nn.Linear` | `LCTLinear` | GELU    | `LCTActivation` |
+|------|-----------|-------------|-------------|---------|-----------------|
+| 1024 | torch MPS | 0.54 ms     | 0.39 ms     | 0.29 ms | 1.49 ms         |
+| 1024 | MLX       | 0.49 ms     | 0.49 ms     | 0.18 ms | 0.74 ms         |
+| 4096 | torch MPS | 5.64 ms     | 1.11 ms     | 0.47 ms | 2.53 ms         |
+| 4096 | MLX       | 5.40 ms     | 1.96 ms     | 0.27 ms | 2.59 ms         |
+
+The structured `LCTLinear` overtakes the dense matmul around 1024-2048
+features and is about 5x faster at 4096 on MPS. The nonlinear
+`LCTActivation` costs roughly 4-10 GELUs; MLX is the fastest backend for it
+up to ~2048 features, with torch MPS edging ahead at 4096.
+
+Methodology notes: both layers are benchmarked at their default transform
+`(a, b, c) = (0, 1, 0)`, i.e. the FFT fast path. The torch numbers include
+per-call branch dispatch (several scalar GPU-to-CPU syncs per forward on
+MPS), which the MLX backend compiles away into per-length plans during
+warmup; that is an honest end-to-end cost of each implementation, not a
+like-for-like kernel comparison. Forward+backward timings differentiate
+with respect to both the input and the layer parameters on both frameworks.
 
 Run the local NanoGPT ablation sweep:
 
@@ -191,4 +473,26 @@ Core verification used in this repo:
 ```bash
 uv run pytest -q tests/test_lct_core.py tests/test_activation.py tests/test_special_cases.py
 uv run pytest -q tests/test_lct_linear.py
+uv run pytest -q tests/test_lct_properties.py
 ```
+
+After building a wheel, smoke-test it outside the source project:
+
+```bash
+uv build
+uv run python scripts/smoke_dist.py
+```
+
+Before publishing, run the release verifier against the exact artifacts. It
+checks wheel and sdist metadata, the Apache license, public project URLs, local
+git origin, the isolated wheel smoke test, and whether the current version is
+still uploadable on PyPI:
+
+```bash
+uv run python scripts/verify_release.py --check-pypi
+```
+
+Before public release, use [`docs/release_checklist.md`](docs/release_checklist.md).
+The GitHub Actions workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+runs tests, examples, property diagnostics, result summaries, package build, and
+isolated wheel smoke and release-metadata checks on Python 3.10 and 3.12.

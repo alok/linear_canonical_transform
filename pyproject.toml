@@ -3,21 +3,62 @@ name = "lct-activation"
 version = "0.1.0"
 description = "Fast PyTorch Linear Canonical Transform layers, activations, and NanoGPT experiments."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+    { name = "Alok Singh" },
+]
+keywords = [
+    "linear-canonical-transform",
+    "pytorch",
+    "structured-layers",
+    "nanogpt",
+    "fractional-fourier-transform",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "numpy>=1.26",
     "torch>=2.2",
 ]
 
+[project.urls]
+Documentation = "https://github.com/alok/linear_canonical_transform#readme"
+Repository = "https://github.com/alok/linear_canonical_transform"
+Issues = "https://github.com/alok/linear_canonical_transform/issues"
+
 [project.optional-dependencies]
 dev = [
     "hypothesis>=6.130",
     "pytest>=8.3.5",
+    "mlx>=0.31; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+mlx = [
+    "mlx>=0.31",
+    # On Linux the backend library (libmlx.so) ships in the cpu extra.
+    "mlx[cpu]>=0.31; sys_platform == 'linux'",
 ]
 
 [project.scripts]
+lct = "lct_activation.cli:lct_main"
+lct-assert-properties = "lct_activation.cli:assert_properties_main"
 lct-bench-linear = "lct_activation.cli:bench_linear_main"
 lct-bench-nanogpt = "lct_activation.cli:bench_nanogpt_main"
+lct-check-properties = "lct_activation.cli:check_properties_main"
+lct-doctor = "lct_activation.cli:doctor_main"
+lct-quickstart = "lct_activation.cli:quickstart_main"
+lct-summarize-results = "lct_activation.cli:summarize_results_main"
+lct-sweep-properties = "lct_activation.cli:sweep_properties_main"
 lct-train-nanogpt = "lct_activation.cli:train_nanogpt_main"
 lct-tune-nanogpt = "lct_activation.cli:tune_nanogpt_main"
 

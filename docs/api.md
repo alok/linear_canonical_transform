@@ -1,0 +1,185 @@
+# API Guide
+
+This guide summarizes the public surfaces that are stable enough to use from
+the current research package. It intentionally separates model-facing APIs from
+diagnostic APIs so finite-grid tradeoffs stay visible.
+
+## Model-Facing Layer
+
+Use these from `lct_activation`:
+
+```python
+from lct_activation import LCTActivation, LCTLinear
+```
+
+`LCTLinear(in_features, out_features, ...)` is the main structured layer. It is
+designed as an `nn.Linear`-style module with an identity-like initialization,
+fast spectral mixing, and a `to_linear()` helper for materializing a dense
+comparison layer.
+
+`LCTActivation(features, ...)` is a nonlinear modReLU-style activation in the
+LCT domain. It is useful for experiments, but the release notes should continue
+to describe it as exploratory unless benchmark evidence changes.
+
+The spectral FrFT helpers below are not model-facing layer backends in this
+release. They remain diagnostics/research APIs until benchmark evidence
+justifies wiring them into `LCTLinear`.
+
+Compatibility imports are available under the older package name:
+
+```python
+from linear_canonical_transform import LCTLinear
+```
+
+## MLX Backend (Apple Silicon)
+
+With the optional `mlx` extra installed, the same two model-facing layers are
+available as native MLX modules:
+
+```python
+from lct_activation.mlx import LCTActivation, LCTLinear
+```
+
+The MLX backend mirrors the PyTorch numerics branch by branch (FFT special
+case, chirp-FFT-chirp, Bluestein chirp-z, dense kernel, and the `b ~= 0`
+resample path) and is covered by parity tests against the PyTorch reference.
+
+One deliberate difference: transform parameters `(a, b, c)` are fixed at
+construction in MLX and compiled into precomputed per-length plans, because
+MLX's lazy tracing cannot branch on traced parameter values. The learnable
+parts of each layer (modReLU bias, output gain, residual mix, spectral
+diagonal, bias) remain trainable through `mlx.nn.value_and_grad`.
+
+`lct_activation.mlx.linear_canonical_transform` exposes the same functional
+transform for fixed parameters, plus `symplectic_d` for completing the
+canonical matrix.
+
+## Functional Transforms
+
+```python
+from lct_activation import (
+    chirpz_lct,
+    linear_canonical_transform,
+    spectral_fractional_fourier_matrix,
+    spectral_fractional_fourier_transform,
+    symplectic_d,
+)
+```
+
+`linear_canonical_transform` is the sampled finite-grid LCT implementation used
+by the layers and diagnostics.
+
+`chirpz_lct` exposes the Bluestein / chirp-z fast path.
+
+`spectral_fractional_fourier_matrix` and
+`spectral_fractional_fourier_transform` expose the finite-dimensional spectral
+FrFT construction. This path is algebraic on the finite grid: it is unitary and
+composes by angle addition up to floating-point error. It is not the sampled
+continuum integral kernel.
+
+## Finite-Grid Diagnostics
+
+```python
+from lct_activation import (
+    FiniteLCTPropertyThresholds,
+    assess_property_report,
+    composition_error,
+    finite_lct_matrix,
+    format_property_sweep_markdown,
+    property_report,
+    property_sweep,
+    relative_frobenius_error,
+    unitarity_error,
+)
+```
+
+`property_report` is the highest-level diagnostic helper. It reports determinant
+errors, unitarity errors, and composition error for two canonical transforms.
+Use `assess_property_report` when you need a machine-readable pass/fail result
+against explicit thresholds.
+
+Use `discretization="lct"` for the sampled-kernel path and
+`discretization="spectral-frft"` for finite FrFT parameters where unitary
+composition on the finite grid is the priority.
+
+```python
+report = property_report(
+    16,
+    (0.8660254, 0.5, -0.5),
+    (0.8660254, -0.5, 0.5),
+    discretization="spectral-frft",
+)
+assessment = assess_property_report(report, FiniteLCTPropertyThresholds())
+assert assessment.ok
+```
+
+The same checks are available at the command line:
+
+```bash
+lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30
+lct-check-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft
+lct assert-properties --length 16 --first-angle-degrees 30 --second-angle-degrees -30
+lct sweep-properties --length 8 16 32 --angle-pair 30 -30
+```
+
+For paper tables:
+
+```python
+rows = property_sweep(
+    lengths=[8, 16, 32],
+    angle_pairs_degrees=[(30.0, -30.0), (45.0, -45.0)],
+)
+print(format_property_sweep_markdown(rows))
+```
+
+## Install Doctor
+
+For a first run after install:
+
+```bash
+lct quickstart
+lct quickstart --format json
+```
+
+```python
+from lct_activation import run_doctor, format_doctor_text
+
+report = run_doctor(result_dir=None)
+print(format_doctor_text(report))
+```
+
+The matching CLI is:
+
+```bash
+lct doctor
+```
+
+Inside this repository, include checked-in result artifacts:
+
+```bash
+lct doctor --result-dir paper/results --require-results
+```
+
+## Result Summaries
+
+```python
+from lct_activation.results import collect_result_rows, format_markdown_table
+```
+
+For paper or README evidence tables, prefer the CLI:
+
+```bash
+lct-summarize-results --result-dir paper/results
+```
+
+This keeps checked-in NanoGPT and backend artifacts summarized from source JSON
+instead of hand-maintained tables.
+
+All installed commands are also available through the umbrella `lct` command,
+for example `lct quickstart`, `lct check-properties ...`, and
+`lct summarize-results ...`.
+
+Saved `lct-bench-linear --output ...` JSON files are also summarized directly,
+so quick local benchmarks can become paper evidence without manual conversion.
+Saved `lct sweep-properties --format json --output ...` artifacts are
+summarized with unitarity and composition columns as well.

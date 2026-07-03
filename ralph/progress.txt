@@ -1,0 +1,500 @@
+2026-06-05 initial setup
+
+Recovered prior LCT work with agent-history and found the active target repo:
+- /Users/alokbeniwal/LCT on codex/lct-activation-nanogpt
+- base head 291ac0a Record normalization tradeoff results
+- tests are green: uv run pytest -q -> 40 passed
+
+Checked current upstream KellerJordan/modded-nanogpt state:
+- upstream master head from git ls-remote: b19c4d8019e7525dcacc8e363a3cfe6e2b9351dd
+- current listed main-track record in README: 1.353 minutes, record 82, 2026-04-29
+- current record rules still require fixed token streams, <=3.28 mean val loss with statistical evidence unless systems-only, no extra compile/inductor flags, and faster same-hardware timing
+
+Created Linear issue:
+- ALOK-750 Finish LCT code, paper, NanoGPT submission loop
+
+Created loop branch:
+- codex/alok-750-autoresearch-loop
+
+Next suggested loop task:
+- Add paper/submission_audit.md summarizing current local evidence versus the current KellerJordan submission requirements, then commit it.
+
+2026-06-05 submission audit pass
+
+What changed:
+- Created the Linear Project Document `LCT Activation PRD` from `ralph/PRD.md` and treated it as the authoritative PRD for this iteration.
+- Added `paper/submission_audit.md` with recovered repo state, current KellerJordan/modded-nanogpt rule and record status, a table of local `paper/results/*.json` evidence, a submission gap matrix, claim boundaries, and a ranked next-task shortlist.
+- Kept the iteration bounded: no GPU, H100, Modal, or long training jobs were launched.
+
+Commands/tests run:
+- `fd -a '^(AGENTS|CLAUDE)\.md$|^\.claude$' /Users/alokbeniwal/LCT` -> no repo-local instruction files found beyond the prompt-provided AGENTS.md instructions.
+- `git ls-remote https://github.com/KellerJordan/modded-nanogpt.git HEAD refs/heads/master` -> upstream `master` at `b19c4d8019e7525dcacc8e363a3cfe6e2b9351dd`.
+- `uv run python - <<'PY' ...` -> parsed `paper/results/*.json` and `paper/results/modal_gpu_sweep.json` for audit numbers.
+- `uv run pytest -q` -> `40 passed in 0.54s`.
+- `git diff --check` -> clean.
+
+Next steps or blockers:
+- Next recommended task: add a small result-summary command or script that reads `paper/results/*.json` and emits the paper/audit evidence tables reproducibly.
+- KellerJordan record PR remains blocked by lack of FineWeb `<= 3.28` statistical logs, lack of 8xH100 same-hardware timing, and current CUDA compiled-path speed gaps.
+- Exploratory KellerJordan work should wait for a fresh upstream patchability audit against current `KellerJordan/modded-nanogpt` `master`.
+
+Linear updates:
+- Used `ALOK-750` as the tracking issue; it was already assigned to Alok, in progress, high priority, labeled `enhancement`, attached to `LCT Activation`, and assigned to current Cycle 32.
+- Created Linear Project Document `LCT Activation PRD`: https://linear.app/aloksingh/document/lct-activation-prd-2463d3a9be06
+- Confirmed Linear project `LCT Activation` exists. No relevant LCT Initiative was found to associate.
+- GitHub remote for the repo is `https://github.com/alok/linear_canonical_transform.git`; the available Linear project tool did not expose a project-resource link field, so the repo URL was recorded in this log and will be attached to the tracking issue update.
+
+Runner note:
+- The first `ralph-loop.py --runner codex --iterations 1` invocation produced the audit files and progress update, but the wrapper process remained idle and did not exit after several minutes. The parent session stopped the wrapper, reran `git diff --check` and `uv run pytest -q` manually, and committed the completed iteration output.
+
+2026-06-05 installability and finite-grid property diagnostics pass
+
+What changed:
+- Added public finite-grid diagnostics in `src/lct_activation/properties.py`: determinant checks, canonical composition, finite matrix materialization, unitarity error, composition error, and `property_report`.
+- Exported the diagnostics from both `lct_activation` and the compatibility `linear_canonical_transform` package.
+- Added `lct-check-properties`, a JSON CLI for inspecting unitary/composition tradeoffs on finite grids.
+- Added Hypothesis/property coverage in `tests/test_lct_properties.py` for projected unitarity, canonical determinant preservation under composition, exact Fourier shortcut inverse composition, and the measurable projection-vs-composition tradeoff for generic FrFT grids.
+- Expanded install/use docs in `README.md` and clarified the math note around symplectic Fourier parameters versus the historical FFT shortcut.
+- Relaxed package support to Python `>=3.10` and added package metadata for discoverability.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q` -> `46 passed`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --no-unitary-projection`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Next packaging step: decide whether to add a license file and publish flow; the project currently builds locally but does not yet have release automation or a PyPI-ready release checklist.
+- Next research/code step: use the diagnostics to drive a focused fix or replacement for the generic FrFT composition behavior, rather than overclaiming it in docs.
+
+2026-06-05 result-summary and examples pass
+
+What changed:
+- Added `src/lct_activation/results.py` with a reusable evidence-row normalizer for the checked-in `paper/results/*.json` artifacts.
+- Added the `lct-summarize-results` CLI, with Markdown output by default and JSON output for notebooks or plotting.
+- Added tests for standard NanoGPT tune artifacts, Modal GPU artifacts, Modal Linux smoke artifacts, and Markdown table rendering.
+- Added runnable examples: `examples/quickstart.py` and `examples/property_diagnostics.py`.
+- Linked the new examples and result-summary command from the README.
+- Hardened the summary CLI against closed pipes so `| head` and similar usage does not show a traceback.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q` -> `50 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-summarize-results --result-dir paper/results`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- The repo is easier to use and reproduce locally now, but still needs an explicit license/release checklist before a serious public push.
+- A future paper/release pass should consume `lct-summarize-results` output rather than manually maintained tables.
+
+2026-06-05 CI and release checklist pass
+
+What changed:
+- Added `.github/workflows/ci.yml` to run install, tests, examples, property diagnostics, result summary JSON validation, and package build on Python 3.10 and 3.12.
+- Added `docs/release_checklist.md` with local verification, GitHub check expectations, release blockers, and a publishing sketch.
+- Linked the release checklist and CI workflow from the README.
+- Kept license selection as an explicit pre-release blocker rather than silently choosing one.
+
+Commands/tests run:
+- `uv run pytest -q` -> `50 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Add an explicit license after Alok chooses the intended open-source license.
+- A later release automation pass can add trusted publishing once the package name and license are settled.
+
+2026-06-05 spectral FrFT finite-grid composition pass
+
+What changed:
+- Added `src/lct_activation/functional/frft.py` with `spectral_fractional_fourier_matrix` and `spectral_fractional_fourier_transform`.
+- Exposed a new diagnostics discretization mode: `discretization="spectral-frft"`.
+- Kept the existing sampled LCT kernel as `discretization="lct"` so existing semantics and diagnostics remain intact.
+- Added tests proving the spectral FrFT path matches FFT/ifft at integer powers, is unitary, composes by angle addition, and integrates with `property_report`.
+- Updated examples/docs/CI/release checklist to distinguish the sampled LCT-kernel tradeoff from the finite spectral FrFT algebra.
+
+Commands/tests run:
+- `uv run pytest -q` -> `56 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py` -> showed LCT-kernel composition error around `1.366` and spectral-FrFT composition error around `1e-7`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Decide whether to route any model-facing layer through the spectral FrFT path, or keep it as diagnostics/research API until a benchmark justifies using it in `LCTLinear`.
+- License selection remains the main public-release blocker.
+
+2026-06-05 install doctor pass
+
+What changed:
+- Added `src/lct_activation/doctor.py` with a reusable install/evidence doctor report.
+- Added the `lct-doctor` CLI with text and JSON output.
+- The doctor checks package metadata, Python version, Torch device availability, `LCTLinear` forward smoke behavior, spectral-FrFT unitarity/composition preservation, compatibility imports, and checked-in paper result artifacts when requested.
+- Exported the doctor helpers from both `lct_activation` and the compatibility package.
+- Added focused tests for success, warning, failure, strict CLI behavior, and compatibility re-export.
+- Added the doctor command to README install guidance, release verification, and CI.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_doctor.py tests/test_compat_package.py` -> `10 passed`
+- `uv run lct-doctor --result-dir paper/results --require-results` -> all checks passed, including 64 evidence rows across 9 JSON artifacts
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run pytest -q` -> `63 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Confirm final package/repository metadata before publishing.
+- Decide whether the model-facing API should expose a spectral-FrFT-backed layer path, or keep it as diagnostics until benchmark evidence justifies using it in `LCTLinear`.
+
+2026-06-05 API docs and typed package pass
+
+What changed:
+- Added `docs/api.md` to summarize the current public API: model-facing layers, functional transforms, finite-grid diagnostics, install doctor, and result summaries.
+- Added PEP 561 `py.typed` markers for both `lct_activation` and `linear_canonical_transform`.
+- Added the `Typing :: Typed` classifier and a documentation URL to `pyproject.toml`.
+- Added tests that verify the typed markers are visible as package resources and that all user-facing console scripts are registered.
+- Updated README and the release checklist to point at the API guide.
+- Checked the PyPI JSON endpoint for `lct-activation`; it returned `404` on 2026-06-05, so the checklist now records the command and requires a final re-check before publish.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_package_metadata.py tests/test_doctor.py` -> `8 passed`
+- `uv run pytest -q` -> `65 passed`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'py\\.typed'` -> found both typed markers
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Before publishing, re-check PyPI name availability and repository metadata in the final target state.
+
+2026-06-05 benchmark JSON evidence pass
+
+What changed:
+- Made `lct-bench-linear` emit valid JSON instead of a Python dict repr.
+- Added `--output` to `lct-bench-linear` and `lct-bench-nanogpt` so benchmark payloads can be saved directly.
+- Reused one JSON emitter for benchmark/tune CLI payloads, including closed-pipe handling.
+- Taught `lct-summarize-results` to parse saved `lct-bench-linear --output ...` JSON artifacts directly.
+- Added CLI-output tests that run a small CPU linear benchmark, parse stdout as JSON, compare it to the saved file, and verify result-summary ingestion.
+- Updated README/API docs so local benchmark runs can become paper evidence without manual conversion.
+
+Commands/tests run:
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_results.py` -> `7 passed`
+- `uv run pytest -q` -> `68 passed`
+- `uv run lct-bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-bench-linear.json | uv run python -m json.tool`
+- `uv run lct-summarize-results --path /tmp/lct-bench-linear.json --format json | uv run python -m json.tool` -> recognized the saved benchmark row
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'py\\.typed|lct_activation/cli.py|lct_activation/results.py'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 property sweep evidence pass
+
+What changed:
+- Added `property_sweep` and `FiniteLCTPropertySweepRow` to the public Python diagnostics API.
+- Added `format_property_sweep_markdown` for compact finite-grid tradeoff tables.
+- Added `lct sweep-properties` and direct `lct-sweep-properties` commands with Markdown, JSON, and optional output-file support.
+- The sweep compares sampled LCT-kernel and spectral-FrFT rows across lengths and FrFT angle pairs.
+- Exported the sweep API from both `lct_activation` and `linear_canonical_transform`.
+- Taught `lct-summarize-results` to parse saved property-sweep JSON artifacts with unitarity and composition columns.
+- Added tests for sweep API behavior, Markdown formatting, CLI output, umbrella dispatch, compatibility exports, console-script registration, and result-summary parsing.
+- Added CI coverage for `lct sweep-properties` JSON validation.
+- Updated README/API/release docs with sweep commands and paper-artifact usage.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_lct_properties.py tests/test_cli_outputs.py tests/test_results.py tests/test_compat_package.py tests/test_package_metadata.py` -> `30 passed`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --angle-pair 45 -45 --output /tmp/lct-property-sweep.md`
+- `uv run lct sweep-properties --length 8 --angle-pair 30 -30 --format json --output /tmp/lct-property-sweep.json | uv run python -m json.tool`
+- `uv run lct-sweep-properties --length 8 --angle-pair 30 -30 --discretization spectral-frft --format json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-property-sweep.json --format json | uv run python -m json.tool` -> recognized property sweep rows with unitarity/composition metrics
+- `uv run lct | sed -n '1,150p'`
+- `uv run pytest -q` -> `79 passed`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool`
+- `uv run lct quickstart --format json | uv run python -m json.tool`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct-sweep-properties` along with `lct` and all direct commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 packaged quickstart pass
+
+What changed:
+- Added `lct quickstart` and direct `lct-quickstart` commands.
+- The quickstart runs a self-contained `LCTLinear` smoke test, verifies dense materialization, checks finite output, and reports both sampled LCT-kernel and spectral-FrFT finite-grid diagnostics.
+- Added text output for humans, JSON output for automation, and optional JSON file writing.
+- Added tests for direct quickstart JSON/file output and umbrella quickstart dispatch.
+- Updated README, API docs, release checklist, and console-script metadata tests.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_package_metadata.py` -> `9 passed`
+- `uv run lct quickstart --output /tmp/lct-quickstart.json`
+- `uv run python -m json.tool /tmp/lct-quickstart.json`
+- `uv run lct quickstart --format json | uv run python -m json.tool`
+- `uv run lct-quickstart --format json | uv run python -m json.tool`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct | sed -n '1,140p'`
+- `uv run pytest -q` -> `73 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-quickstart-bench-linear.json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-quickstart-bench-linear.json --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct-quickstart` along with `lct` and all direct commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 umbrella CLI pass
+
+What changed:
+- Added a top-level `lct` console script.
+- Added subcommands for the existing user-facing tools: `doctor`, `check-properties`, `summarize-results`, `bench-linear`, `bench-nanogpt`, `train-nanogpt`, and `tune-nanogpt`.
+- The umbrella command dispatches to the existing command implementations, so the direct `lct-*` entry points remain compatible.
+- Top-level `lct` help now lists subcommands with descriptions.
+- Added tests for `lct doctor`, `lct check-properties`, and bare `lct` help.
+- Updated README, API docs, and release checklist to show the umbrella command.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_cli_outputs.py tests/test_package_metadata.py` -> `7 passed`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct doctor --result-dir paper/results --require-results --format json | uv run python -m json.tool`
+- `uv run lct check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft | uv run python -m json.tool`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv run lct bench-linear --device cpu --batch-size 2 --in-features 8 --out-features 8 --steps 1 --warmup-steps 0 --output /tmp/lct-umbrella-bench-linear.json | uv run python -m json.tool`
+- `uv run lct summarize-results --path /tmp/lct-umbrella-bench-linear.json --format json | uv run python -m json.tool`
+- `uv run lct | sed -n '1,120p'`
+- `uv run pytest -q` -> `71 passed`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --normalization unitary --unitary-projection | uv run python -m json.tool`
+- `uv run lct-summarize-results --result-dir paper/results --format json | uv run python -m json.tool`
+- `uv build` -> built source distribution and wheel successfully
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `uv run python - <<'PY' ... importlib.metadata.entry_points ... PY` -> listed `lct` and all direct `lct-*` commands
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 isolated wheel smoke pass
+
+What changed:
+- Added `scripts/smoke_dist.py` to install the built wheel in isolated `uv run --isolated --no-project --with ...` runs.
+- The smoke check exercises packaged `lct quickstart`, packaged `lct sweep-properties`, and import compatibility for both `lct_activation` and `linear_canonical_transform`.
+- Added focused tests for wheel selection and smoke-output validation.
+- Added the smoke script to CI after `uv build`.
+- Updated README and release checklist verification steps to include the isolated built-wheel smoke test.
+
+Commands/tests run:
+- `uv run --isolated --no-project --with dist/lct_activation-0.1.0-py3-none-any.whl lct quickstart --format json | uv run python -m json.tool`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool`
+- `uv run pytest -q tests/test_smoke_dist.py tests/test_package_metadata.py` -> `5 passed`
+- `uv run pytest -q` -> `82 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool`
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 property assertion pass
+
+What changed:
+- Added `FiniteLCTPropertyThresholds`, `FiniteLCTPropertyAssessment`, and `assess_property_report` for machine-readable finite-grid property pass/fail checks.
+- Added `lct assert-properties` and direct `lct-assert-properties` commands.
+- The assertion command defaults to the spectral-FrFT finite-grid discretization and exits nonzero when determinant, unitarity, or composition errors exceed configured thresholds.
+- Kept `check-properties` and `sweep-properties` as diagnostic/tradeoff commands so sampled-kernel composition gaps remain visible instead of hidden behind loose thresholds.
+- Exported assessment helpers from both `lct_activation` and `linear_canonical_transform`.
+- Added CI coverage for `lct assert-properties`.
+- Expanded wheel smoke checks to run both umbrella and direct assertion commands, and changed the smoke script to pass a hash-qualified wheel reference to uv so same-version local wheel rebuilds do not reuse stale entry points.
+- Updated README, API docs, release checklist, package metadata tests, compatibility tests, and smoke tests.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_lct_properties.py tests/test_cli_outputs.py tests/test_compat_package.py tests/test_package_metadata.py tests/test_smoke_dist.py` -> `35 passed`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv run lct-assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-direct-assert-properties.json`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization lct --max-composition-error 1e-5 >/tmp/lct-expected-failing-assert.json; rc=$?; test "$rc" -eq 1 && uv run python -m json.tool /tmp/lct-expected-failing-assert.json >/tmp/lct-expected-failing-assert.pretty.json`
+- `uv run pytest -q` -> `90 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist.json` -> `property_assert_ok`, `direct_property_assert_ok`, and `assessment_import_ok` were all true
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'entry_points|lct_activation/cli.py|py\\.typed'`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- License selection remains the main public-release blocker.
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-05 Apache license pass
+
+What changed:
+- Added the Apache License 2.0 text in `LICENSE`.
+- Declared `license = "Apache-2.0"` in `pyproject.toml`.
+- Added the `License :: OSI Approved :: Apache Software License` classifier.
+- Added package metadata tests for the Apache-2.0 license expression and classifier.
+- Updated README and release checklist so the license decision is resolved.
+- Expanded `scripts/smoke_dist.py` to verify built-wheel license metadata, classifier, and installed license file from an isolated wheel install.
+
+Commands/tests run:
+- `uv lock`
+- `uv run pytest -q tests/test_package_metadata.py` -> `3 passed`
+- `uv run pytest -q tests/test_package_metadata.py tests/test_smoke_dist.py` -> `7 passed`
+- `uv run pytest -q` -> `91 passed`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist-license.json` -> `license_metadata_ok` was true
+- `unzip -p dist/lct_activation-0.1.0-py3-none-any.whl lct_activation-0.1.0.dist-info/METADATA | rg -n "Metadata-Version|Name|Version|License|Classifier"` -> `License-Expression: Apache-2.0`, `License-File: LICENSE`, and Apache classifier present
+- `unzip -l dist/lct_activation-0.1.0-py3-none-any.whl | rg 'LICENSE|METADATA|entry_points|py\\.typed'` -> wheel includes `lct_activation-0.1.0.dist-info/licenses/LICENSE`
+
+Next steps or blockers:
+- Decide the spectral-FrFT model-facing API direction.
+- Final publish pass should re-check PyPI name availability and repository metadata.
+
+2026-06-06 spectral API positioning pass
+
+What changed:
+- Made the release stance explicit: `LCTLinear` is the lead model-facing layer.
+- Documented `LCTActivation` as experimental.
+- Documented spectral FrFT as a diagnostics/research API, not a model-facing `LCTLinear` execution path until benchmark evidence justifies promotion.
+- Added `tests/test_public_docs.py` to guard the public docs against accidentally promoting spectral FrFT beyond the evidence.
+- Updated the release checklist claim boundary for spectral FrFT.
+- Refreshed the PyPI JSON check for `lct-activation`; it returned `404` on 2026-06-06.
+- Recorded that package repository metadata matches local `origin`.
+- Added package metadata tests for project URLs.
+- Expanded `scripts/smoke_dist.py` to verify the installed wheel exposes the expected repository URL.
+
+Commands/tests run:
+- `curl -sS -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/lct-activation/json` -> `404`
+- `git remote -v` -> origin is `https://github.com/alok/linear_canonical_transform.git`
+- `uv lock`
+- `uv run pytest -q tests/test_public_docs.py tests/test_package_metadata.py tests/test_smoke_dist.py` -> `9 passed`
+- `uv run pytest -q` -> `93 passed`
+- `uv run lct quickstart --format json | uv run python -m json.tool >/tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 | uv run python -m json.tool >/tmp/lct-assert-properties.json`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool >/tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool >/tmp/lct-summary.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv build`
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool >/tmp/lct-smoke-dist-positioning.json` -> `repo_url_ok`, `license_metadata_ok`, and property checks were true
+- `unzip -p dist/lct_activation-0.1.0-py3-none-any.whl lct_activation-0.1.0.dist-info/METADATA | rg -n "License|Project-URL|Classifier"` -> repository URL, issues URL, docs URL, Apache license, and classifiers present
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- Final publish pass should re-check PyPI name availability immediately before upload and run the release checklist against the exact artifacts to publish.
+
+2026-06-06 release verifier pass
+
+What changed:
+- Added `scripts/verify_release.py` to turn the remaining publish-time checklist into an executable release gate.
+- The verifier checks fresh wheel and source distribution metadata, Apache-2.0 license packaging, source LICENSE text, public project URLs, local git origin, isolated exact-wheel smoke, and optional PyPI current-version availability.
+- Made the PyPI check version-aware: a package-level `404` means the current local version is uploadable, while an existing package only fails when the same version is already present unless `--allow-existing-version` is passed.
+- Added focused tests for success, existing-version failure, explicit existing-version allowance, PyPI/network error handling, bad license metadata, and missing artifacts.
+- Added CI coverage after build and wheel smoke with `uv run python scripts/verify_release.py --skip-smoke`.
+- Updated README and the release checklist so pre-publish verification is `uv run python scripts/verify_release.py --check-pypi`.
+- Updated Linear `ALOK-750` with commit and verification details.
+
+Commands/tests run:
+- `uv run pytest -q tests/test_verify_release.py tests/test_smoke_dist.py tests/test_package_metadata.py tests/test_public_docs.py` -> `15 passed`
+- `uv run pytest -q` -> `99 passed`
+- `uv run lct quickstart --format json > /tmp/lct-quickstart.json`
+- `uv run lct doctor --result-dir paper/results --require-results`
+- `uv run lct assert-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 > /tmp/lct-assert-properties.json`
+- `uv run python examples/quickstart.py`
+- `uv run python examples/property_diagnostics.py`
+- `uv run lct sweep-properties --length 8 16 --angle-pair 30 -30 --format json | uv run python -m json.tool > /tmp/lct-property-sweep.json`
+- `uv run lct summarize-results --result-dir paper/results --format json | uv run python -m json.tool > /tmp/lct-summary.json`
+- `uv run lct-doctor --result-dir paper/results --require-results`
+- `uv run lct-check-properties --length 8 --first-angle-degrees 30 --second-angle-degrees -30 --discretization spectral-frft > /tmp/lct-check-properties-spectral.json`
+- `uv build` -> built source distribution and wheel successfully
+- `uv run python scripts/smoke_dist.py | uv run python -m json.tool > /tmp/lct-smoke-dist-release.json` -> `quickstart_ok`, `property_assert_ok`, `license_metadata_ok`, and `repo_url_ok` were true
+- `uv run python scripts/verify_release.py --check-pypi > /tmp/lct-verify-release.json` -> `ok: true`, `failures: []`, git origin ok, wheel/sdist metadata ok, source license ok, smoke ok, PyPI returned `404`, and current version `0.1.0` was marked uploadable
+- `uv run python scripts/verify_release.py --skip-smoke > /tmp/lct-verify-release-ci.json`
+- `git diff --check` -> clean
+
+Next steps or blockers:
+- No local code, docs, packaging, property-test, or release-verifier blocker remains for a pre-publish package pass.
+- The explicit non-code action is still not done: no PyPI or GitHub publication was performed.

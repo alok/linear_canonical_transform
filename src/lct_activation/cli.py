@@ -3,12 +3,15 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import torch
 
+from .doctor import format_doctor_text, run_doctor
 from .integrations.nanogpt import (
     DEFAULT_LOCAL_NANOGPT_REPO,
     DEFAULT_UPSTREAM_NANOGPT_REPO,
@@ -21,6 +24,16 @@ from .integrations.nanogpt import (
     run_upstream_train,
 )
 from .layers import LCTLinear
+from .properties import (
+    FiniteLCTPropertyThresholds,
+    assess_property_report,
+    format_property_sweep_markdown,
+    property_report,
+    property_sweep,
+)
+from .results import summarize_results_main
+
+CommandMain = Callable[[], None]
 
 
 def _resolve_device(spec: str) -> torch.device:
@@ -37,6 +50,405 @@ def _sync_device(device: torch.device) -> None:
         torch.cuda.synchronize(device)
     elif device.type == "mps":
         torch.mps.synchronize()
+
+
+def _json_default(value):
+    if isinstance(value, complex):
+        return {"real": value.real, "imag": value.imag}
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _emit_json(payload: object, *, output: Path | None = None) -> None:
+    text = json.dumps(payload, indent=2, default=_json_default)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text + "\n")
+    try:
+        print(text)
+    except BrokenPipeError:
+        pass
+
+
+def _emit_text(text: str) -> None:
+    try:
+        print(text)
+    except BrokenPipeError:
+        pass
+
+
+def _frft_params(angle_degrees: float) -> tuple[float, float, float]:
+    theta = math.radians(angle_degrees)
+    return math.cos(theta), math.sin(theta), -math.sin(theta)
+
+
+def _lct_commands() -> dict[str, tuple[str, CommandMain]]:
+    return {
+        "assert-properties": ("Assert finite-grid property thresholds.", assert_properties_main),
+        "bench-linear": ("Benchmark nn.Linear against LCTLinear.", bench_linear_main),
+        "bench-nanogpt": ("Benchmark baseline and LCT NanoGPT variants.", bench_nanogpt_main),
+        "check-properties": ("Report finite-grid LCT property diagnostics.", check_properties_main),
+        "doctor": ("Verify an install and optional local evidence artifacts.", doctor_main),
+        "quickstart": ("Run a self-contained LCTLinear and property smoke test.", quickstart_main),
+        "sweep-properties": ("Sweep finite-grid property diagnostics.", sweep_properties_main),
+        "summarize-results": ("Summarize experiment JSON artifacts.", summarize_results_main),
+        "train-nanogpt": ("Patch NanoGPT and run upstream train.py.", train_nanogpt_main),
+        "tune-nanogpt": ("Run the local NanoGPT ablation sweep.", tune_nanogpt_main),
+    }
+
+
+def lct_main() -> None:
+    commands = _lct_commands()
+    command_help = "\n".join(
+        f"  {name:<18} {description}"
+        for name, (description, _main) in sorted(commands.items())
+    )
+    parser = argparse.ArgumentParser(
+        prog="lct",
+        description="Umbrella command for lct-activation tools.",
+        epilog=f"commands:\n{command_help}",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("command", nargs="?", choices=sorted(commands), help="Command to run.")
+    parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments passed to the command.")
+
+    args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        return
+
+    _description, main = commands[args.command]
+    old_argv = sys.argv
+    sys.argv = [f"lct-{args.command}", *args.args]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
+
+
+def parse_check_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Report finite-grid LCT unitarity and composition diagnostics."
+    )
+    parser.add_argument("--length", type=int, default=16)
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("lct", "spectral-frft"), default="lct")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--first-angle-degrees", type=float, default=30.0)
+    parser.add_argument("--second-angle-degrees", type=float, default=-30.0)
+    parser.add_argument(
+        "--first",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override first transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--second",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override second transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    return parser.parse_args()
+
+
+def check_properties_main() -> None:
+    args = parse_check_properties_args()
+    first = tuple(args.first) if args.first is not None else _frft_params(args.first_angle_degrees)
+    second = tuple(args.second) if args.second is not None else _frft_params(args.second_angle_degrees)
+    report = property_report(
+        args.length,
+        first,
+        second,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        discretization=args.discretization,
+        device=args.device,
+    )
+    print(json.dumps(report.as_dict(), indent=2, default=_json_default))
+
+
+def parse_assert_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Assert finite-grid LCT determinant, unitarity, and composition thresholds."
+    )
+    parser.add_argument("--length", type=int, default=16)
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("lct", "spectral-frft"), default="spectral-frft")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--first-angle-degrees", type=float, default=30.0)
+    parser.add_argument("--second-angle-degrees", type=float, default=-30.0)
+    parser.add_argument(
+        "--first",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override first transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--second",
+        nargs=3,
+        type=float,
+        metavar=("A", "B", "C"),
+        help="Override second transform with canonical a b c parameters.",
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--max-determinant-error", type=float, default=1e-8)
+    parser.add_argument("--max-unitarity-error", type=float, default=1e-5)
+    parser.add_argument("--max-composition-error", type=float, default=1e-5)
+    return parser.parse_args()
+
+
+def assert_properties_main() -> None:
+    args = parse_assert_properties_args()
+    first = tuple(args.first) if args.first is not None else _frft_params(args.first_angle_degrees)
+    second = tuple(args.second) if args.second is not None else _frft_params(args.second_angle_degrees)
+    thresholds = FiniteLCTPropertyThresholds(
+        max_determinant_error=args.max_determinant_error,
+        max_unitarity_error=args.max_unitarity_error,
+        max_composition_error=args.max_composition_error,
+    )
+    report = property_report(
+        args.length,
+        first,
+        second,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        discretization=args.discretization,
+        device=args.device,
+    )
+    assessment = assess_property_report(report, thresholds)
+    _emit_json(assessment.as_dict())
+    if not assessment.ok:
+        raise SystemExit(1)
+
+
+def parse_sweep_properties_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Sweep finite-grid LCT property diagnostics.")
+    parser.add_argument("--length", "--lengths", dest="lengths", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument(
+        "--angle-pair",
+        nargs=2,
+        action="append",
+        type=float,
+        metavar=("FIRST_DEGREES", "SECOND_DEGREES"),
+        help="FrFT angle pair in degrees. May be repeated.",
+    )
+    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--discretization", choices=("all", "lct", "spectral-frft"), default="all")
+    parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
+    parser.add_argument(
+        "--unitary-projection",
+        dest="unitary_projection",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--centered",
+        dest="centered",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    parser.add_argument("--output", type=Path, help="Optional file to write the sweep output.")
+    return parser.parse_args()
+
+
+def sweep_properties_main() -> None:
+    args = parse_sweep_properties_args()
+    angle_pairs = [tuple(pair) for pair in args.angle_pair] if args.angle_pair else [(30.0, -30.0), (45.0, -45.0)]
+    discretizations = (
+        ("lct", "spectral-frft")
+        if args.discretization == "all"
+        else (args.discretization,)
+    )
+    rows = property_sweep(
+        lengths=args.lengths,
+        angle_pairs_degrees=angle_pairs,
+        discretizations=discretizations,
+        normalization=args.normalization,
+        centered=args.centered,
+        unitary_projection=args.unitary_projection,
+        device=args.device,
+    )
+    if args.format == "json":
+        _emit_json([row.as_dict() for row in rows], output=args.output)
+    else:
+        output = format_property_sweep_markdown(rows)
+        if args.output is not None:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(output + "\n")
+        _emit_text(output)
+
+
+def parse_quickstart_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run a self-contained lct-activation quickstart.")
+    parser.add_argument("--device", default="cpu", help="Torch device to smoke-test, or auto.")
+    parser.add_argument("--features", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--property-length", type=int, default=16)
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--output", type=Path, help="Optional JSON file to write the quickstart payload.")
+    return parser.parse_args()
+
+
+def _quickstart_payload(
+    *,
+    device: torch.device,
+    features: int,
+    batch_size: int,
+    property_length: int,
+) -> dict[str, object]:
+    if features <= 0:
+        raise ValueError("features must be positive")
+    if batch_size <= 0:
+        raise ValueError("batch-size must be positive")
+    if property_length <= 0:
+        raise ValueError("property-length must be positive")
+
+    torch.manual_seed(0)
+    layer = LCTLinear(features, features).to(device)
+    x = torch.randn(batch_size, features, device=device)
+    y = layer(x)
+    dense = layer.to_linear(device=device)
+    dense_y = dense(x)
+    dense_match = torch.allclose(y, dense_y, atol=1e-4, rtol=0.0)
+    output_is_finite = bool(torch.isfinite(y).all().detach().cpu())
+
+    first = _frft_params(30.0)
+    second = _frft_params(-30.0)
+    sampled = property_report(
+        property_length,
+        first,
+        second,
+        normalization="unitary",
+        unitary_projection=True,
+    )
+    spectral = property_report(
+        property_length,
+        first,
+        second,
+        normalization="unitary",
+        discretization="spectral-frft",
+    )
+    spectral_ok = spectral.first_unitarity_error <= 1e-5 and spectral.composition_error <= 1e-5
+
+    return {
+        "ok": bool(dense_match and output_is_finite and spectral_ok),
+        "device": str(device),
+        "input_shape": list(x.shape),
+        "output_shape": list(y.shape),
+        "dense_equivalent_matches": bool(dense_match),
+        "output_is_finite": output_is_finite,
+        "sampled_lct": {
+            "unitarity_error": sampled.first_unitarity_error,
+            "composition_error": sampled.composition_error,
+        },
+        "spectral_frft": {
+            "unitarity_error": spectral.first_unitarity_error,
+            "composition_error": spectral.composition_error,
+        },
+    }
+
+
+def _format_quickstart_text(payload: dict[str, object]) -> str:
+    sampled = payload["sampled_lct"]
+    spectral = payload["spectral_frft"]
+    assert isinstance(sampled, dict)
+    assert isinstance(spectral, dict)
+    lines = [
+        f"ok: {payload['ok']}",
+        f"device: {payload['device']}",
+        f"input shape: {tuple(payload['input_shape'])}",
+        f"output shape: {tuple(payload['output_shape'])}",
+        f"dense equivalent matches: {payload['dense_equivalent_matches']}",
+        f"output is finite: {payload['output_is_finite']}",
+        f"sampled LCT unitarity error: {sampled['unitarity_error']:.3e}",
+        f"sampled LCT composition error: {sampled['composition_error']:.3e}",
+        f"spectral FrFT unitarity error: {spectral['unitarity_error']:.3e}",
+        f"spectral FrFT composition error: {spectral['composition_error']:.3e}",
+    ]
+    return "\n".join(lines)
+
+
+def quickstart_main() -> None:
+    args = parse_quickstart_args()
+    device = _resolve_device(args.device)
+    payload = _quickstart_payload(
+        device=device,
+        features=args.features,
+        batch_size=args.batch_size,
+        property_length=args.property_length,
+    )
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2) + "\n")
+    if args.format == "json":
+        _emit_json(payload)
+    else:
+        _emit_text(_format_quickstart_text(payload))
+
+    if not payload["ok"]:
+        raise SystemExit(1)
+
+
+def parse_doctor_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Verify an lct-activation install and local evidence artifacts.")
+    parser.add_argument("--device", default="cpu", help="Torch device to smoke-test, or auto.")
+    parser.add_argument("--result-dir", type=Path, help="Optional result artifact directory to verify.")
+    parser.add_argument(
+        "--require-results",
+        action="store_true",
+        help="Fail if result artifacts are missing or unrecognized.",
+    )
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero on warnings as well as failures.",
+    )
+    return parser.parse_args()
+
+
+def doctor_main() -> None:
+    args = parse_doctor_args()
+    report = run_doctor(
+        device=args.device,
+        result_dir=args.result_dir,
+        require_results=args.require_results,
+    )
+    if args.format == "json":
+        print(json.dumps(report.as_dict(), indent=2))
+    else:
+        print(format_doctor_text(report))
+
+    if not report.ok or (args.strict and report.has_warnings):
+        raise SystemExit(1)
 
 
 def _maybe_compile(module: torch.nn.Module, *, enabled: bool, device: torch.device, mode: str) -> torch.nn.Module:
@@ -89,6 +501,7 @@ def parse_bench_linear_args() -> argparse.Namespace:
     )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
+    parser.add_argument("--output", type=Path, help="Optional JSON file to write the benchmark payload.")
     return parser.parse_args()
 
 
@@ -139,21 +552,20 @@ def bench_linear_main() -> None:
         dense_ms = bench_train_step(dense)
         lct_ms = bench_train_step(lct)
 
-    print(
-        {
-            "device": str(device),
-            "batch_size": args.batch_size,
-            "in_features": args.in_features,
-            "out_features": args.out_features,
-            "mode": args.mode,
-            "normalization": args.normalization,
-            "direct_fourier_backend": args.direct_fourier_backend,
-            "compiled": bool(args.compile and device.type == "cuda"),
-            "dense_ms": round(dense_ms, 4),
-            "lct_ms": round(lct_ms, 4),
-            "lct_over_dense": round(lct_ms / dense_ms, 4) if dense_ms else None,
-        }
-    )
+    payload = {
+        "device": str(device),
+        "batch_size": args.batch_size,
+        "in_features": args.in_features,
+        "out_features": args.out_features,
+        "mode": args.mode,
+        "normalization": args.normalization,
+        "direct_fourier_backend": args.direct_fourier_backend,
+        "compiled": bool(args.compile and device.type == "cuda"),
+        "dense_ms": round(dense_ms, 4),
+        "lct_ms": round(lct_ms, 4),
+        "lct_over_dense": round(lct_ms / dense_ms, 4) if dense_ms else None,
+    }
+    _emit_json(payload, output=args.output)
 
 
 def parse_bench_nanogpt_args() -> argparse.Namespace:
@@ -215,6 +627,7 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
     )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
+    parser.add_argument("--output", type=Path, help="Optional JSON file to write the benchmark payload.")
     return parser.parse_args()
 
 
@@ -370,7 +783,7 @@ def bench_nanogpt_main() -> None:
             for item in results
             if item["variant"] != "baseline"
         }
-    print(json.dumps(summary, indent=2))
+    _emit_json(summary, output=args.output)
 
 
 def parse_train_nanogpt_args() -> tuple[argparse.Namespace, list[str]]:
@@ -570,6 +983,12 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     parser.add_argument(
+        "--eval-every",
+        type=int,
+        default=0,
+        help="Evaluate val loss every N steps and record the curve/best (0 = final only).",
+    )
+    parser.add_argument(
         "--presets",
         nargs="+",
         default=[
@@ -592,21 +1011,67 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _make_paired_get_batch(namespace, *, seed: int, batch_size: int, ctx_len: int):
+    """Batch sampler with a dedicated generator, decoupled from the global RNG.
+
+    The exec'd nanogpt module's get_batch draws from the global torch RNG,
+    which every model init also consumes - so different variants see different
+    training streams even at the same seed. This sampler gives every config at
+    a given seed the *identical* batch sequence, enabling paired comparisons.
+    """
+
+    train = namespace["train"]
+    val = namespace["val"]
+    generator = torch.Generator().manual_seed(seed)
+
+    def get_batch(mode: str):
+        data = train if mode == "train" else val
+        idx = torch.randint(high=len(data) - ctx_len, size=(batch_size,), generator=generator)
+        inputs = torch.stack([data[i : i + ctx_len] for i in idx])
+        targets = torch.stack([data[i + 1 : i + 1 + ctx_len] for i in idx])
+        return inputs, targets
+
+    return get_batch
+
+
 @torch.no_grad()
-def _evaluate_loss(model: torch.nn.Module, get_batch, split: str, eval_iters: int, device: torch.device) -> float:
+def _evaluate_split_deterministic(
+    model: torch.nn.Module,
+    data: torch.Tensor,
+    *,
+    ctx_len: int,
+    batch_size: int,
+    device: torch.device,
+    max_windows: int | None = None,
+) -> float:
+    """Mean loss over non-overlapping windows of ``data`` - no sampling noise.
+
+    The val split is small enough (~435 windows at ctx 256) to sweep fully,
+    which removes eval-batch randomness from best-val selection entirely. For
+    large splits, ``max_windows`` subsamples windows at an even stride.
+    """
+
     model.eval()
-    losses: list[float] = []
-    for _ in range(eval_iters):
-        xb, yb = get_batch(split)
-        xb = xb.to(device)
-        yb = yb.to(device)
+    n_windows = (len(data) - 1) // ctx_len
+    starts = [w * ctx_len for w in range(n_windows)]
+    if max_windows is not None and n_windows > max_windows:
+        stride = n_windows / max_windows
+        starts = [starts[int(i * stride)] for i in range(max_windows)]
+
+    total = 0.0
+    count = 0
+    for offset in range(0, len(starts), batch_size):
+        chunk = starts[offset : offset + batch_size]
+        xb = torch.stack([data[s : s + ctx_len] for s in chunk]).to(device)
+        yb = torch.stack([data[s + 1 : s + 1 + ctx_len] for s in chunk]).to(device)
         _logits, loss = model(xb, yb)
-        losses.append(float(loss.item()))
-    return sum(losses) / len(losses)
+        total += float(loss.item()) * len(chunk)
+        count += len(chunk)
+    return total / count
 
 
 def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.device, seed_offset: int) -> dict[str, object]:
-    torch.manual_seed(args.seed + seed_offset)
+    seed = args.seed + seed_offset
     activation_kwargs = {
         **spec.activation_kwargs,
         "normalization": args.normalization,
@@ -638,18 +1103,35 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         drop_frac=args.dropout,
         vocab_size=args.vocab_size,
         device=device,
+        seed=seed,
     )
     model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
-    get_batch = namespace["get_batch"]
+    get_batch = _make_paired_get_batch(
+        namespace, seed=seed, batch_size=args.batch_size, ctx_len=args.seq_len
+    )
+    val_data = namespace["val"]
+    train_data = namespace["train"]
+
+    def eval_val() -> float:
+        return _evaluate_split_deterministic(
+            model, val_data, ctx_len=args.seq_len, batch_size=args.batch_size, device=device
+        )
+
+    initial_val_loss = eval_val()
+
+    # The optimizer must be created after the first forward pass: the lazy
+    # activation wrapper materializes its trainable parameters (modReLU bias,
+    # gain, residual mix, transform) on first use, and an optimizer built
+    # before that silently trains the model with a frozen activation.
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    initial_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
-
     model.train()
+    val_history: list[tuple[int, float]] = []
     _sync_device(device)
     start = time.perf_counter()
-    for _ in range(args.steps):
+    train_elapsed = 0.0
+    for step in range(args.steps):
         xb, yb = get_batch("train")
         xb = xb.to(device)
         yb = yb.to(device)
@@ -657,11 +1139,27 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
+        if args.eval_every and (step + 1) % args.eval_every == 0 and (step + 1) < args.steps:
+            _sync_device(device)
+            train_elapsed += time.perf_counter() - start
+            val_history.append((step + 1, eval_val()))
+            model.train()
+            _sync_device(device)
+            start = time.perf_counter()
     _sync_device(device)
-    elapsed = time.perf_counter() - start
+    train_elapsed += time.perf_counter() - start
 
-    final_train_loss = _evaluate_loss(model, get_batch, "train", args.eval_iters, device)
-    final_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
+    final_train_loss = _evaluate_split_deterministic(
+        model,
+        train_data,
+        ctx_len=args.seq_len,
+        batch_size=args.batch_size,
+        device=device,
+        max_windows=args.batch_size * max(args.eval_iters, 1),
+    )
+    final_val_loss = eval_val()
+    val_history.append((args.steps, final_val_loss))
+    best_step, best_val_loss = min(val_history, key=lambda item: item[1])
 
     return {
         "name": spec.name,
@@ -672,8 +1170,13 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "initial_val_loss": initial_val_loss,
         "final_train_loss": final_train_loss,
         "final_val_loss": final_val_loss,
+        "best_val_loss": best_val_loss,
+        "best_val_step": best_step,
+        "val_history": [[step, value] for step, value in val_history],
+        "lr": args.lr,
+        "seed": args.seed + seed_offset,
         "steps": args.steps,
-        "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / elapsed,
+        "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / train_elapsed,
         "parameter_count": sum(param.numel() for param in model.parameters()),
     }
 
@@ -687,8 +1190,11 @@ def tune_nanogpt_main() -> None:
     device = _resolve_device(args.device)
     specs = [_default_trial_specs(name) for name in args.presets]
     specs.extend(_angle_trial_spec(angle) for angle in args.linear_angle_degrees)
-    results = [_run_tune_trial(args, spec, device=device, seed_offset=i * 1000) for i, spec in enumerate(specs)]
-    results.sort(key=lambda item: float(item["final_val_loss"]))
+    # All specs share the same seed (paired design): identical init stream and,
+    # via the dedicated batch generator, identical training batches - so
+    # per-seed deltas between variants are directly comparable.
+    results = [_run_tune_trial(args, spec, device=device, seed_offset=0) for spec in specs]
+    results.sort(key=lambda item: float(item["best_val_loss"]))
 
     payload = {
         "device": str(device),
@@ -712,6 +1218,4 @@ def tune_nanogpt_main() -> None:
         "results": results,
     }
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2))
-    print(json.dumps(payload, indent=2))
+    _emit_json(payload, output=args.output)

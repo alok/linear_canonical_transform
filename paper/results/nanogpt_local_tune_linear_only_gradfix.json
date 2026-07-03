@@ -1,0 +1,96 @@
+{
+  "device": "cpu",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 40,
+    "eval_iters": 8,
+    "batch_size": 8,
+    "seq_len": 24,
+    "n_layers": 2,
+    "n_heads": 4,
+    "embed_dim": 64,
+    "dropout": 0.0,
+    "vocab_size": 65,
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "normalization": "unitary",
+    "inverse_after_multiply": true,
+    "unitary_projection": false
+  },
+  "results": [
+    {
+      "name": "linear-frft45",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.7071067811865476,
+        "b": 0.7071067811865475,
+        "c": -0.7071067811865475,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.293441295623779,
+      "final_train_loss": 3.5070153772830963,
+      "final_val_loss": 3.626353681087494,
+      "steps": 40,
+      "tokens_per_second": 26348.118282611533,
+      "parameter_count": 77767
+    },
+    {
+      "name": "linear-fourier",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.291988909244537,
+      "final_train_loss": 3.5242748260498047,
+      "final_val_loss": 3.646697610616684,
+      "steps": 40,
+      "tokens_per_second": 43690.563270644,
+      "parameter_count": 77767
+    },
+    {
+      "name": "baseline",
+      "variant": "baseline",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.325532019138336,
+      "final_train_loss": 3.5803309082984924,
+      "final_val_loss": 3.689240336418152,
+      "steps": 40,
+      "tokens_per_second": 48499.213620321294,
+      "parameter_count": 110017
+    }
+  ]
+}

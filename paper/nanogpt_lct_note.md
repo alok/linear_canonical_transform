@@ -292,3 +292,103 @@ So the current recommendation stays the same:
   already faster than `nn.Linear` on CPU.
 - Repeat on upstream `karpathy/nanoGPT` with a clean training config and log a
   longer loss curve, not just a 20-step snapshot.
+
+## Gradient-fix rerun (2026-06-12)
+
+A cross-backend parity probe against the new MLX implementation exposed an
+input-gradient bug in the PyTorch fast path: the tile-expansion adjoint in
+`reduce_unpacked_grad` scattered with `i // repeats` (the adjoint of
+`repeat_interleave`) where the forward expands with `repeat` (`i % original`).
+Every `linear-*` and `hybrid-*` result above trained the layers *upstream* of
+an expanding `LCTLinear` (the MLP up-projection, `d -> 4d`) with corrupted
+gradients; parameter gradients of the expanding layer itself, the `baseline`
+rows, and the `activation-*` rows were unaffected.
+
+After the fix, the two CPU evidence runs were repeated with identical
+configs and seeds. The `baseline` rows reproduce bit-for-bit (validating the
+comparison); the linear variants mostly improve:
+
+| variant | old val loss | fixed val loss | delta |
+|---|---|---|---|
+| `linear-fourier` (20 steps) | `3.8768` | `3.8419` | `-0.035` |
+| `linear-frft15` | `3.8205` | `3.7900` | `-0.031` |
+| `linear-frft30` | `3.7809` | `3.7949` | `+0.014` |
+| `linear-frft45` | `3.8680` | `3.8095` | `-0.059` |
+| `linear-frft60` | `3.8460` | `3.8099` | `-0.036` |
+| `linear-frft75` | `3.8636` | `3.8387` | `-0.025` |
+| `linear-fourier` (40 steps) | `3.6575` | `3.6467` | `-0.011` |
+| `linear-frft45` (40 steps) | `3.6563` | `3.6264` | `-0.030` |
+
+Artifacts: [`nanogpt_linear_angle_sweep_gradfix.json`](results/nanogpt_linear_angle_sweep_gradfix.json),
+[`nanogpt_local_tune_linear_only_gradfix.json`](results/nanogpt_local_tune_linear_only_gradfix.json).
+The qualitative conclusion is unchanged (structured linear variants beat the
+parameter-matched baseline at these scales) and the margins widen slightly
+with correct gradients. Earlier MPS/CUDA linear-variant tables retain their
+recorded values for provenance; treat them as lower bounds on the fixed
+implementation. The regression test for the adjoint lives in
+`tests/test_linear_input_gradients.py`.
+
+## Fair-controls study on MPS (2026-07-03): the tiny-run wins do not survive
+
+Full protocol and decision rule (pre-registered before the main runs):
+[`paper/experiments/mps_shakespeare_protocol.md`](experiments/mps_shakespeare_protocol.md).
+Substrate: char-level tinyshakespeare, local nanogpt (pre-LN, ReLU MLP, no
+attention `1/sqrt(d)` scaling), 4L/4H, seq 256, batch 64, dropout 0.2, AdamW
+constant lr 1e-3 (selected by pilot for every family), Apple-silicon MPS.
+Harness fixes that gate this study: real seeds + paired batch streams +
+deterministic full-val eval (`803ad1d`), frozen-activation fix (`48b9046`),
+tile-adjoint input-gradient fix (`5e63c6f`).
+
+### Main result (confirmatory, 4 paired seeds, 2000 steps, dim 256)
+
+| config | params | tok/s | best-val (mean over 4 seeds) |
+|---|---|---|---|
+| baseline dim-256 | 3.26M | 171k | 2.2496 |
+| **matched baseline dim-212** | 2.25M | **197k** | **2.0313** |
+| linear-fourier (up-proj -> LCT) | 2.21M | 145k | 2.3619 |
+| linear-frft30 | 2.21M | 102k | 2.4124 |
+| linear-frft45 | 2.21M | 102k | 2.3729 |
+
+Every LCT linear config regresses against both controls in 4/4 paired seeds
+(vs matched-212: +0.33 to +0.38 nats). The 300-step pilot's angle ranking
+(frft45 > frft30 > fourier) inverted at 2000 steps - short-horizon pilots
+select the wrong config, exactly the winner's-curse failure the protocol
+anticipated.
+
+### Extended horizon (exploratory, seed 1, 5000 steps)
+
+The identity-initialized LCT layer starts slow and takes off late:
+linear-fourier crosses the dim-256 baseline near step 2000 and finishes at
+**1.910 vs 2.228** - a 0.32-nat win over the *same-width* dense model, which
+plateaus (best 2.226@4400). The repaired activation variant also passes the
+baseline (2.119). But the matched dim-212 dense baseline stays ahead of
+everything (1.754).
+
+At the healthy width the story repeats one level down: linear-fourier@212
+(1.53M params) reaches 1.914, losing to both baseline@212 (1.740) and its own
+param-matched dense control baseline@172 (1.747, at 1.8x the throughput).
+Notably the LCT-MLP model lands at ~1.91 at both dim 256 and dim 212 - the
+structured up-projection, not the trunk width, is the capacity bottleneck in
+this regime.
+
+### Verdict
+
+- **Not a real improvement at this scale under fair controls.** The dense way
+  to spend a parameter budget (narrower width) beats the LCT way (structured
+  up-projection) by ~0.17 nats at matched params and wins throughput at these
+  widths (LCT crossover vs dense matmul is ~1024+ features; the MLP here is
+  256-1024).
+- **Not tunable into one within the swept space** (lr x angle x normalization
+  x inverse): fourier + unitary + no-inverse is the best cell and still loses.
+- **Two real, narrower positives**: (1) at dim 256 the dense substrate
+  plateaus pathologically (no attention scaling + constant lr) and the LCT
+  up-projection *rescues* it (+0.32 nats over same-width dense) - LCT acted as
+  a conditioning fix; (2) the earlier "linear beats baseline" tiny-run results
+  are explained: 20-40-step comparisons at dim 64 measure init transients, and
+  single-seed MPS deltas below ~0.03 nats are noise (measured).
+- **Where a win could still live**: widths >= 1024 where LCTLinear is
+  genuinely faster than dense (2.6-5x at 4096 on MPS/MLX) so a quality-neutral
+  result becomes a wall-clock win; lr schedules/warmup tailored to the
+  identity-init late takeoff; other placements (attention projections); and
+  per-group lr for the ~2k spectral parameters. None of these are claims -
+  they are the next experiments.

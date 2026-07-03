@@ -55,6 +55,8 @@ class NonlinearLCTActivation(nn.Module):
         inverse_after_nonlinearity: bool = False,
         residual_mix: float = 0.0,
         dense_threshold: int = 256,
+        normalization: NormMode = "unitary",
+        unitary_projection: bool = True,
     ) -> None:
         super().__init__()
         self.activation: CoreLCTActivation | None = None
@@ -66,6 +68,8 @@ class NonlinearLCTActivation(nn.Module):
             "inverse_after_nonlinearity": bool(inverse_after_nonlinearity),
             "residual_mix": float(residual_mix),
             "dense_threshold": int(dense_threshold),
+            "normalization": normalization,
+            "unitary_projection": bool(unitary_projection),
         }
 
     def _ensure_activation(self, width: int, *, device: torch.device) -> CoreLCTActivation:
@@ -679,6 +683,7 @@ def build_local_nanogpt(
     drop_frac: float = 0.0,
     vocab_size: int | None = None,
     device: torch.device | None = None,
+    seed: int | None = None,
 ) -> tuple[nn.Module, dict[str, Any]]:
     namespace = load_local_nanogpt_definitions(
         repo_dir,
@@ -696,6 +701,12 @@ def build_local_nanogpt(
         n_layers=n_layers,
         drop_frac=drop_frac,
     )
+    # The exec'd nanogpt source calls torch.manual_seed(1337) at import time,
+    # clobbering any seed the caller set beforehand. Reseed here, after the
+    # module load and immediately before model construction, so `seed`
+    # actually controls the initialization.
+    if seed is not None:
+        torch.manual_seed(seed)
     GPT = namespace["GPT"]
     model = GPT(
         vocab_size=int(vocab_size or namespace.get("VOCAB_SIZE", 65)),

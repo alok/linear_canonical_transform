@@ -1,0 +1,58 @@
+name: Release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) - no API token anywhere.
+# One-time setup on pypi.org (logged in as the project owner):
+#   Account -> Publishing -> "Add a new pending publisher":
+#     project:     lct-activation
+#     owner/repo:  alok/linear_canonical_transform
+#     workflow:    release.yml
+#     environment: pypi
+# Then publish by tagging: git tag v0.1.0 && git push origin v0.1.0
+# (or run this workflow manually from the Actions tab).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra mlx
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Verify release metadata
+        run: uv run python scripts/verify_release.py --check-pypi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.0

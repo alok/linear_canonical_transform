@@ -55,6 +55,8 @@ class NonlinearLCTActivation(nn.Module):
         inverse_after_nonlinearity: bool = False,
         residual_mix: float = 0.0,
         dense_threshold: int = 256,
+        normalization: NormMode = "unitary",
+        unitary_projection: bool = True,
     ) -> None:
         super().__init__()
         self.activation: CoreLCTActivation | None = None
@@ -66,6 +68,8 @@ class NonlinearLCTActivation(nn.Module):
             "inverse_after_nonlinearity": bool(inverse_after_nonlinearity),
             "residual_mix": float(residual_mix),
             "dense_threshold": int(dense_threshold),
+            "normalization": normalization,
+            "unitary_projection": bool(unitary_projection),
         }
 
     def _ensure_activation(self, width: int, *, device: torch.device) -> CoreLCTActivation:

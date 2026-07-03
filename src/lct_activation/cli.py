@@ -983,6 +983,12 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     parser.add_argument(
+        "--eval-every",
+        type=int,
+        default=0,
+        help="Evaluate val loss every N steps and record the curve/best (0 = final only).",
+    )
+    parser.add_argument(
         "--presets",
         nargs="+",
         default=[
@@ -1055,14 +1061,21 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
     model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
     get_batch = namespace["get_batch"]
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     initial_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
 
+    # The optimizer must be created after the first forward pass: the lazy
+    # activation wrapper materializes its trainable parameters (modReLU bias,
+    # gain, residual mix, transform) on first use, and an optimizer built
+    # before that silently trains the model with a frozen activation.
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
     model.train()
+    val_history: list[tuple[int, float]] = []
     _sync_device(device)
     start = time.perf_counter()
-    for _ in range(args.steps):
+    train_elapsed = 0.0
+    for step in range(args.steps):
         xb, yb = get_batch("train")
         xb = xb.to(device)
         yb = yb.to(device)
@@ -1070,11 +1083,22 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
+        if args.eval_every and (step + 1) % args.eval_every == 0 and (step + 1) < args.steps:
+            _sync_device(device)
+            train_elapsed += time.perf_counter() - start
+            val_history.append(
+                (step + 1, _evaluate_loss(model, get_batch, "val", args.eval_iters, device))
+            )
+            model.train()
+            _sync_device(device)
+            start = time.perf_counter()
     _sync_device(device)
-    elapsed = time.perf_counter() - start
+    train_elapsed += time.perf_counter() - start
 
     final_train_loss = _evaluate_loss(model, get_batch, "train", args.eval_iters, device)
     final_val_loss = _evaluate_loss(model, get_batch, "val", args.eval_iters, device)
+    val_history.append((args.steps, final_val_loss))
+    best_step, best_val_loss = min(val_history, key=lambda item: item[1])
 
     return {
         "name": spec.name,
@@ -1085,8 +1109,13 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "initial_val_loss": initial_val_loss,
         "final_train_loss": final_train_loss,
         "final_val_loss": final_val_loss,
+        "best_val_loss": best_val_loss,
+        "best_val_step": best_step,
+        "val_history": [[step, value] for step, value in val_history],
+        "lr": args.lr,
+        "seed": args.seed + seed_offset,
         "steps": args.steps,
-        "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / elapsed,
+        "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / train_elapsed,
         "parameter_count": sum(param.numel() for param in model.parameters()),
     }
 

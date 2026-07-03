@@ -77,3 +77,18 @@ curves, val at the baseline's best-val step, params, throughput.
   4-seed sign test is the mitigation.
 - Winner's curse on the tuned LCT config is bounded by pre-registering this
   rule and never reusing pilot numbers as evidence.
+
+## Outcome (filled in after the runs; decision rule unchanged)
+
+- Rule 1 (vs matched-baseline-212): FAILED for all LCT configs — consistent
+  regression in 4/4 seeds, mean +0.33 to +0.38 nats.
+- Rule 2 (vs baseline-256): FAILED at 2000 steps (4/4 seeds, +0.11 to +0.16);
+  exploratory 5000-step run shows linear-fourier crossing this (sick) control
+  at ~step 2000 and winning by 0.32 nats, but still losing to matched dense
+  controls at either width.
+- Rule 3 (wall-clock): FAILED — 0.55–0.85x dense throughput at these widths.
+- Headline: **no real improvement at this scale; not tunable into one within
+  the swept space.** See paper/nanogpt_lct_note.md for the full narrative,
+  including the two narrower positives (conditioning rescue of the plateaued
+  dim-256 dense model; repaired activation variant passing the same-width
+  baseline long-horizon).

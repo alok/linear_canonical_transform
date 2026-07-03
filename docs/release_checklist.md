@@ -80,10 +80,30 @@ The CI workflow in `.github/workflows/ci.yml` should pass on Python 3.10 and
 
 Only run this after confirming package name/metadata.
 
+Preferred path - Trusted Publishing via GitHub Actions (no token handling):
+
+1. One-time, on pypi.org while logged in as the project owner:
+   Account -> Publishing -> "Add a new pending publisher" with
+   project `lct-activation`, repository `alok/linear_canonical_transform`,
+   workflow `release.yml`, environment `pypi`.
+2. Tag and push:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `Release` workflow (`.github/workflows/release.yml`) runs the full test
+suite, builds, verifies release metadata against live PyPI, and publishes via
+OIDC.
+
+Manual fallback (requires a fresh PyPI API token; the legacy `~/.pypirc`
+password flow no longer works):
+
 ```bash
 uv build
 uv run python scripts/verify_release.py --check-pypi
-uv publish
+UV_PUBLISH_TOKEN=pypi-... uv publish
 ```
 
 If publishing to TestPyPI first, use the relevant `uv publish` options and

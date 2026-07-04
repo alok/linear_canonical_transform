@@ -11,3 +11,5 @@ build/
 dist/
 extern/
 records/
+# Paper figures are intentional artifacts (the user's global ignore excludes *.png).
+!paper/figures/*.png

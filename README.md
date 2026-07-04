@@ -21,6 +21,10 @@ modules for Apple silicon via the optional `mlx` extra (see
 
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
+The full research report — implementation, cross-backend parity methodology,
+microbenchmarks, and a pre-registered (negative) NanoGPT evaluation — lives at
+[`paper/report.md`](paper/report.md).
+
 The finite-dimensional tradeoff is explicit:
 
 - `normalization="unitary"` favors energy preservation and stable optimization

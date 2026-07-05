@@ -125,3 +125,20 @@ Changes relative to the original protocol; everything else carries over:
 
 Artifacts: std_pilot_lr*.json, std_tiebreak_base_lr*.json (selection only),
 std_main_group1_s{1..4}.json, std_main_matched212_s{1..4}.json.
+
+## Amendment A outcome (decision rule unchanged)
+
+- linear-fourier vs matched-baseline-212: FAILED — +0.094 ± 0.007, 4/4 seeds.
+- linear-fourier vs baseline-256: FAILED — +0.099 ± 0.016, 4/4 seeds.
+- linear-fourier vs lowrank-mlp (equal params, 0.05% apart): **PASSED** —
+  −0.083 ± 0.007, 4/4 seeds. LCT structure beats rank-1 factorization.
+- activation-fourier vs baseline-256: FAILED — +0.130 ± 0.009, 4/4 seeds
+  (the original-substrate long-horizon "win" was an artifact of the sick
+  control).
+- Extended horizon (5,000 steps, 2 seeds): gap narrows to +0.019/+0.033 but
+  does not close. text8 (2 seeds): ordering replicates, larger margins.
+- A100/text8 at trunk 1024 (2 seeds): matched dim-840 dense baseline
+  dominates on loss AND speed; linear-fourier beats same-width dense on
+  throughput (1.24x) and beats rank-1 by 0.5+ nats.
+- Headline unchanged: no real improvement over dense at any tested scale;
+  the structure reliably out-buys equal-parameter naive factorization.

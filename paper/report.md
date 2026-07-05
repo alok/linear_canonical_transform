@@ -21,16 +21,20 @@ differences into O(1) output divergence; and (iii) a pre-registered,
 adversarially reviewed evaluation on character-level language modeling that
 *overturns our own earlier positive results*. Under paired seeds, parameter-
 matched controls, and deterministic evaluation, the LCT layers are not an
-improvement at this scale: they lose to a parameter-matched dense baseline in
-4/4 paired seeds. The evaluation surfaced five harness bugs — including an
+improvement: they lose to a parameter-matched narrower dense baseline in 4/4
+paired seeds, a verdict that replicates across two substrates (including one
+with standard attention scaling and a tuned warmup+cosine schedule), two
+datasets (tinyshakespeare, text8), two hardware targets (Apple MPS, A100),
+and a 15x parameter range. Two positives survive the same controls: at
+exactly matched parameter budgets the LCT layer consistently beats a rank-1
+factorized control (by 0.083 nats at 2.2M parameters; catastrophically at
+34M), and it is consistently faster than the same-width dense model at trunk
+width 1024+ — kernel-level microbenchmark wins reach 18x on square shapes at
+width 8192. The evaluation surfaced five harness bugs — including an
 input-gradient error in the reference implementation and an activation whose
-parameters never trained — and two genuine dynamical findings: identity-
-initialized LCT layers take off late (crossing the same-width dense baseline
-after ~2,000 steps and beating it by 0.32 nats at 5,000), and the structured
-layer acts as a conditioning fix for a pathologically plateaued dense model.
-We argue the negative result and the methodology are the publishable
-substance: small-scale architecture evidence is extraordinarily easy to get
-wrong, and we document exactly how.
+parameters never trained. We argue the negative result and the methodology
+are the publishable substance: small-scale architecture evidence is
+extraordinarily easy to get wrong, and we document exactly how.
 
 ## 1. Introduction
 
@@ -61,11 +65,13 @@ such layers:
 4. **Microbenchmarks** (§6): on Apple silicon, `LCTLinear` overtakes dense
    `nn.Linear` at 1024–2048 features; the MLX backend is the fastest path for
    the activation at transformer-typical widths.
-5. **A pre-registered NanoGPT evaluation** (§7): paired seeds, parameter-
-   matched controls, deterministic evaluation, and a decision rule fixed
-   before the confirmatory runs. The result is negative at this scale, and
-   the section documents the five harness bugs that had previously produced
-   spurious positives.
+5. **A pre-registered NanoGPT evaluation with replications** (§7): paired
+   seeds, parameter-matched dense and rank-1 controls, deterministic
+   evaluation, and a decision rule fixed before the confirmatory runs — then
+   replicated on a repaired substrate, a second dataset, and A100 hardware at
+   15x the parameters. The headline is negative and stable; the section
+   documents the five harness bugs that had previously produced spurious
+   positives.
 
 We believe the most broadly useful contributions are §5 and §7: a worked
 example of making two numerical backends agree for the right reasons, and a
@@ -208,7 +214,18 @@ Forward pass, batch 8 × seq 256, median of 30 steps, M-series laptop
 | 4096 | MLX       | 5.40 ms     | 1.96 ms     | 0.27 ms | 2.59 ms         |
 
 The structured layer overtakes the dense matmul at 1024–2048 features
-(5.1x at 4096 on MPS) — for *square* layers. Rectangular maps change the
+(5.1x at 4096 on MPS) — for *square* layers. On a training GPU the
+separation is far larger (A100-SXM4-40GB, batch 16,384, median of 30 steps;
+artifact `paper/results/modal_a100_microbench.json`):
+
+| shape | dim | dense fwd | LCT fwd | dense/LCT (fwd) | dense/LCT (fwd+bwd) |
+|---|---|---|---|---|---|
+| square | 1024 | 2.41 ms | 0.98 ms | 2.5x | 2.8x |
+| square | 4096 | 29.1 ms | 3.35 ms | 8.7x | 9.1x |
+| square | 8192 | 115.3 ms | 6.45 ms | 17.9x | 18.3x |
+| d/4 -> d | 1024 | 0.66 ms | 0.93 ms | 0.7x | 0.8x |
+| d/4 -> d | 4096 | 7.32 ms | 3.31 ms | 2.2x | 2.4x |
+| d/4 -> d | 8192 | 29.0 ms | 6.42 ms | 4.5x | 4.6x | Rectangular maps change the
 economics: a dense `d → 4d` up-projection costs a quarter of the square
 matmul at width `4d`, while the LCT path pays the full padded-width FFT
 regardless; in the NanoGPT setting below (256 → 1024), the LCT MLP runs at
@@ -319,11 +336,90 @@ Strikingly, the LCT-MLP model lands at ~1.91 at *both* trunk widths: the
 structured up-projection, not the trunk, is the capacity bottleneck in this
 regime.
 
-### 7.6 Verdict
+### 7.6 Replication on a repaired substrate
 
-At this scale, under fair controls: **the LCT layers are not an improvement,
-and none of the swept tuning axes (lr × angle × normalization × inverse)
-makes them one.** The honest positives are narrower: (i) the late-takeoff
+Both external-validity threats were then removed: standard
+`1/sqrt(head_dim)` attention scaling (patched identically into all arms) and
+100-step warmup with cosine decay, with the peak lr re-selected by a fresh
+pilot sweep {1e-3 ... 1e-2} plus a 2,000-step tiebreak (5e-3 won; the
+repaired dim-256 baseline reaches val 1.4714, char-quality on par with
+canonical NanoGPT results, from a 3.3M-parameter model). A new control was
+pre-registered: **rank-1 factorized up-projections** (`lowrank-mlp`) at
+2,214,977 parameters — within 0.05% of `linear-fourier` — answering "what
+else could the identical parameter budget buy". 4 paired seeds, 2,000 steps
+(artifacts `std_main_*`):
+
+| config | params | tok/s | best-val (mean ± sd, 4 paired seeds) |
+|---|---|---|---|
+| baseline dim-256 | 3.26M | 171k | **1.4656 ± 0.0103** |
+| matched baseline dim-212 | 2.25M | 194k | **1.4702 ± 0.0050** |
+| linear-fourier | 2.21M | 145k | 1.5645 ± 0.0060 |
+| activation-fourier | 3.26M | 112k | 1.5954 ± 0.0080 |
+| lowrank-mlp (rank 1) | 2.21M | 186k | 1.6470 ± 0.0065 |
+
+Three things resolve at once. (i) The dense controls now agree (paired
+deltas of the two baselines overlap zero), confirming the earlier width
+anomaly was the missing attention scaling — the substrate is healthy.
+(ii) **The negative verdict replicates**: `linear-fourier` loses to both
+dense controls in 4/4 paired seeds (+0.094/+0.099 nats), and the
+activation's earlier long-horizon "win" disappears (+0.130 vs baseline,
+4/4) — it was an artifact of the sick control. (iii) A genuine positive
+emerges: at an exactly matched parameter budget, `linear-fourier` beats the
+rank-1 control in 4/4 seeds (−0.083 ± 0.007), as does the activation
+(−0.052 ± 0.009). **LCT structure out-buys naive factorization; neither
+out-buys a narrower dense model.**
+
+![Repaired-substrate study](figures/std_study.png)
+
+Two replications extend this. *Horizon* (2 paired seeds, 5,000 steps, same
+substrate): the late-takeoff dynamic survives the schedule — the baseline
+reaches its best by step ~2,400 and plateaus while the LCT arms keep
+improving, narrowing `linear-fourier`'s gap from +0.094 at 2,000 steps to
++0.019/+0.033 nats at 5,000. The gap shrinks with horizon but, on a healthy
+substrate, no longer closes. *Dataset* (10 MB text8 slice, dim 256, 2 paired
+seeds): the ordering replicates with larger margins (`linear-fourier`
++0.14/+0.17 vs baseline; rank-1 and the activation further behind at
++0.29–0.33).
+
+### 7.7 Scale and dataset replication (A100, text8, trunk width 1024)
+
+The remaining live hypothesis was wall-clock: past the microbenchmark
+crossover, a quality-neutral LCT layer would win on time. We tested it at
+trunk width 1024 (MLP up-projection 1024 -> 4096, where the A100
+microbenchmark gives LCT a 2.2–2.4x kernel advantage) on a 10 MB text8
+slice, standard substrate, 3,000 steps, 2 paired seeds, with a dim-840
+dense baseline parameter-matched to the linear variant within 0.8%
+(artifacts `modal_train_*`):
+
+| config | params | tok/s | best-val (2 seeds) |
+|---|---|---|---|
+| **matched baseline dim-840** | 34.2M | **64.5k** | **1.2956 / 1.2938** |
+| baseline dim-1024 | 50.7M | 48.4k | 1.3430 / 1.3271 |
+| linear-fourier @1024 | 33.9M | 60.1k | 1.4087 / 1.4107 |
+| lowrank-mlp @1024 (rank 1) | 33.9M | 64.8k | 2.0406 / 1.8816 |
+
+The pattern is unchanged at 15x the parameters on a different dataset and
+hardware: the LCT variant beats the same-width dense model on throughput
+(1.24x) and crushes the rank-1 control (which collapses entirely at this
+scale), but the parameter-matched narrower dense model dominates
+everything — better loss than every arm *and* faster than the LCT model.
+Kernel-level wins on the up-projection do not convert to end-to-end wins,
+because narrowing the trunk buys more quality per parameter and more speed
+than restructuring one projection. The microbenchmark's square-shape
+dominance (18x at 8192) identifies where a conversion could still happen:
+attention projections at width >= 2048, which no experiment here tested.
+
+### 7.8 Verdict
+
+Across two substrates, two datasets, two hardware targets, and a 15x
+parameter range, under fair controls: **the LCT layers are not an
+improvement over dense baselines, and none of the swept tuning axes (lr ×
+angle × normalization × inverse × schedule) makes them one.** The
+reproducible positives are narrower but real: at exactly matched parameter
+budgets the LCT structure consistently beats rank-1 factorization (4/4
+seeds on shakespeare; catastrophically so on text8 at 34M parameters), and
+the LCT variant is consistently faster than the *same-width* dense model at
+trunk width 1024+. The honest positives are narrower: (i) the late-takeoff
 dynamics are real and large (+0.32 nats over the same-width dense model at
 5,000 steps) — the LCT up-projection rescued a pathologically plateaued
 dense model, acting as a conditioning fix; (ii) the repaired activation
@@ -351,17 +447,18 @@ practices standard elsewhere in empirical ML critique (e.g., Lucic et al.,
 
 ## 9. Limitations
 
-Single dataset, single small scale, constant learning rate, one substrate
-with a known attention-scaling quirk; the negative result is about *this
-regime*, not the architecture class. The extended-horizon and healthy-width
-runs are single-seed (effects ~10x the measured noise floor, but
-unreplicated). The microbenchmark crossover suggests the live hypothesis we
-did not test: at widths ≥ 1024 the structured layer is genuinely faster than
-dense, so a merely quality-neutral result there becomes a wall-clock win.
-Learning-rate schedules shaped for the late takeoff, per-group lr for the
-~2k spectral parameters, and attention-projection placement are similarly
-untested. The MLX backend fixes transform parameters at construction;
-learnable-(a,b,c) training is torch-only.
+Character-level language modeling only, and small scale by modern
+standards (2M–50M parameters); the negative result is about this regime,
+not the architecture class at frontier scale. The original-substrate
+extended-horizon runs are single-seed (effects ~10x the measured noise
+floor, but unreplicated); the A100 study used 2 paired seeds. The
+wall-clock hypothesis was tested only at the MLP up-projection placement;
+the microbenchmark's square-shape dominance (18x at width 8192) leaves
+attention-projection placement at width >= 2048 as the strongest untested
+configuration, along with per-group lr for the ~2k spectral parameters and
+domains whose signals are chirp-like (audio, radar), where the LCT prior
+has its physical motivation. The MLX backend fixes transform parameters at
+construction; learnable-(a,b,c) training is torch-only.
 
 ## 10. Reproducibility
 
@@ -377,11 +474,14 @@ MPLBACKEND=Agg uv run --with matplotlib python scripts/plot_mps_study.py
 ```
 
 Protocol: `paper/experiments/mps_shakespeare_protocol.md` (decision rule
-pre-registered; outcome appended). Artifacts: `paper/results/mps_*.json`
-(pilots, 4-seed main, extended horizon, healthy-width controls),
-`bench_mac_local.json`. Narrative log: `paper/nanogpt_lct_note.md`. Key
-commits: `5e63c6f` (gradient adjoint fix), `48b9046` (frozen activation),
-`803ad1d` (seeds/pairing/deterministic eval), `e34bfdc` (parity
-hardening), `fe155d8`/`14ce188` (main and extended artifacts). MPS
-cross-invocation noise floor: ~0.03 nats (measured, `mps_extended_s1.json`
-baseline vs `mps_main_group1_s1.json`).
+pre-registered; outcome and Amendment A appended). Artifacts:
+`paper/results/mps_*.json` (original substrate: pilots, 4-seed main,
+extended horizon, healthy-width controls), `std_*.json` (repaired
+substrate), `text8_main_*.json` (second dataset), `modal_a100_*.json` and
+`modal_train_*.json` (A100 microbenchmark and text8 width-1024 study; see
+`scripts/modal_width_experiment.py`), `bench_mac_local.json`. Narrative
+log: `paper/nanogpt_lct_note.md`. Key commits: `5e63c6f` (gradient adjoint
+fix), `48b9046` (frozen activation), `803ad1d` (seeds/pairing/deterministic
+eval), `e34bfdc` (parity hardening), `25f68a3` (substrate options, low-rank
+control, custom datasets). MPS cross-invocation noise floor: ~0.03 nats
+(measured).

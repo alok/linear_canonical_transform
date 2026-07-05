@@ -35,7 +35,7 @@ def curve(record: dict) -> tuple[list[int], list[float]]:
 
 
 def mean_curve(records: list[dict]) -> tuple[list[int], list[float]]:
-    steps = [step for step, _ in records[0]["val_history"]]
+    steps = [row[0] for row in records[0]["val_history"]]
     values = [
         statistics.mean(r["val_history"][i][1] for r in records)
         for i in range(len(steps))
@@ -111,6 +111,50 @@ def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, dpi=180)
     print(f"wrote {OUT}")
+
+    # Second figure: the repaired-substrate replication.
+    std_seeds = [1, 2, 3, 4]
+    std = {
+        s: {r["name"]: r for r in json.loads((RESULTS / f"std_main_group1_s{s}.json").read_text())["results"]}
+        for s in std_seeds
+    }
+    std_matched = [
+        json.loads((RESULTS / f"std_main_matched212_s{s}.json").read_text())["results"][0]
+        for s in std_seeds
+    ]
+    ext = {
+        s: {r["name"]: r for r in json.loads((RESULTS / f"std_extended_s{s}.json").read_text())["results"]}
+        for s in (1, 2)
+    }
+
+    fig2, (bx1, bx2) = plt.subplots(1, 2, figsize=(11, 4.2), sharey=True)
+    COLORS["lowrank-mlp"] = "#D55E00"
+    COLORS["baseline"] = COLORS["baseline-256"]
+    for name in ("baseline", "linear-fourier", "activation-fourier", "lowrank-mlp"):
+        steps, values = mean_curve([std[s][name] for s in std_seeds])
+        bx1.plot(steps, values, "-", color=COLORS.get(name, "#999999"), lw=1.8, label=name)
+    steps, values = mean_curve(std_matched)
+    bx1.plot(steps, values, "-", color=COLORS["matched-212"], lw=1.8, label="matched-212")
+    bx1.set_title("(a) Repaired substrate: mean of 4 paired seeds, 2000 steps", fontsize=10)
+    for name in ("baseline", "linear-fourier", "activation-fourier", "lowrank-mlp"):
+        steps, values = mean_curve([ext[s][name] for s in (1, 2)])
+        bx2.plot(steps, values, "-", color=COLORS.get(name, "#999999"), lw=1.8, label=name)
+    bx2.set_title("(b) Extended horizon: mean of 2 paired seeds, 5000 steps", fontsize=10)
+    for ax in (bx1, bx2):
+        ax.set_xlabel("training step")
+        ax.grid(True, alpha=0.25, lw=0.6)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(fontsize=8, frameon=False)
+    bx1.set_ylabel("val loss (deterministic full-split, nats/char)")
+    fig2.suptitle(
+        "Repaired substrate (attention scaling, warmup+cosine, lr 5e-3): "
+        "the negative replicates; structure beats rank-1; horizon narrows the gap",
+        fontsize=11,
+    )
+    fig2.tight_layout()
+    out2 = OUT.parent / "std_study.png"
+    fig2.savefig(out2, dpi=180)
+    print(f"wrote {out2}")
 
 
 if __name__ == "__main__":

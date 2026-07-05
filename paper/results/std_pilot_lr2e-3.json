@@ -1,0 +1,217 @@
+{
+  "device": "mps",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 300,
+    "eval_iters": 8,
+    "batch_size": 64,
+    "seq_len": 256,
+    "n_layers": 4,
+    "n_heads": 4,
+    "embed_dim": 256,
+    "dropout": 0.2,
+    "vocab_size": 65,
+    "lr": 0.002,
+    "weight_decay": 0.0,
+    "normalization": "unitary",
+    "inverse_after_multiply": false,
+    "unitary_projection": false
+  },
+  "results": [
+    {
+      "name": "baseline",
+      "variant": "baseline",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "inverse_after_multiply": false,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.336400550535355,
+      "final_train_loss": 2.038640707731247,
+      "final_val_loss": 2.1057022944264028,
+      "best_val_loss": 2.1057022944264028,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.4934530302025806,
+          9.095874666934833
+        ],
+        [
+          200,
+          2.2652483265975425,
+          18.15527387498878
+        ],
+        [
+          300,
+          2.1057022944264028,
+          27.256915749982
+        ]
+      ],
+      "lr": 0.002,
+      "lr_schedule": "cosine",
+      "warmup_steps": 100,
+      "attn_scaling": true,
+      "data_path": null,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 180328.54652688451,
+      "parameter_count": 3258433
+    },
+    {
+      "name": "activation-fourier",
+      "variant": "activation",
+      "compiled": false,
+      "activation_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "bias_init": 0.1,
+        "residual_mix": 0.0,
+        "dense_threshold": 128,
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "inverse_after_multiply": false,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.325388221083016,
+      "final_train_loss": 2.079505205154419,
+      "final_val_loss": 2.1371736005805007,
+      "best_val_loss": 2.1371736005805007,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.502522762342431,
+          14.409529416123405
+        ],
+        [
+          200,
+          2.240538224406626,
+          29.330135833006352
+        ],
+        [
+          300,
+          2.1371736005805007,
+          43.828242582967505
+        ]
+      ],
+      "lr": 0.002,
+      "lr_schedule": "cosine",
+      "warmup_steps": 100,
+      "attn_scaling": true,
+      "data_path": null,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 112146.86490555615,
+      "parameter_count": 3260501
+    },
+    {
+      "name": "linear-fourier",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "dense_threshold": 32,
+        "inverse_after_multiply": false,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.3901336823386705,
+      "final_train_loss": 2.343007802963257,
+      "final_val_loss": 2.376170739908328,
+      "best_val_loss": 2.376170739908328,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.5128900347084833,
+          10.801908750087023
+        ],
+        [
+          200,
+          2.4467098833500653,
+          21.856835167156532
+        ],
+        [
+          300,
+          2.376170739908328,
+          33.073403500020504
+        ]
+      ],
+      "lr": 0.002,
+      "lr_schedule": "cosine",
+      "warmup_steps": 100,
+      "attn_scaling": true,
+      "data_path": null,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 148614.8832549681,
+      "parameter_count": 2213965
+    },
+    {
+      "name": "lowrank-mlp",
+      "variant": "linear",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "factory": "lowrank",
+        "rank": 1
+      },
+      "initial_val_loss": 4.35305456402658,
+      "final_train_loss": 2.402028113603592,
+      "final_val_loss": 2.4304443074368884,
+      "best_val_loss": 2.4304443074368884,
+      "best_val_step": 300,
+      "val_history": [
+        [
+          100,
+          2.5271181873891546,
+          8.767727250000462
+        ],
+        [
+          200,
+          2.469779329738398,
+          17.276315625058487
+        ],
+        [
+          300,
+          2.4304443074368884,
+          25.87297633406706
+        ]
+      ],
+      "lr": 0.002,
+      "lr_schedule": "cosine",
+      "warmup_steps": 100,
+      "attn_scaling": true,
+      "data_path": null,
+      "seed": 1337,
+      "steps": 300,
+      "tokens_per_second": 189974.27804732826,
+      "parameter_count": 2214977
+    }
+  ]
+}

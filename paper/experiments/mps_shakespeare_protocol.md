@@ -92,3 +92,36 @@ curves, val at the baseline's best-val step, params, throughput.
   including the two narrower positives (conditioning rescue of the plateaued
   dim-256 dense model; repaired activation variant passing the same-width
   baseline long-horizon).
+
+## Amendment A: standard-substrate replication (pre-registered 2026-07-05)
+
+Written after the pilots but before any main-run results were read.
+
+Motivation: the original substrate omitted attention `1/sqrt(d)` scaling and
+used a constant lr — both flagged as external-validity threats. This
+amendment re-runs the study on a repaired substrate.
+
+Changes relative to the original protocol; everything else carries over:
+
+- `--attn-scaling` (standard logit scaling, applied to all arms).
+- Warmup 100 steps + cosine decay to 0.1x over the run (`--lr-schedule
+  cosine`), lr selected by pilot sweep {1e-3, 2e-3, 3e-3, 5e-3, 1e-2} with a
+  2000-step single-seed tiebreak for the within-0.02 pilot tie (5e-3 won:
+  1.4714 vs 1.5119 at 1e-2). All arms use lr 5e-3.
+- New structured control: `lowrank-mlp` — rank-1 factorized up-projection at
+  2,214,977 params, within 0.05% of linear-fourier's 2,213,965. This answers
+  "what else could the same parameter budget buy" with the simplest
+  factorization.
+- Arms: baseline-256, matched-baseline-212 (dense-narrow control),
+  linear-fourier (unitary, no-inverse), activation-fourier, lowrank-mlp.
+- 4 paired seeds x 2000 steps, deterministic full-val every 100 steps.
+- Decision rule: unchanged from the original protocol. For linear-fourier the
+  primary control is matched-baseline-212 AND lowrank-mlp (it should beat the
+  rank-1 control to claim its structure earns anything); for
+  activation-fourier the primary control is baseline-256 (params match).
+- Also planned before reading results: extended-horizon 5000-step runs at 2
+  seeds (the late-takeoff question under a schedule), and a second-dataset
+  replication on a 10 MB text8 slice (2 seeds, 2000 steps) via --data-path.
+
+Artifacts: std_pilot_lr*.json, std_tiebreak_base_lr*.json (selection only),
+std_main_group1_s{1..4}.json, std_main_matched212_s{1..4}.json.

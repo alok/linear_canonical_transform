@@ -1,0 +1,104 @@
+{
+  "device": "mps",
+  "repo_dir": "/Users/alokbeniwal/nanogpt",
+  "config": {
+    "steps": 2000,
+    "eval_iters": 8,
+    "batch_size": 64,
+    "seq_len": 256,
+    "n_layers": 4,
+    "n_heads": 4,
+    "embed_dim": 256,
+    "dropout": 0.2,
+    "vocab_size": 65,
+    "lr": 0.005,
+    "weight_decay": 0.0,
+    "normalization": "unitary",
+    "inverse_after_multiply": true,
+    "unitary_projection": false
+  },
+  "results": [
+    {
+      "name": "baseline",
+      "variant": "baseline",
+      "compiled": false,
+      "activation_kwargs": {
+        "normalization": "unitary",
+        "unitary_projection": false
+      },
+      "linear_kwargs": {
+        "inverse_after_multiply": true,
+        "normalization": "unitary",
+        "unitary_projection": false,
+        "use_triton_kernels": true,
+        "direct_fourier_backend": "fft"
+      },
+      "initial_val_loss": 4.336400550535355,
+      "final_train_loss": 1.1361339390277863,
+      "final_val_loss": 1.471443352206,
+      "best_val_loss": 1.471443352206,
+      "best_val_step": 2000,
+      "val_history": [
+        [
+          200,
+          2.042618419932223,
+          18.206321709090844
+        ],
+        [
+          400,
+          1.71957848072052,
+          36.4079272930976
+        ],
+        [
+          600,
+          1.6271109709794493,
+          54.651741709094495
+        ],
+        [
+          800,
+          1.5650222060324133,
+          72.91700937529095
+        ],
+        [
+          1000,
+          1.5351016631071595,
+          91.12459941650741
+        ],
+        [
+          1200,
+          1.5060134191622678,
+          109.38350916653872
+        ],
+        [
+          1400,
+          1.4965505471174745,
+          127.68727770843543
+        ],
+        [
+          1600,
+          1.479754171700313,
+          146.083457500441
+        ],
+        [
+          1800,
+          1.4729183292937005,
+          164.67837491631508
+        ],
+        [
+          2000,
+          1.471443352206,
+          183.5345102082938
+        ]
+      ],
+      "lr": 0.005,
+      "lr_schedule": "cosine",
+      "warmup_steps": 100,
+      "attn_scaling": true,
+      "data_path": null,
+      "seed": 1337,
+      "steps": 2000,
+      "tokens_per_second": 178538.62994382644,
+      "parameter_count": 3258433
+    }
+  ]
+}

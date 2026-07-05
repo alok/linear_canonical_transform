@@ -157,3 +157,69 @@ def test_paired_get_batch_is_identical_across_configs() -> None:
         xb, _ = get_batch("train")
         batches.append(xb)
     assert torch.equal(batches[0], batches[1])
+
+
+def test_lowrank_factory_replaces_and_matches_lct_budget() -> None:
+    from lct_activation.integrations.nanogpt import make_lowrank_linear_factory
+
+    dense = nn.Linear(256, 1024)
+    replacement = make_lowrank_linear_factory(rank=1)(dense)
+    y = replacement(torch.randn(3, 256))
+    assert y.shape == (3, 1024)
+
+    lowrank_params = sum(p.numel() for p in replacement.parameters())
+    lct = LCTLinear(256, 1024)
+    lct_params = sum(p.numel() for p in lct.parameters())
+    # rank-1 is the closest factorized budget to LCTLinear's parameter count
+    assert abs(lowrank_params - lct_params) / lct_params < 0.25
+
+
+@requires_local_nanogpt
+def test_attention_scaling_changes_forward_only_when_enabled() -> None:
+    from lct_activation.integrations.nanogpt import build_local_nanogpt
+
+    outputs = []
+    for scaling in (False, True, True):
+        model, _ = build_local_nanogpt(
+            variant="baseline",
+            batch_size=2,
+            ctx_len=16,
+            n_heads=2,
+            embed_dim=32,
+            n_layers=1,
+            vocab_size=65,
+            seed=3,
+            attention_scaling=scaling,
+        )
+        model.eval()
+        with torch.no_grad():
+            logits, _ = model(torch.zeros(1, 16, dtype=torch.long), torch.zeros(1, 16, dtype=torch.long))
+        outputs.append(logits)
+    assert not torch.allclose(outputs[0], outputs[1])   # scaling changes the function
+    assert torch.allclose(outputs[1], outputs[2])       # deterministically
+
+
+@requires_local_nanogpt
+def test_attention_scaling_preserves_causality() -> None:
+    from lct_activation.integrations.nanogpt import build_local_nanogpt
+
+    model, _ = build_local_nanogpt(
+        variant="baseline",
+        batch_size=2,
+        ctx_len=16,
+        n_heads=2,
+        embed_dim=32,
+        n_layers=1,
+        vocab_size=65,
+        seed=3,
+        attention_scaling=True,
+    )
+    model.eval()
+    x = torch.randint(0, 65, (1, 16))
+    with torch.no_grad():
+        logits, _ = model(x, x)
+        x2 = x.clone()
+        x2[0, -1] = (x2[0, -1] + 1) % 65
+        logits2, _ = model(x2, x2)
+    # changing the last token must not affect earlier positions
+    assert torch.allclose(logits[0, :-1], logits2[0, :-1], atol=1e-5)

@@ -91,7 +91,7 @@ def main() -> None:
         print(f"  {config:22s} {tps:>8,.0f} tok/s = {tps / base_tps:.2f}x baseline throughput")
 
     print("\n== Val-vs-step curves (mean over seeds) ==")
-    steps = [step for step, _ in runs["baseline"][args.seeds[0]]["val_history"]]
+    steps = [row[0] for row in runs["baseline"][args.seeds[0]]["val_history"]]
     header = "  step  " + "  ".join(f"{name[:14]:>14s}" for name in configs)
     print(header)
     for i, step in enumerate(steps):

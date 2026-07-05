@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import math
 import os
 import runpy
 import shutil
@@ -214,6 +215,41 @@ def _replace_activation(module: nn.Module, activation: nn.Module) -> None:
                 return
 
     raise RuntimeError(f"Could not find a replaceable activation inside {type(module).__name__}.")
+
+
+class LowRankLinear(nn.Module):
+    """Rank-``r`` factorized linear map: the dense control for LCTLinear.
+
+    At LCTLinear's parameter budget (about ``padded/2*2 + out`` parameters for
+    a d -> 4d up-projection), the matching factorized rank is ~1, which makes
+    this the honest 'what else could you buy for the same parameters' control.
+    """
+
+    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True) -> None:
+        super().__init__()
+        self.in_features = int(in_features)
+        self.out_features = int(out_features)
+        self.rank = int(rank)
+        self.down = nn.Linear(self.in_features, self.rank, bias=False)
+        self.up = nn.Linear(self.rank, self.out_features, bias=bias)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.up(self.down(x))
+
+
+def make_lowrank_linear_factory(*, rank: int = 1) -> LinearFactory:
+    def factory(linear: nn.Linear) -> nn.Module:
+        replacement = LowRankLinear(
+            linear.in_features,
+            linear.out_features,
+            rank,
+            bias=linear.bias is not None,
+        ).to(device=linear.weight.device, dtype=linear.weight.dtype)
+        if linear.bias is not None and replacement.up.bias is not None:
+            replacement.up.bias.data.copy_(linear.bias.data)
+        return replacement
+
+    return factory
 
 
 def _replace_first_linear(module: nn.Module, linear_factory: LinearFactory) -> None:
@@ -594,6 +630,45 @@ def _patch_local_multihead_init(namespace: dict[str, Any]) -> None:
     multihead_cls.__lct_init_patched__ = True
 
 
+def _patch_local_multihead_scaling(namespace: dict[str, Any]) -> None:
+    """Add the standard ``1/sqrt(head_dim)`` attention scaling.
+
+    The local NanoGPT omits it; that quirk degrades wider models at constant
+    lr (measured: a dim-212 baseline beats dim-256 by 0.22 nats). Opt-in so
+    existing artifacts stay reproducible; applied identically to all variants.
+    """
+
+    multihead_cls = namespace["MultiHead"]
+    if getattr(multihead_cls, "__lct_scaling_patched__", False):
+        return
+
+    original_forward = multihead_cls.forward
+
+    @wraps(original_forward)
+    def scaled_forward(self: nn.Module, x: Tensor) -> Tensor:
+        # Mirrors the module's einsum forward exactly (including its
+        # k-rows/q-columns orientation), adding only the logit scale.
+        batch, seq, channels = x.shape
+        n_heads = self.n_heads
+        head_dim = channels // n_heads
+
+        def split(tensor: Tensor) -> Tensor:
+            return tensor.view(batch, seq, n_heads, head_dim).transpose(1, 2)
+
+        k = split(self.key(x))
+        q = split(self.query(x))
+        v = split(self.value(x))
+
+        weights = (k @ q.transpose(-2, -1)) / math.sqrt(head_dim)
+        masked = weights.masked_fill(self.mask[..., :seq, :seq], float("-inf"))
+        masked = self.dropout(masked.softmax(dim=-1))
+        out = (masked @ v).transpose(1, 2).reshape(batch, seq, channels)
+        return self.proj(out)
+
+    multihead_cls.forward = scaled_forward
+    multihead_cls.__lct_scaling_patched__ = True
+
+
 def load_local_nanogpt_definitions(
     repo_dir: Path | str = DEFAULT_LOCAL_NANOGPT_REPO,
     *,
@@ -601,6 +676,7 @@ def load_local_nanogpt_definitions(
     variant: ModelVariant | None = None,
     activation_factory: ActivationFactory = NonlinearLCTActivation,
     linear_factory: LinearFactory | None = None,
+    attention_scaling: bool = False,
 ) -> dict[str, Any]:
     repo_dir = Path(repo_dir)
     source_path = repo_dir / "nanogpt" / "__init__.py"
@@ -624,6 +700,8 @@ def load_local_nanogpt_definitions(
 
     _patch_local_multihead_init(module_globals)
     _patch_local_gpt_forward(module_globals)
+    if attention_scaling:
+        _patch_local_multihead_scaling(module_globals)
     resolved_variant = _resolve_variant(use_lct, variant)
     if resolved_variant != "baseline":
         patch_feedforward_class(
@@ -684,6 +762,7 @@ def build_local_nanogpt(
     vocab_size: int | None = None,
     device: torch.device | None = None,
     seed: int | None = None,
+    attention_scaling: bool = False,
 ) -> tuple[nn.Module, dict[str, Any]]:
     namespace = load_local_nanogpt_definitions(
         repo_dir,
@@ -691,6 +770,7 @@ def build_local_nanogpt(
         variant=variant,
         activation_factory=activation_factory,
         linear_factory=linear_factory,
+        attention_scaling=attention_scaling,
     )
     args = configure_local_nanogpt(
         namespace,

@@ -21,6 +21,7 @@ from .integrations.nanogpt import (
     infer_nanogpt_repo_kind,
     make_lct_activation_factory,
     make_lct_linear_factory,
+    make_lowrank_linear_factory,
     run_upstream_train,
 )
 from .layers import LCTLinear
@@ -912,6 +913,12 @@ def _default_trial_specs(name: str) -> TrialSpec:
             {},
             {"a": frft_a, "b": frft_b, "c": frft_c, "dense_threshold": 32, "inverse_after_multiply": True},
         ),
+        "lowrank-mlp": TrialSpec(
+            "lowrank-mlp",
+            "linear",
+            {},
+            {"factory": "lowrank"},
+        ),
         "hybrid-fourier": TrialSpec(
             "hybrid-fourier",
             "hybrid",
@@ -988,6 +995,22 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
         default=0,
         help="Evaluate val loss every N steps and record the curve/best (0 = final only).",
     )
+    parser.add_argument(
+        "--attn-scaling",
+        dest="attn_scaling",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Patch the standard 1/sqrt(head_dim) attention scaling into the local model.",
+    )
+    parser.add_argument("--lr-schedule", choices=("constant", "cosine"), default="constant")
+    parser.add_argument("--warmup-steps", type=int, default=0)
+    parser.add_argument(
+        "--data-path",
+        type=Path,
+        default=None,
+        help="Train on this text file (fresh char vocab, 90/10 split) instead of the repo's input.txt.",
+    )
+    parser.add_argument("--lowrank-rank", type=int, default=1)
     parser.add_argument(
         "--presets",
         nargs="+",
@@ -1088,7 +1111,11 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "direct_fourier_backend": args.direct_fourier_backend,
     }
     activation_factory = make_lct_activation_factory(**activation_kwargs)
-    linear_factory = make_lct_linear_factory(**linear_kwargs)
+    if spec.linear_kwargs.get("factory") == "lowrank":
+        linear_kwargs = {"factory": "lowrank", "rank": args.lowrank_rank}
+        linear_factory = make_lowrank_linear_factory(rank=args.lowrank_rank)
+    else:
+        linear_factory = make_lct_linear_factory(**linear_kwargs)
 
     model, namespace = build_local_nanogpt(
         args.repo_dir,
@@ -1104,7 +1131,11 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         vocab_size=args.vocab_size,
         device=device,
         seed=seed,
+        attention_scaling=args.attn_scaling,
     )
+    if getattr(args, "custom_train_data", None) is not None:
+        namespace["train"] = args.custom_train_data
+        namespace["val"] = args.custom_val_data
     model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
     get_batch = _make_paired_get_batch(
@@ -1126,6 +1157,16 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
     # before that silently trains the model with a frozen activation.
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
+    def lr_lambda(step: int) -> float:
+        if args.warmup_steps and step < args.warmup_steps:
+            return (step + 1) / args.warmup_steps
+        if args.lr_schedule == "cosine":
+            progress = (step - args.warmup_steps) / max(1, args.steps - args.warmup_steps)
+            return 0.1 + 0.45 * (1.0 + math.cos(math.pi * min(progress, 1.0)))
+        return 1.0
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
     model.train()
     val_history: list[tuple[int, float]] = []
     _sync_device(device)
@@ -1139,10 +1180,11 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
+        scheduler.step()
         if args.eval_every and (step + 1) % args.eval_every == 0 and (step + 1) < args.steps:
             _sync_device(device)
             train_elapsed += time.perf_counter() - start
-            val_history.append((step + 1, eval_val()))
+            val_history.append((step + 1, eval_val(), train_elapsed))
             model.train()
             _sync_device(device)
             start = time.perf_counter()
@@ -1158,8 +1200,8 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         max_windows=args.batch_size * max(args.eval_iters, 1),
     )
     final_val_loss = eval_val()
-    val_history.append((args.steps, final_val_loss))
-    best_step, best_val_loss = min(val_history, key=lambda item: item[1])
+    val_history.append((args.steps, final_val_loss, train_elapsed))
+    best_step, best_val_loss = min(val_history, key=lambda item: item[1])[:2]
 
     return {
         "name": spec.name,
@@ -1172,8 +1214,12 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "final_val_loss": final_val_loss,
         "best_val_loss": best_val_loss,
         "best_val_step": best_step,
-        "val_history": [[step, value] for step, value in val_history],
+        "val_history": [[step, value, elapsed] for step, value, elapsed in val_history],
         "lr": args.lr,
+        "lr_schedule": args.lr_schedule,
+        "warmup_steps": args.warmup_steps,
+        "attn_scaling": bool(args.attn_scaling),
+        "data_path": str(args.data_path) if args.data_path else None,
         "seed": args.seed + seed_offset,
         "steps": args.steps,
         "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / train_elapsed,
@@ -1190,6 +1236,16 @@ def tune_nanogpt_main() -> None:
     device = _resolve_device(args.device)
     specs = [_default_trial_specs(name) for name in args.presets]
     specs.extend(_angle_trial_spec(angle) for angle in args.linear_angle_degrees)
+    if args.data_path is not None:
+        text = Path(args.data_path).read_text(encoding="utf-8", errors="ignore")
+        chars = sorted(set(text))
+        stoi = {ch: i for i, ch in enumerate(chars)}
+        data = torch.tensor([stoi[ch] for ch in text], dtype=torch.long)
+        split = int(0.9 * len(data))
+        args.custom_train_data = data[:split]
+        args.custom_val_data = data[split:]
+        args.vocab_size = len(chars)
+
     # All specs share the same seed (paired design): identical init stream and,
     # via the dedicated batch generator, identical training batches - so
     # per-seed deltas between variants are directly comparable.

@@ -30,8 +30,8 @@ COLORS = {
 
 
 def curve(record: dict) -> tuple[list[int], list[float]]:
-    steps, values = zip(*record["val_history"])
-    return list(steps), list(values)
+    rows = record["val_history"]
+    return [row[0] for row in rows], [row[1] for row in rows]
 
 
 def mean_curve(records: list[dict]) -> tuple[list[int], list[float]]:

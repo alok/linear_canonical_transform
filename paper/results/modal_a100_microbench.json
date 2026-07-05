@@ -1,0 +1,261 @@
+{
+  "gpu": "NVIDIA A100-SXM4-40GB 2.10.0+cu128",
+  "results": [
+    {
+      "name": "dense/square/dim1024/fwd",
+      "dim": 1024,
+      "shape": "square",
+      "module": "dense",
+      "train": false,
+      "ms": 2.4069099999977084
+    },
+    {
+      "name": "dense/square/dim1024/train",
+      "dim": 1024,
+      "shape": "square",
+      "module": "dense",
+      "train": true,
+      "ms": 7.920921499994904
+    },
+    {
+      "name": "lct/square/dim1024/fwd",
+      "dim": 1024,
+      "shape": "square",
+      "module": "lct",
+      "train": false,
+      "ms": 0.9817574999999579
+    },
+    {
+      "name": "lct/square/dim1024/train",
+      "dim": 1024,
+      "shape": "square",
+      "module": "lct",
+      "train": true,
+      "ms": 2.78613199999711
+    },
+    {
+      "name": "dense/up-proj/dim1024/fwd",
+      "dim": 1024,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": false,
+      "ms": 0.6599215000022696
+    },
+    {
+      "name": "dense/up-proj/dim1024/train",
+      "dim": 1024,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": true,
+      "ms": 2.278961500003618
+    },
+    {
+      "name": "lct/up-proj/dim1024/fwd",
+      "dim": 1024,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": false,
+      "ms": 0.9312764999975798
+    },
+    {
+      "name": "lct/up-proj/dim1024/train",
+      "dim": 1024,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": true,
+      "ms": 2.7019060000057493
+    },
+    {
+      "name": "dense/square/dim2048/fwd",
+      "dim": 2048,
+      "shape": "square",
+      "module": "dense",
+      "train": false,
+      "ms": 7.367953499993973
+    },
+    {
+      "name": "dense/square/dim2048/train",
+      "dim": 2048,
+      "shape": "square",
+      "module": "dense",
+      "train": true,
+      "ms": 23.39966549999417
+    },
+    {
+      "name": "lct/square/dim2048/fwd",
+      "dim": 2048,
+      "shape": "square",
+      "module": "lct",
+      "train": false,
+      "ms": 1.7380530000039585
+    },
+    {
+      "name": "lct/square/dim2048/train",
+      "dim": 2048,
+      "shape": "square",
+      "module": "lct",
+      "train": true,
+      "ms": 5.003071000004411
+    },
+    {
+      "name": "dense/up-proj/dim2048/fwd",
+      "dim": 2048,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": false,
+      "ms": 1.889227499994206
+    },
+    {
+      "name": "dense/up-proj/dim2048/train",
+      "dim": 2048,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": true,
+      "ms": 7.087048499997195
+    },
+    {
+      "name": "lct/up-proj/dim2048/fwd",
+      "dim": 2048,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": false,
+      "ms": 1.7087019999948438
+    },
+    {
+      "name": "lct/up-proj/dim2048/train",
+      "dim": 2048,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": true,
+      "ms": 5.124558999995088
+    },
+    {
+      "name": "dense/square/dim4096/fwd",
+      "dim": 4096,
+      "shape": "square",
+      "module": "dense",
+      "train": false,
+      "ms": 29.086810999991997
+    },
+    {
+      "name": "dense/square/dim4096/train",
+      "dim": 4096,
+      "shape": "square",
+      "module": "dense",
+      "train": true,
+      "ms": 89.27648000000232
+    },
+    {
+      "name": "lct/square/dim4096/fwd",
+      "dim": 4096,
+      "shape": "square",
+      "module": "lct",
+      "train": false,
+      "ms": 3.3514059999930623
+    },
+    {
+      "name": "lct/square/dim4096/train",
+      "dim": 4096,
+      "shape": "square",
+      "module": "lct",
+      "train": true,
+      "ms": 9.828438500008474
+    },
+    {
+      "name": "dense/up-proj/dim4096/fwd",
+      "dim": 4096,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": false,
+      "ms": 7.3224259999875585
+    },
+    {
+      "name": "dense/up-proj/dim4096/train",
+      "dim": 4096,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": true,
+      "ms": 24.564140000009616
+    },
+    {
+      "name": "lct/up-proj/dim4096/fwd",
+      "dim": 4096,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": false,
+      "ms": 3.3084869999981947
+    },
+    {
+      "name": "lct/up-proj/dim4096/train",
+      "dim": 4096,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": true,
+      "ms": 10.15165700000864
+    },
+    {
+      "name": "dense/square/dim8192/fwd",
+      "dim": 8192,
+      "shape": "square",
+      "module": "dense",
+      "train": false,
+      "ms": 115.33485049999115
+    },
+    {
+      "name": "dense/square/dim8192/train",
+      "dim": 8192,
+      "shape": "square",
+      "module": "dense",
+      "train": true,
+      "ms": 353.0295030000019
+    },
+    {
+      "name": "lct/square/dim8192/fwd",
+      "dim": 8192,
+      "shape": "square",
+      "module": "lct",
+      "train": false,
+      "ms": 6.446871999983728
+    },
+    {
+      "name": "lct/square/dim8192/train",
+      "dim": 8192,
+      "shape": "square",
+      "module": "lct",
+      "train": true,
+      "ms": 19.245085500003256
+    },
+    {
+      "name": "dense/up-proj/dim8192/fwd",
+      "dim": 8192,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": false,
+      "ms": 28.992532499998447
+    },
+    {
+      "name": "dense/up-proj/dim8192/train",
+      "dim": 8192,
+      "shape": "up-proj",
+      "module": "dense",
+      "train": true,
+      "ms": 91.79734900000369
+    },
+    {
+      "name": "lct/up-proj/dim8192/fwd",
+      "dim": 8192,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": false,
+      "ms": 6.420574499998111
+    },
+    {
+      "name": "lct/up-proj/dim8192/train",
+      "dim": 8192,
+      "shape": "up-proj",
+      "module": "lct",
+      "train": true,
+      "ms": 19.79987549999862
+    }
+  ]
+}

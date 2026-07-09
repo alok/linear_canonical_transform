@@ -50,6 +50,12 @@ image = (
     .add_local_dir(ROOT / "src", str(REMOTE_ROOT / "src"), copy=True)
     .add_local_dir(ROOT / "tests", str(REMOTE_ROOT / "tests"), copy=True)
     .run_commands(f"cd {REMOTE_ROOT} && uv sync --extra dev --frozen")
+    .env(
+        {
+            "PATH": f"{REMOTE_VENV}/bin:/usr/local/bin:/usr/bin:/bin",
+            "PYTHONPATH": f"{REMOTE_VENV}/lib/python3.12/site-packages",
+        }
+    )
     .add_local_dir(
         LOCAL_NANOGPT,
         str(REMOTE_NANOGPT),

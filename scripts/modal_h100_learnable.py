@@ -33,9 +33,8 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCAL_NANOGPT = Path("/Users/alokbeniwal/nanogpt")
 REMOTE_ROOT = Path("/root/lct")
 REMOTE_NANOGPT = Path("/root/nanogpt")
-REMOTE_VENV = REMOTE_ROOT / ".venv"
-REMOTE_PYTHON = REMOTE_VENV / "bin/python"
-REMOTE_TUNER = REMOTE_VENV / "bin/lct-tune-nanogpt"
+REMOTE_PYTHON = Path("/usr/local/bin/python")
+REMOTE_TUNER = Path("/usr/local/bin/lct-tune-nanogpt")
 
 app = modal.App("lct-h100-learnable")
 results_volume = modal.Volume.from_name("lct-h100-results", create_if_missing=True)
@@ -49,12 +48,12 @@ image = (
     .add_local_file(ROOT / "LICENSE", str(REMOTE_ROOT / "LICENSE"), copy=True)
     .add_local_dir(ROOT / "src", str(REMOTE_ROOT / "src"), copy=True)
     .add_local_dir(ROOT / "tests", str(REMOTE_ROOT / "tests"), copy=True)
-    .run_commands(f"cd {REMOTE_ROOT} && uv sync --extra dev --frozen")
-    .env(
-        {
-            "PATH": f"{REMOTE_VENV}/bin:/usr/local/bin:/usr/bin:/bin",
-            "PYTHONPATH": f"{REMOTE_VENV}/lib/python3.12/site-packages",
-        }
+    .run_commands(
+        f"cd {REMOTE_ROOT} && "
+        "uv export --frozen --extra dev --no-emit-project "
+        "--format requirements.txt --no-hashes --output-file /tmp/lct-requirements.txt && "
+        "uv pip install --system --requirements /tmp/lct-requirements.txt && "
+        "uv pip install --system --no-deps ."
     )
     .add_local_dir(
         LOCAL_NANOGPT,
@@ -63,6 +62,45 @@ image = (
         ignore=[".git", ".venv", "__pycache__", ".pytest_cache", "runs", "wandb"],
     )
 )
+
+
+@app.function(image=image, cpu=2, timeout=120)
+def validate_image() -> dict[str, Any]:
+    """Prove the built image imports cleanly before allocating an H100."""
+    import lct_activation
+    import numpy
+    import torch
+
+    completed = subprocess.run(
+        [str(REMOTE_TUNER), "--help"],
+        cwd=REMOTE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            json.dumps(
+                {
+                    "command": [str(REMOTE_TUNER), "--help"],
+                    "returncode": completed.returncode,
+                    "stdout": completed.stdout[-4_000:],
+                    "stderr": completed.stderr[-4_000:],
+                },
+                indent=2,
+            )
+        )
+    return {
+        "ok": True,
+        "python": platform.python_version(),
+        "python_executable": os.sys.executable,
+        "torch": str(torch.__version__),
+        "torch_cuda": torch.version.cuda,
+        "numpy": numpy.__version__,
+        "lct_activation": str(Path(lct_activation.__file__).resolve()),
+        "tuner": str(REMOTE_TUNER),
+    }
 
 
 def _now() -> str:
@@ -255,6 +293,7 @@ def run_h100_learnable(
     benchmark_steps: int,
     source_commit: str,
     nanogpt_commit: str,
+    image_validation: dict[str, Any],
 ) -> dict[str, Any]:
     import torch
 
@@ -274,10 +313,11 @@ def run_h100_learnable(
         "nanogpt_commit": nanogpt_commit,
         "seed": seed,
         "benchmark_steps": benchmark_steps,
+        "image_validation": image_validation,
         "hardware": {
             "gpu": gpu_name,
             "capability": list(torch.cuda.get_device_capability(0)),
-            "torch": torch.__version__,
+            "torch": str(torch.__version__),
             "cuda": torch.version.cuda,
             "cudnn": torch.backends.cudnn.version(),
             "platform": platform.platform(),
@@ -359,14 +399,20 @@ def main(
     output: str = "paper/results/modal_h100_learnable_s1.json",
     seed: int = 1,
     benchmark_steps: int = 500,
+    validate_only: bool = False,
 ) -> None:
     if benchmark_steps < 20:
         raise ValueError("benchmark_steps must be at least 20")
+    image_validation = validate_image.remote()
+    print(json.dumps({"image_validation": image_validation}, indent=2))
+    if validate_only:
+        return
     payload = run_h100_learnable.remote(
         seed=seed,
         benchmark_steps=benchmark_steps,
         source_commit=_git_head(ROOT),
         nanogpt_commit=_git_head(LOCAL_NANOGPT),
+        image_validation=image_validation,
     )
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

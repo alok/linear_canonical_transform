@@ -41,7 +41,7 @@ results_volume = modal.Volume.from_name("lct-h100-results", create_if_missing=Tr
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("uv")
+    .pip_install("uv==0.11.24")
     .add_local_file(ROOT / "pyproject.toml", str(REMOTE_ROOT / "pyproject.toml"), copy=True)
     .add_local_file(ROOT / "uv.lock", str(REMOTE_ROOT / "uv.lock"), copy=True)
     .add_local_file(ROOT / "README.md", str(REMOTE_ROOT / "README.md"), copy=True)

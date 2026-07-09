@@ -1,0 +1,1018 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-07-09T20:32:42.245876+00:00",
+  "run_id": "20260709T203242Z",
+  "source_commit": "41e30cb98aba79c47d45de1363ed839ab41067ef",
+  "nanogpt_commit": "50993693e48d27418265f85906fd38e5f2117df3",
+  "seed": 1,
+  "benchmark_steps": 500,
+  "image_validation": {
+    "ok": true,
+    "python": "3.12.1",
+    "python_executable": "/usr/local/bin/python",
+    "torch": "2.10.0+cu128",
+    "torch_cuda": "12.8",
+    "numpy": "2.4.2",
+    "lct_activation": "/usr/local/lib/python3.12/site-packages/lct_activation/__init__.py",
+    "tuner": "/usr/local/bin/lct-tune-nanogpt"
+  },
+  "hardware": {
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "capability": [
+      9,
+      0
+    ],
+    "torch": "2.10.0+cu128",
+    "cuda": "12.8",
+    "cudnn": 91002,
+    "platform": "Linux-4.19.0-gvisor-x86_64-with-glibc2.31",
+    "python": "3.12.1",
+    "modal_task_id": "ta-01KX49A2MMGBQYXJNW1D26MNCR"
+  },
+  "dataset": {
+    "path": "/root/nanogpt/input.txt",
+    "bytes": 1115394,
+    "sha256": "86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed"
+  },
+  "tests": {
+    "command": [
+      "/usr/local/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_lct_core.py",
+      "tests/test_lct_linear.py",
+      "tests/test_nanogpt_patch.py"
+    ],
+    "started_at": "2026-07-09T20:32:42.271161+00:00",
+    "finished_at": "2026-07-09T20:32:56.483647+00:00",
+    "wall_seconds": 14.212502644,
+    "returncode": 0,
+    "stdout_tail": "...........................ss.ss                                         [100%]\n28 passed, 4 skipped in 12.34s\n",
+    "stderr_tail": ""
+  },
+  "smoke_command": {
+    "command": [
+      "/usr/local/bin/lct-tune-nanogpt",
+      "--repo-dir",
+      "/root/nanogpt",
+      "--device",
+      "cuda",
+      "--seed",
+      "1",
+      "--steps",
+      "20",
+      "--eval-every",
+      "10",
+      "--eval-iters",
+      "8",
+      "--batch-size",
+      "8",
+      "--seq-len",
+      "128",
+      "--n-layers",
+      "2",
+      "--n-heads",
+      "4",
+      "--embed-dim",
+      "256",
+      "--dropout",
+      "0.2",
+      "--attn-scaling",
+      "--lr",
+      "1e-3",
+      "--lr-schedule",
+      "cosine",
+      "--warmup-steps",
+      "2",
+      "--normalization",
+      "unitary",
+      "--inverse-after-multiply",
+      "--transform-lr-scale",
+      "0.1",
+      "--transform-grad-clip",
+      "1.0",
+      "--presets",
+      "baseline",
+      "linear-fourier",
+      "linear-fourier-canonical-fixed",
+      "linear-fourier-learned",
+      "--output",
+      "/results/20260709T203242Z/smoke.json"
+    ],
+    "started_at": "2026-07-09T20:32:56.483803+00:00",
+    "finished_at": "2026-07-09T20:33:30.824189+00:00",
+    "wall_seconds": 34.340412569,
+    "returncode": 0,
+    "stdout_tail": "{\n  \"device\": \"cuda\",\n  \"repo_dir\": \"/root/nanogpt\",\n  \"config\": {\n    \"steps\": 20,\n    \"eval_iters\": 8,\n    \"batch_size\": 8,\n    \"seq_len\": 128,\n    \"n_layers\": 2,\n    \"n_heads\": 4,\n    \"embed_dim\": 256,\n    \"dropout\": 0.2,\n    \"vocab_size\": 65,\n    \"lr\": 0.001,\n    \"weight_decay\": 0.0,\n    \"transform_lr_scale\": 0.1,\n    \"transform_grad_clip\": 1.0,\n    \"normalization\": \"unitary\",\n    \"inverse_after_multiply\": true,\n    \"unitary_projection\": false\n  },\n  \"results\": [\n    {\n      \"name\": \"baseline\",\n      \"variant\": \"baseline\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"inverse_after_multiply\": true,\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\",\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"initial_val_loss\": 4.286660245310699,\n      \"final_train_loss\": 2.8662985265254974,\n      \"final_val_loss\": 2.9431489526746466,\n      \"best_val_loss\": 2.9431489526746466,\n      \"best_val_step\": 20,\n      \"val_history\": [\n        [\n          10,\n          3.0849854584813254,\n          0.5182937679999995\n        ],\n        [\n          20,\n          2.9431489526746466,\n          0.5817738000000006\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 2,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 20,\n      \"tokens_per_second\": 35202.68530483838,\n      \"parameter_count\": 1646145,\n      \"initial_transforms\": [],\n      \"final_transforms\": []\n    },\n    {\n      \"name\": \"linear-fourier-canonical-fixed\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"symplectic\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.276705445706776,\n      \"final_train_loss\": 2.987085461616516,\n      \"final_val_loss\": 3.073987246654611,\n      \"best_val_loss\": 3.073987246654611,\n      \"best_val_step\": 20,\n      \"val_history\": [\n        [\n          10,\n          3.1770512926318477,\n          0.12144111199999941\n        ],\n        [\n          20,\n          3.073987246654611,\n          0.232685496000002\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 2,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 20,\n      \"tokens_per_second\": 88015.79966118655,\n      \"parameter_count\": 1123911,\n      \"initial_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ],\n      \"final_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ]\n    },\n    {\n      \"name\": \"linear-fourier\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.276705471984828,\n      \"final_train_loss\": 2.9870858192443848,\n      \"final_val_loss\": 3.073987261983475,\n      \"best_val_loss\": 3.073987261983475,\n      \"best_val_step\": 20,\n      \"val_history\": [\n        [\n          10,\n          3.1770501719824074,\n          0.5735593590000008\n        ],\n        [\n          20,\n          3.073987261983475,\n          0.6608323649999974\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 2,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 20,\n      \"tokens_per_second\": 30991.21817376496,\n      \"parameter_count\": 1123911,\n      \"initial_transforms\": [],\n      \"final_transforms\": []\n    },\n    {\n      \"name\": \"linear-fourier-learned\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": true,\n        \"transform_parameterization\": \"symplectic\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.276705445706776,\n      \"final_train_loss\": 2.987755298614502,\n      \"final_val_loss\": 3.074631817168401,\n      \"best_val_loss\": 3.074631817168401,\n      \"best_val_step\": 20,\n      \"val_history\": [\n        [\n          10,\n          3.1776697854634404,\n          0.5395984479999996\n        ],\n        [\n          20,\n          3.074631817168401,\n          0.7230363609999984\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 2,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 20,\n      \"tokens_per_second\": 28324.993187998254,\n      \"parameter_count\": 1123911,\n      \"initial_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ],\n      \"final_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5706788301467896,\n          \"log_scale\": 5.3941643272992224e-05,\n          \"shear\": -0.0005307930405251682,\n          \"matrix\": [\n            0.00011750297562684864,\n            1.000053882598877,\n            -0.9999461770057678,\n            -0.00041333131957799196\n          ],\n          \"determinant\": 0.9999999403953552\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5700629949569702,\n          \"log_scale\": 0.0005127494223415852,\n          \"shear\": -0.00028401106828823686,\n          \"matrix\": [\n            0.0007337078568525612,\n            1.0005124807357788,\n            -0.9994872808456421,\n            0.00044879925553686917\n          ],\n          \"determinant\": 0.9999998807907104\n        }\n      ]\n    }\n  ]\n}\n",
+    "stderr_tail": ""
+  },
+  "smoke": {
+    "device": "cuda",
+    "repo_dir": "/root/nanogpt",
+    "config": {
+      "steps": 20,
+      "eval_iters": 8,
+      "batch_size": 8,
+      "seq_len": 128,
+      "n_layers": 2,
+      "n_heads": 4,
+      "embed_dim": 256,
+      "dropout": 0.2,
+      "vocab_size": 65,
+      "lr": 0.001,
+      "weight_decay": 0.0,
+      "transform_lr_scale": 0.1,
+      "transform_grad_clip": 1.0,
+      "normalization": "unitary",
+      "inverse_after_multiply": true,
+      "unitary_projection": false
+    },
+    "results": [
+      {
+        "name": "baseline",
+        "variant": "baseline",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "inverse_after_multiply": true,
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft",
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "initial_val_loss": 4.286660245310699,
+        "final_train_loss": 2.8662985265254974,
+        "final_val_loss": 2.9431489526746466,
+        "best_val_loss": 2.9431489526746466,
+        "best_val_step": 20,
+        "val_history": [
+          [
+            10,
+            3.0849854584813254,
+            0.5182937679999995
+          ],
+          [
+            20,
+            2.9431489526746466,
+            0.5817738000000006
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 2,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 20,
+        "tokens_per_second": 35202.68530483838,
+        "parameter_count": 1646145,
+        "initial_transforms": [],
+        "final_transforms": []
+      },
+      {
+        "name": "linear-fourier-canonical-fixed",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": false,
+          "transform_parameterization": "symplectic",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.276705445706776,
+        "final_train_loss": 2.987085461616516,
+        "final_val_loss": 3.073987246654611,
+        "best_val_loss": 3.073987246654611,
+        "best_val_step": 20,
+        "val_history": [
+          [
+            10,
+            3.1770512926318477,
+            0.12144111199999941
+          ],
+          [
+            20,
+            3.073987246654611,
+            0.232685496000002
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 2,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 20,
+        "tokens_per_second": 88015.79966118655,
+        "parameter_count": 1123911,
+        "initial_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ],
+        "final_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ]
+      },
+      {
+        "name": "linear-fourier",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.276705471984828,
+        "final_train_loss": 2.9870858192443848,
+        "final_val_loss": 3.073987261983475,
+        "best_val_loss": 3.073987261983475,
+        "best_val_step": 20,
+        "val_history": [
+          [
+            10,
+            3.1770501719824074,
+            0.5735593590000008
+          ],
+          [
+            20,
+            3.073987261983475,
+            0.6608323649999974
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 2,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 20,
+        "tokens_per_second": 30991.21817376496,
+        "parameter_count": 1123911,
+        "initial_transforms": [],
+        "final_transforms": []
+      },
+      {
+        "name": "linear-fourier-learned",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": true,
+          "transform_parameterization": "symplectic",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.276705445706776,
+        "final_train_loss": 2.987755298614502,
+        "final_val_loss": 3.074631817168401,
+        "best_val_loss": 3.074631817168401,
+        "best_val_step": 20,
+        "val_history": [
+          [
+            10,
+            3.1776697854634404,
+            0.5395984479999996
+          ],
+          [
+            20,
+            3.074631817168401,
+            0.7230363609999984
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 2,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 20,
+        "tokens_per_second": 28324.993187998254,
+        "parameter_count": 1123911,
+        "initial_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ],
+        "final_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5706788301467896,
+            "log_scale": 5.3941643272992224e-05,
+            "shear": -0.0005307930405251682,
+            "matrix": [
+              0.00011750297562684864,
+              1.000053882598877,
+              -0.9999461770057678,
+              -0.00041333131957799196
+            ],
+            "determinant": 0.9999999403953552
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5700629949569702,
+            "log_scale": 0.0005127494223415852,
+            "shear": -0.00028401106828823686,
+            "matrix": [
+              0.0007337078568525612,
+              1.0005124807357788,
+              -0.9994872808456421,
+              0.00044879925553686917
+            ],
+            "determinant": 0.9999998807907104
+          }
+        ]
+      }
+    ]
+  },
+  "smoke_assertions": {
+    "ok": true,
+    "frozen_max_parameter_delta": 0.0,
+    "learned_max_parameter_delta": 0.0007333755493164062,
+    "max_determinant_error": 1.1920928955078125e-07,
+    "canonical_initial_loss_delta": 0.0
+  },
+  "benchmark_command": {
+    "command": [
+      "/usr/local/bin/lct-tune-nanogpt",
+      "--repo-dir",
+      "/root/nanogpt",
+      "--device",
+      "cuda",
+      "--seed",
+      "1",
+      "--steps",
+      "500",
+      "--eval-every",
+      "100",
+      "--eval-iters",
+      "8",
+      "--batch-size",
+      "32",
+      "--seq-len",
+      "256",
+      "--n-layers",
+      "4",
+      "--n-heads",
+      "8",
+      "--embed-dim",
+      "1024",
+      "--dropout",
+      "0.2",
+      "--attn-scaling",
+      "--lr",
+      "1e-3",
+      "--lr-schedule",
+      "cosine",
+      "--warmup-steps",
+      "50",
+      "--normalization",
+      "unitary",
+      "--inverse-after-multiply",
+      "--transform-lr-scale",
+      "0.1",
+      "--transform-grad-clip",
+      "1.0",
+      "--presets",
+      "baseline",
+      "linear-fourier",
+      "linear-fourier-canonical-fixed",
+      "linear-fourier-learned",
+      "--output",
+      "/results/20260709T203242Z/benchmark.json"
+    ],
+    "started_at": "2026-07-09T20:33:30.825685+00:00",
+    "finished_at": "2026-07-09T20:36:47.352369+00:00",
+    "wall_seconds": 196.526679486,
+    "returncode": 0,
+    "stdout_tail": "iton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\",\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"initial_val_loss\": 4.363320888870064,\n      \"final_train_loss\": 1.5788399428129196,\n      \"final_val_loss\": 1.7425669067207423,\n      \"best_val_loss\": 1.7425669067207423,\n      \"best_val_step\": 500,\n      \"val_history\": [\n        [\n          100,\n          2.4417323896254617,\n          7.084406258000001\n        ],\n        [\n          200,\n          2.068546489189411,\n          13.696893420999999\n        ],\n        [\n          300,\n          1.8919117286287506,\n          20.307618909\n        ],\n        [\n          400,\n          1.7909767918203068,\n          26.920617809999996\n        ],\n        [\n          500,\n          1.7425669067207423,\n          33.532034184999986\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 50,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 500,\n      \"tokens_per_second\": 122151.84970294106,\n      \"parameter_count\": 50782273,\n      \"initial_transforms\": [],\n      \"final_transforms\": []\n    },\n    {\n      \"name\": \"linear-fourier\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.3599734295373676,\n      \"final_train_loss\": 1.8211812674999237,\n      \"final_val_loss\": 1.940457832950285,\n      \"best_val_loss\": 1.940457832950285,\n      \"best_val_step\": 500,\n      \"val_history\": [\n        [\n          100,\n          2.499857052441301,\n          5.706782976999989\n        ],\n        [\n          200,\n          2.25816779849173,\n          11.389642217999992\n        ],\n        [\n          300,\n          2.102441111378286,\n          17.075584830999986\n        ],\n        [\n          400,\n          2.0049901721121253,\n          22.760657720999987\n        ],\n        [\n          500,\n          1.940457832950285,\n          28.444309940999986\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 50,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 500,\n      \"tokens_per_second\": 144000.68092690743,\n      \"parameter_count\": 34021453,\n      \"initial_transforms\": [],\n      \"final_transforms\": []\n    },\n    {\n      \"name\": \"linear-fourier-canonical-fixed\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"symplectic\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.359973443787673,\n      \"final_train_loss\": 1.8304099440574646,\n      \"final_val_loss\": 1.9438159652139948,\n      \"best_val_loss\": 1.9438159652139948,\n      \"best_val_step\": 500,\n      \"val_history\": [\n        [\n          100,\n          2.495765102320704,\n          6.494769001000009\n        ],\n        [\n          200,\n          2.267472898549047,\n          13.012163471000036\n        ],\n        [\n          300,\n          2.104986275749645,\n          19.529105668000028\n        ],\n        [\n          400,\n          2.0130982108499813,\n          26.062158260000018\n        ],\n        [\n          500,\n          1.9438159652139948,\n          32.57628072100002\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 50,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 500,\n      \"tokens_per_second\": 125735.65518667542,\n      \"parameter_count\": 34021453,\n      \"initial_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.2.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.3.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ],\n      \"final_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.2.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.3.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ]\n    },\n    {\n      \"name\": \"linear-fourier-learned\",\n      \"variant\": \"linear\",\n      \"compiled\": false,\n      \"activation_kwargs\": {\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"learnable_transform\": false,\n        \"transform_parameterization\": \"legacy\"\n      },\n      \"linear_kwargs\": {\n        \"a\": 0.0,\n        \"b\": 1.0,\n        \"c\": 0.0,\n        \"dense_threshold\": 32,\n        \"inverse_after_multiply\": true,\n        \"learnable_transform\": true,\n        \"transform_parameterization\": \"symplectic\",\n        \"normalization\": \"unitary\",\n        \"unitary_projection\": false,\n        \"use_triton_kernels\": true,\n        \"direct_fourier_backend\": \"fft\"\n      },\n      \"initial_val_loss\": 4.359973443787673,\n      \"final_train_loss\": 1.8633707463741302,\n      \"final_val_loss\": 1.9790262666241876,\n      \"best_val_loss\": 1.9790262666241876,\n      \"best_val_step\": 500,\n      \"val_history\": [\n        [\n          100,\n          2.5027800894331658,\n          12.941391664000008\n        ],\n        [\n          200,\n          2.2687616638753605,\n          25.785976075000008\n        ],\n        [\n          300,\n          2.1139747351065448,\n          38.57084245200002\n        ],\n        [\n          400,\n          2.035807686290522,\n          51.40273805300001\n        ],\n        [\n          500,\n          1.9790262666241876,\n          64.24978152\n        ]\n      ],\n      \"lr\": 0.001,\n      \"lr_schedule\": \"cosine\",\n      \"warmup_steps\": 50,\n      \"attn_scaling\": true,\n      \"data_path\": null,\n      \"seed\": 1,\n      \"steps\": 500,\n      \"tokens_per_second\": 63751.18954645746,\n      \"parameter_count\": 34021453,\n      \"initial_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.2.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.3.ffwd.net.0.transform\",\n          \"angle\": 1.5707963705062866,\n          \"log_scale\": 0.0,\n          \"shear\": 0.0,\n          \"matrix\": [\n            -4.371138828673793e-08,\n            1.0,\n            -1.0,\n            -4.371138828673793e-08\n          ],\n          \"determinant\": 1.0\n        }\n      ],\n      \"final_transforms\": [\n        {\n          \"module\": \"blocks.0.ffwd.net.0.transform\",\n          \"angle\": 1.5720226764678955,\n          \"log_scale\": -3.501653191051446e-05,\n          \"shear\": -0.00011268159141764045,\n          \"matrix\": [\n            -0.0012263063108548522,\n            0.9999642372131348,\n            -1.0000340938568115,\n            -0.001339069800451398\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.1.ffwd.net.0.transform\",\n          \"angle\": 1.5704690217971802,\n          \"log_scale\": -2.9996033845236525e-05,\n          \"shear\": 0.00013736987602896988,\n          \"matrix\": [\n            0.0003272951871622354,\n            0.9999699592590332,\n            -1.0000299215316772,\n            0.00046468054642900825\n          ],\n          \"determinant\": 1.0\n        },\n        {\n          \"module\": \"blocks.2.ffwd.net.0.transform\",\n          \"angle\": 1.571114420890808,\n          \"log_scale\": -1.073114344762871e-05,\n          \"shear\": -0.00014086641022004187,\n          \"matrix\": [\n            -0.00031809069332666695,\n            0.9999892115592957,\n            -1.0000107288360596,\n            -0.00045896240044385195\n          ],\n          \"determinant\": 1.0000001192092896\n        },\n        {\n          \"module\": \"blocks.3.ffwd.net.0.transform\",\n          \"angle\": 1.5727646350860596,\n          \"log_scale\": -0.00010427297820569947,\n          \"shear\": -4.127269494347274e-05,\n          \"matrix\": [\n            -0.001968102063983679,\n            0.999893844127655,\n            -1.0001022815704346,\n            -0.0020097806118428707\n          ],\n          \"determinant\": 1.0000001192092896\n        }\n      ]\n    }\n  ]\n}\n",
+    "stderr_tail": ""
+  },
+  "benchmark": {
+    "device": "cuda",
+    "repo_dir": "/root/nanogpt",
+    "config": {
+      "steps": 500,
+      "eval_iters": 8,
+      "batch_size": 32,
+      "seq_len": 256,
+      "n_layers": 4,
+      "n_heads": 8,
+      "embed_dim": 1024,
+      "dropout": 0.2,
+      "vocab_size": 65,
+      "lr": 0.001,
+      "weight_decay": 0.0,
+      "transform_lr_scale": 0.1,
+      "transform_grad_clip": 1.0,
+      "normalization": "unitary",
+      "inverse_after_multiply": true,
+      "unitary_projection": false
+    },
+    "results": [
+      {
+        "name": "baseline",
+        "variant": "baseline",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "inverse_after_multiply": true,
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft",
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "initial_val_loss": 4.363320888870064,
+        "final_train_loss": 1.5788399428129196,
+        "final_val_loss": 1.7425669067207423,
+        "best_val_loss": 1.7425669067207423,
+        "best_val_step": 500,
+        "val_history": [
+          [
+            100,
+            2.4417323896254617,
+            7.084406258000001
+          ],
+          [
+            200,
+            2.068546489189411,
+            13.696893420999999
+          ],
+          [
+            300,
+            1.8919117286287506,
+            20.307618909
+          ],
+          [
+            400,
+            1.7909767918203068,
+            26.920617809999996
+          ],
+          [
+            500,
+            1.7425669067207423,
+            33.532034184999986
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 50,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 500,
+        "tokens_per_second": 122151.84970294106,
+        "parameter_count": 50782273,
+        "initial_transforms": [],
+        "final_transforms": []
+      },
+      {
+        "name": "linear-fourier",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.3599734295373676,
+        "final_train_loss": 1.8211812674999237,
+        "final_val_loss": 1.940457832950285,
+        "best_val_loss": 1.940457832950285,
+        "best_val_step": 500,
+        "val_history": [
+          [
+            100,
+            2.499857052441301,
+            5.706782976999989
+          ],
+          [
+            200,
+            2.25816779849173,
+            11.389642217999992
+          ],
+          [
+            300,
+            2.102441111378286,
+            17.075584830999986
+          ],
+          [
+            400,
+            2.0049901721121253,
+            22.760657720999987
+          ],
+          [
+            500,
+            1.940457832950285,
+            28.444309940999986
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 50,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 500,
+        "tokens_per_second": 144000.68092690743,
+        "parameter_count": 34021453,
+        "initial_transforms": [],
+        "final_transforms": []
+      },
+      {
+        "name": "linear-fourier-canonical-fixed",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": false,
+          "transform_parameterization": "symplectic",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.359973443787673,
+        "final_train_loss": 1.8304099440574646,
+        "final_val_loss": 1.9438159652139948,
+        "best_val_loss": 1.9438159652139948,
+        "best_val_step": 500,
+        "val_history": [
+          [
+            100,
+            2.495765102320704,
+            6.494769001000009
+          ],
+          [
+            200,
+            2.267472898549047,
+            13.012163471000036
+          ],
+          [
+            300,
+            2.104986275749645,
+            19.529105668000028
+          ],
+          [
+            400,
+            2.0130982108499813,
+            26.062158260000018
+          ],
+          [
+            500,
+            1.9438159652139948,
+            32.57628072100002
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 50,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 500,
+        "tokens_per_second": 125735.65518667542,
+        "parameter_count": 34021453,
+        "initial_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.2.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.3.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ],
+        "final_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.2.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.3.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ]
+      },
+      {
+        "name": "linear-fourier-learned",
+        "variant": "linear",
+        "compiled": false,
+        "activation_kwargs": {
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "learnable_transform": false,
+          "transform_parameterization": "legacy"
+        },
+        "linear_kwargs": {
+          "a": 0.0,
+          "b": 1.0,
+          "c": 0.0,
+          "dense_threshold": 32,
+          "inverse_after_multiply": true,
+          "learnable_transform": true,
+          "transform_parameterization": "symplectic",
+          "normalization": "unitary",
+          "unitary_projection": false,
+          "use_triton_kernels": true,
+          "direct_fourier_backend": "fft"
+        },
+        "initial_val_loss": 4.359973443787673,
+        "final_train_loss": 1.8633707463741302,
+        "final_val_loss": 1.9790262666241876,
+        "best_val_loss": 1.9790262666241876,
+        "best_val_step": 500,
+        "val_history": [
+          [
+            100,
+            2.5027800894331658,
+            12.941391664000008
+          ],
+          [
+            200,
+            2.2687616638753605,
+            25.785976075000008
+          ],
+          [
+            300,
+            2.1139747351065448,
+            38.57084245200002
+          ],
+          [
+            400,
+            2.035807686290522,
+            51.40273805300001
+          ],
+          [
+            500,
+            1.9790262666241876,
+            64.24978152
+          ]
+        ],
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "warmup_steps": 50,
+        "attn_scaling": true,
+        "data_path": null,
+        "seed": 1,
+        "steps": 500,
+        "tokens_per_second": 63751.18954645746,
+        "parameter_count": 34021453,
+        "initial_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.2.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.3.ffwd.net.0.transform",
+            "angle": 1.5707963705062866,
+            "log_scale": 0.0,
+            "shear": 0.0,
+            "matrix": [
+              -4.371138828673793e-08,
+              1.0,
+              -1.0,
+              -4.371138828673793e-08
+            ],
+            "determinant": 1.0
+          }
+        ],
+        "final_transforms": [
+          {
+            "module": "blocks.0.ffwd.net.0.transform",
+            "angle": 1.5720226764678955,
+            "log_scale": -3.501653191051446e-05,
+            "shear": -0.00011268159141764045,
+            "matrix": [
+              -0.0012263063108548522,
+              0.9999642372131348,
+              -1.0000340938568115,
+              -0.001339069800451398
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.1.ffwd.net.0.transform",
+            "angle": 1.5704690217971802,
+            "log_scale": -2.9996033845236525e-05,
+            "shear": 0.00013736987602896988,
+            "matrix": [
+              0.0003272951871622354,
+              0.9999699592590332,
+              -1.0000299215316772,
+              0.00046468054642900825
+            ],
+            "determinant": 1.0
+          },
+          {
+            "module": "blocks.2.ffwd.net.0.transform",
+            "angle": 1.571114420890808,
+            "log_scale": -1.073114344762871e-05,
+            "shear": -0.00014086641022004187,
+            "matrix": [
+              -0.00031809069332666695,
+              0.9999892115592957,
+              -1.0000107288360596,
+              -0.00045896240044385195
+            ],
+            "determinant": 1.0000001192092896
+          },
+          {
+            "module": "blocks.3.ffwd.net.0.transform",
+            "angle": 1.5727646350860596,
+            "log_scale": -0.00010427297820569947,
+            "shear": -4.127269494347274e-05,
+            "matrix": [
+              -0.001968102063983679,
+              0.999893844127655,
+              -1.0001022815704346,
+              -0.0020097806118428707
+            ],
+            "determinant": 1.0000001192092896
+          }
+        ]
+      }
+    ]
+  },
+  "benchmark_assertions": {
+    "ok": true,
+    "frozen_max_parameter_delta": 0.0,
+    "learned_max_parameter_delta": 0.0019682645797729492,
+    "max_determinant_error": 1.1920928955078125e-07,
+    "canonical_initial_loss_delta": 0.0
+  },
+  "finished_at": "2026-07-09T20:36:47.353987+00:00",
+  "remote_result_path": "/results/20260709T203242Z/modal_h100_learnable.json"
+}

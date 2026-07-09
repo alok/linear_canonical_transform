@@ -21,9 +21,12 @@ modules for Apple silicon via the optional `mlx` extra (see
 
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
-The full research report — implementation, cross-backend parity methodology,
-microbenchmarks, and a pre-registered (negative) NanoGPT evaluation — lives at
-[`paper/report.md`](paper/report.md).
+The current research paper is an interactive HTML instrument under
+[`site/`](site/README.md): it combines a determinant-one 3D phase-space
+explainer, a guided prediction loop, the controlled NanoGPT evidence, and the
+exploratory H100 learned-transform result. [`paper/report.md`](paper/report.md)
+is retained as the archival fixed-transform report that preceded the learned
+symplectic implementation.
 
 The finite-dimensional tradeoff is explicit:
 

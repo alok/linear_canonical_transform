@@ -23,6 +23,25 @@ __all__ = [
 ]
 
 
+def _raw_triton_enabled(use_triton: bool, *tensors: Tensor) -> bool:
+    """Use raw Triton kernels only when autograd does not need their outputs.
+
+    These kernels write into freshly allocated tensors and intentionally do
+    not register an autograd formula. ``_DirectFFTLinearFn`` calls them inside
+    a custom ``torch.autograd.Function`` with an explicit backward, so grad
+    mode is disabled there and the fast path remains available. Generic LCT
+    paths must fall back to PyTorch operations whenever an input requires
+    gradients; otherwise CUDA training silently severs the graph.
+    """
+
+    if not (use_triton and HAS_TRITON and tensors and tensors[0].is_cuda):
+        return False
+    return not (
+        torch.is_grad_enabled()
+        and any(tensor.requires_grad for tensor in tensors)
+    )
+
+
 if HAS_TRITON:
 
     @triton.jit
@@ -220,7 +239,7 @@ def complex_pointwise_mul(
     falls back to standard PyTorch complex multiplication.
     """
 
-    if not (use_triton and HAS_TRITON and x.is_cuda):
+    if not _raw_triton_enabled(use_triton, x, diag):
         diag_term = torch.conj(diag) if conjugate_diag else diag
         return x * diag_term.view(*([1] * (x.ndim - 1)), x.shape[-1])
 
@@ -317,7 +336,7 @@ def pack_real_pairs(
     mode: str = "zero",
     use_triton: bool = False,
 ) -> Tensor:
-    if not (use_triton and HAS_TRITON and x.is_cuda):
+    if not _raw_triton_enabled(use_triton, x):
         current = x.size(-1)
         pad = target_channels - current
         if pad > 0:
@@ -355,7 +374,7 @@ def unpack_real_pairs(
     original_channels: int,
     use_triton: bool = False,
 ) -> Tensor:
-    if not (use_triton and HAS_TRITON and z.is_cuda):
+    if not _raw_triton_enabled(use_triton, z):
         out = torch.view_as_real(z).reshape(*z.shape[:-1], -1)
         return out[..., :original_channels]
 

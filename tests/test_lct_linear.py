@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import pytest
 import torch
 import torch.nn.functional as F
 
 from lct_activation import LCTLinear, SymplecticLCTLayer
+from lct_activation.triton_ops import HAS_TRITON
+
+
+CUDA_TRITON = torch.cuda.is_available() and HAS_TRITON
 
 
 def test_lct_linear_preserves_expected_shape() -> None:
@@ -155,3 +160,113 @@ def test_fourier_conv_backend_backward_matches_fft_backend() -> None:
     assert torch.allclose(x1.grad, x2.grad, atol=1e-4, rtol=0.0)
     assert torch.allclose(fft_layer.spectral_real.grad, conv_layer.spectral_real.grad, atol=1e-4, rtol=0.0)
     assert torch.allclose(fft_layer.spectral_imag.grad, conv_layer.spectral_imag.grad, atol=1e-4, rtol=0.0)
+
+
+@torch.no_grad()
+def _break_identity_initialization(layer: LCTLinear) -> None:
+    real = torch.linspace(
+        0.75,
+        1.25,
+        layer.complex_features,
+        device=layer.spectral_real.device,
+        dtype=layer.spectral_real.dtype,
+    )
+    imag = torch.linspace(
+        -0.2,
+        0.2,
+        layer.complex_features,
+        device=layer.spectral_imag.device,
+        dtype=layer.spectral_imag.dtype,
+    )
+    layer.spectral_real.copy_(real)
+    layer.spectral_imag.copy_(imag)
+
+
+@pytest.mark.skipif(not CUDA_TRITON, reason="requires CUDA with Triton")
+def test_cuda_triton_learned_symplectic_path_preserves_autograd() -> None:
+    torch.manual_seed(21)
+    layer = LCTLinear(
+        64,
+        64,
+        bias=False,
+        learnable_transform=True,
+        transform_parameterization="symplectic",
+        use_triton_kernels=True,
+    ).cuda()
+    _break_identity_initialization(layer)
+    x = torch.randn(8, 64, device="cuda", requires_grad=True)
+    target = torch.randn_like(x)
+
+    (layer(x) - target).square().mean().backward()
+
+    assert x.grad is not None and torch.isfinite(x.grad).all()
+    for parameter in (
+        layer.transform.angle,
+        layer.transform.log_scale,
+        layer.transform.shear,
+    ):
+        assert parameter.grad is not None
+        assert torch.isfinite(parameter.grad)
+    assert any(
+        float(parameter.grad.abs()) > 1e-7
+        for parameter in (
+            layer.transform.angle,
+            layer.transform.log_scale,
+            layer.transform.shear,
+        )
+    )
+
+
+@pytest.mark.skipif(not CUDA_TRITON, reason="requires CUDA with Triton")
+def test_cuda_triton_generic_frft_path_preserves_input_and_spectral_gradients() -> None:
+    root_half = 2**-0.5
+    layer = LCTLinear(
+        64,
+        64,
+        bias=False,
+        a=root_half,
+        b=root_half,
+        c=-root_half,
+        transform_parameterization="legacy",
+        use_triton_kernels=True,
+    ).cuda()
+    _break_identity_initialization(layer)
+    x = torch.randn(8, 64, device="cuda", requires_grad=True)
+
+    layer(x).square().mean().backward()
+
+    for gradient in (x.grad, layer.spectral_real.grad, layer.spectral_imag.grad):
+        assert gradient is not None
+        assert torch.isfinite(gradient).all()
+        assert float(gradient.abs().max()) > 1e-7
+
+
+@pytest.mark.skipif(not CUDA_TRITON, reason="requires CUDA with Triton")
+def test_cuda_direct_fft_triton_backward_matches_native_torch() -> None:
+    torch.manual_seed(22)
+    triton_layer = LCTLinear(64, 64, bias=True, use_triton_kernels=True).cuda()
+    native_layer = LCTLinear(64, 64, bias=True, use_triton_kernels=False).cuda()
+    _break_identity_initialization(triton_layer)
+    native_layer.load_state_dict(triton_layer.state_dict())
+    x_triton = torch.randn(8, 64, device="cuda", requires_grad=True)
+    x_native = x_triton.detach().clone().requires_grad_(True)
+
+    output_triton = triton_layer(x_triton)
+    output_native = native_layer(x_native)
+    output_triton.square().mean().backward()
+    output_native.square().mean().backward()
+
+    torch.testing.assert_close(output_triton, output_native, atol=2e-5, rtol=2e-5)
+    torch.testing.assert_close(x_triton.grad, x_native.grad, atol=2e-5, rtol=2e-5)
+    torch.testing.assert_close(
+        triton_layer.spectral_real.grad,
+        native_layer.spectral_real.grad,
+        atol=2e-5,
+        rtol=2e-5,
+    )
+    torch.testing.assert_close(
+        triton_layer.spectral_imag.grad,
+        native_layer.spectral_imag.grad,
+        atol=2e-5,
+        rtol=2e-5,
+    )

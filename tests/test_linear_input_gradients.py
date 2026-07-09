@@ -11,8 +11,31 @@ from __future__ import annotations
 import pytest
 import torch
 
+import lct_activation.triton_ops as triton_ops
 from lct_activation import LCTLinear
 from lct_activation.triton_ops import pack_real_pairs, reduce_unpacked_grad
+
+
+class _CudaLikeTensor:
+    is_cuda = True
+
+    def __init__(self, *, requires_grad: bool) -> None:
+        self.requires_grad = requires_grad
+
+
+def test_raw_triton_dispatch_defers_to_autograd() -> None:
+    original_has_triton = triton_ops.HAS_TRITON
+    triton_ops.HAS_TRITON = True
+    try:
+        trainable = _CudaLikeTensor(requires_grad=True)
+        frozen = _CudaLikeTensor(requires_grad=False)
+        with torch.enable_grad():
+            assert not triton_ops._raw_triton_enabled(True, trainable)
+            assert triton_ops._raw_triton_enabled(True, frozen)
+        with torch.no_grad():
+            assert triton_ops._raw_triton_enabled(True, trainable)
+    finally:
+        triton_ops.HAS_TRITON = original_has_triton
 
 
 @pytest.mark.parametrize(

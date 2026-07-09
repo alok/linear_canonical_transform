@@ -9,6 +9,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+# The interactive paper's Sites adapter is source, not a generated build.
+!site/build/
+!site/build/sites-vite-plugin.ts
 extern/
 records/
 # Paper figures are intentional artifacts (the user's global ignore excludes *.png).

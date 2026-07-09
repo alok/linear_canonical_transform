@@ -3,6 +3,13 @@
 **Alok Singh**
 `lct-activation` — https://github.com/alok/linear_canonical_transform
 
+> **Archival fixed-transform report.** This July 5 report predates the
+> determinant-preserving `C(k) S(s) R(theta)` implementation and the H100
+> learned-transform experiment. Every historical NanoGPT arm described below
+> kept its Fourier/FrFT geometry fixed and learned only the spectral diagonal
+> and bias. The current paper is the interactive HTML instrument in `site/`;
+> this Markdown version remains checked in as provenance for the earlier study.
+
 ## Abstract
 
 We present `lct-activation`, an open implementation of trainable
@@ -87,10 +94,12 @@ The continuum LCT with parameters `(a, b, c, d)`, `ad − bc = 1`, acts on
 (L_M f)(u) = A_b ∫ exp(iπ (a t² − 2 t u + d u²)/b) f(t) dt
 ```
 
-Special cases: `(0, 1, 0)` Fourier; `(cos θ, sin θ, −sin θ)` FrFT of angle θ;
-`(1, λz, 0)` Fresnel propagation; `b = 0` reduces to a scaled, chirp-
-multiplied identity. The family composes by matrix multiplication of the
-parameters and each member is unitary.
+Special cases: the canonical Fourier matrix is `(a, b, c, d) = (0, 1, -1, 0)`;
+the package historically accepted `(a, b, c) = (0, 1, 0)` as an exact-FFT
+shorthand. FrFT of angle `θ` is `(cos θ, sin θ, -sin θ, cos θ)`;
+`(1, λz, 0)` denotes the package's three-value Fresnel initialization; `b = 0`
+reduces to a scaled, chirp-multiplied identity. The continuum family composes
+by matrix multiplication of the parameters and each member is unitary.
 
 On a length-`N` grid, no discretization retains all three properties
 (unitarity, parameter composition, kernel sampling) simultaneously. The
@@ -458,7 +467,9 @@ attention-projection placement at width >= 2048 as the strongest untested
 configuration, along with per-group lr for the ~2k spectral parameters and
 domains whose signals are chirp-like (audio, radar), where the LCT prior
 has its physical motivation. The MLX backend fixes transform parameters at
-construction; learnable-(a,b,c) training is torch-only.
+construction. Determinant-preserving learned geometry is now available in the
+PyTorch implementation, but its later exploratory H100 result is reported in
+the current HTML paper rather than retrofitted into this archival study.
 
 ## 10. Reproducibility
 
@@ -466,7 +477,7 @@ Everything below runs on a stock Apple-silicon Mac from the repository root.
 
 ```bash
 uv sync --extra dev            # pulls mlx automatically on darwin/arm64
-uv run pytest -q               # 152 tests: parity, gradients, harness seeds
+uv run pytest -q               # 159 passing locally; 3 CUDA-only checks skip on macOS
 uv run python scripts/bench_mac_local.py   # microbenchmark table
 uv run lct-tune-nanogpt --device mps ...   # any experiment arm; see protocol
 uv run python scripts/analyze_mps_main.py  # decision-rule table from artifacts
@@ -479,7 +490,8 @@ pre-registered; outcome and Amendment A appended). Artifacts:
 extended horizon, healthy-width controls), `std_*.json` (repaired
 substrate), `text8_main_*.json` (second dataset), `modal_a100_*.json` and
 `modal_train_*.json` (A100 microbenchmark and text8 width-1024 study; see
-`scripts/modal_width_experiment.py`), `bench_mac_local.json`. Narrative
+`scripts/modal_width_experiment.py`), `modal_h100_learnable_s1.json` (later
+exploratory learned-transform debug run), `bench_mac_local.json`. Narrative
 log: `paper/nanogpt_lct_note.md`. Key commits: `5e63c6f` (gradient adjoint
 fix), `48b9046` (frozen activation), `803ad1d` (seeds/pairing/deterministic
 eval), `e34bfdc` (parity hardening), `25f68a3` (substrate options, low-rank

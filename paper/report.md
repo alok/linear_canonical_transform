@@ -466,7 +466,7 @@ Everything below runs on a stock Apple-silicon Mac from the repository root.
 
 ```bash
 uv sync --extra dev            # pulls mlx automatically on darwin/arm64
-uv run pytest -q               # 149 tests: parity, gradients, harness seeds
+uv run pytest -q               # 152 tests: parity, gradients, harness seeds
 uv run python scripts/bench_mac_local.py   # microbenchmark table
 uv run lct-tune-nanogpt --device mps ...   # any experiment arm; see protocol
 uv run python scripts/analyze_mps_main.py  # decision-rule table from artifacts

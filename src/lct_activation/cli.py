@@ -24,7 +24,7 @@ from .integrations.nanogpt import (
     make_lowrank_linear_factory,
     run_upstream_train,
 )
-from .layers import LCTLinear
+from .layers import LCTLinear, SymplecticLCTLayer
 from .properties import (
     FiniteLCTPropertyThresholds,
     assess_property_report,
@@ -626,6 +626,16 @@ def parse_bench_nanogpt_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--learnable-transform",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--transform-parameterization",
+        choices=("legacy", "symplectic"),
+        default=None,
+    )
     parser.add_argument("--compile", dest="compile", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--compile-mode", default="max-autotune-no-cudagraphs")
     parser.add_argument("--output", type=Path, help="Optional JSON file to write the benchmark payload.")
@@ -731,12 +741,16 @@ def bench_nanogpt_main() -> None:
         residual_mix=args.residual_mix,
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
+        learnable_transform=args.learnable_transform,
+        transform_parameterization=args.transform_parameterization,
     )
     linear_factory = make_lct_linear_factory(
         a=args.a,
         b=args.b,
         c=args.c,
         inverse_after_multiply=args.inverse_after_multiply,
+        learnable_transform=args.learnable_transform,
+        transform_parameterization=args.transform_parameterization,
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
         use_triton_kernels=args.use_triton_kernels,
@@ -824,6 +838,16 @@ def parse_train_nanogpt_args() -> tuple[argparse.Namespace, list[str]]:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    parser.add_argument(
+        "--learnable-transform",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--transform-parameterization",
+        choices=("legacy", "symplectic"),
+        default=None,
+    )
     parser.add_argument("train_args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     train_args = args.train_args
@@ -851,12 +875,16 @@ def train_nanogpt_main() -> None:
         residual_mix=args.residual_mix,
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
+        learnable_transform=args.learnable_transform,
+        transform_parameterization=args.transform_parameterization,
     )
     linear_factory = make_lct_linear_factory(
         a=args.a,
         b=args.b,
         c=args.c,
         inverse_after_multiply=args.inverse_after_multiply,
+        learnable_transform=args.learnable_transform,
+        transform_parameterization=args.transform_parameterization,
         normalization=args.normalization,
         unitary_projection=args.unitary_projection,
         use_triton_kernels=args.use_triton_kernels,
@@ -878,8 +906,8 @@ def train_nanogpt_main() -> None:
 class TrialSpec:
     name: str
     variant: str
-    activation_kwargs: dict[str, float | bool | int]
-    linear_kwargs: dict[str, float | bool | int]
+    activation_kwargs: dict[str, object]
+    linear_kwargs: dict[str, object]
 
 
 def _default_trial_specs(name: str) -> TrialSpec:
@@ -892,26 +920,80 @@ def _default_trial_specs(name: str) -> TrialSpec:
         "activation-fourier": TrialSpec(
             "activation-fourier",
             "activation",
-            {"a": 0.0, "b": 1.0, "c": 0.0, "bias_init": 0.1, "residual_mix": 0.0, "dense_threshold": 128},
+            {
+                "a": 0.0,
+                "b": 1.0,
+                "c": 0.0,
+                "bias_init": 0.1,
+                "residual_mix": 0.0,
+                "dense_threshold": 128,
+                "learnable_transform": False,
+                "transform_parameterization": "legacy",
+            },
             {},
         ),
         "activation-frft45": TrialSpec(
             "activation-frft45",
             "activation",
-            {"a": frft_a, "b": frft_b, "c": frft_c, "bias_init": 0.1, "residual_mix": 0.1, "dense_threshold": 128},
+            {
+                "a": frft_a,
+                "b": frft_b,
+                "c": frft_c,
+                "bias_init": 0.1,
+                "residual_mix": 0.1,
+                "dense_threshold": 128,
+                "learnable_transform": False,
+                "transform_parameterization": "legacy",
+            },
             {},
         ),
         "linear-fourier": TrialSpec(
             "linear-fourier",
             "linear",
             {},
-            {"a": 0.0, "b": 1.0, "c": 0.0, "dense_threshold": 32, "inverse_after_multiply": True},
+            {
+                "a": 0.0,
+                "b": 1.0,
+                "c": 0.0,
+                "dense_threshold": 32,
+                "inverse_after_multiply": True,
+                "learnable_transform": False,
+                "transform_parameterization": "legacy",
+            },
         ),
         "linear-frft45": TrialSpec(
             "linear-frft45",
             "linear",
             {},
             {"a": frft_a, "b": frft_b, "c": frft_c, "dense_threshold": 32, "inverse_after_multiply": True},
+        ),
+        "linear-fourier-learned": TrialSpec(
+            "linear-fourier-learned",
+            "linear",
+            {},
+            {
+                "a": 0.0,
+                "b": 1.0,
+                "c": 0.0,
+                "dense_threshold": 32,
+                "inverse_after_multiply": True,
+                "learnable_transform": True,
+                "transform_parameterization": "symplectic",
+            },
+        ),
+        "linear-fourier-canonical-fixed": TrialSpec(
+            "linear-fourier-canonical-fixed",
+            "linear",
+            {},
+            {
+                "a": 0.0,
+                "b": 1.0,
+                "c": 0.0,
+                "dense_threshold": 32,
+                "inverse_after_multiply": True,
+                "learnable_transform": False,
+                "transform_parameterization": "symplectic",
+            },
         ),
         "lowrank-mlp": TrialSpec(
             "lowrank-mlp",
@@ -922,7 +1004,16 @@ def _default_trial_specs(name: str) -> TrialSpec:
         "hybrid-fourier": TrialSpec(
             "hybrid-fourier",
             "hybrid",
-            {"a": 0.0, "b": 1.0, "c": 0.0, "bias_init": 0.1, "residual_mix": 0.0, "dense_threshold": 128},
+            {
+                "a": 0.0,
+                "b": 1.0,
+                "c": 0.0,
+                "bias_init": 0.1,
+                "residual_mix": 0.0,
+                "dense_threshold": 128,
+                "learnable_transform": False,
+                "transform_parameterization": "legacy",
+            },
             {"a": 0.0, "b": 1.0, "c": 0.0, "dense_threshold": 32, "inverse_after_multiply": True},
         ),
     }
@@ -963,6 +1054,24 @@ def parse_tune_nanogpt_args() -> argparse.Namespace:
     parser.add_argument("--vocab-size", type=int, default=65)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument(
+        "--learnable-transform",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use the determinant-preserving rotation/scale/shear parameterization for LCT arms.",
+    )
+    parser.add_argument(
+        "--transform-lr-scale",
+        type=float,
+        default=0.1,
+        help="Learning-rate multiplier for the three symplectic transform parameters.",
+    )
+    parser.add_argument(
+        "--transform-grad-clip",
+        type=float,
+        default=1.0,
+        help="Gradient-norm ceiling for symplectic transform parameters; 0 disables clipping.",
+    )
     parser.add_argument("--normalization", choices=("unitary", "compositional"), default="unitary")
     parser.add_argument(
         "--unitary-projection",
@@ -1099,6 +1208,13 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         **spec.activation_kwargs,
         "normalization": args.normalization,
         "unitary_projection": args.unitary_projection,
+        "learnable_transform": spec.activation_kwargs.get(
+            "learnable_transform", args.learnable_transform
+        ),
+        "transform_parameterization": spec.activation_kwargs.get(
+            "transform_parameterization",
+            "symplectic" if args.learnable_transform else "legacy",
+        ),
     }
     linear_kwargs = {
         **spec.linear_kwargs,
@@ -1109,6 +1225,13 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "unitary_projection": args.unitary_projection,
         "use_triton_kernels": args.use_triton_kernels,
         "direct_fourier_backend": args.direct_fourier_backend,
+        "learnable_transform": spec.linear_kwargs.get(
+            "learnable_transform", args.learnable_transform
+        ),
+        "transform_parameterization": spec.linear_kwargs.get(
+            "transform_parameterization",
+            "symplectic" if args.learnable_transform else "legacy",
+        ),
     }
     activation_factory = make_lct_activation_factory(**activation_kwargs)
     if spec.linear_kwargs.get("factory") == "lowrank":
@@ -1138,6 +1261,28 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         namespace["val"] = args.custom_val_data
     model = _maybe_compile(model, enabled=args.compile, device=device, mode=args.compile_mode)
 
+    def transform_records() -> list[dict[str, object]]:
+        records: list[dict[str, object]] = []
+        for module_name, module in model.named_modules():
+            if not isinstance(module, SymplecticLCTLayer):
+                continue
+            a, b, c, d = module.canonical_matrix
+            records.append(
+                {
+                    "module": module_name,
+                    "angle": float(module.angle.detach().cpu()),
+                    "log_scale": float(module.log_scale.detach().cpu()),
+                    "shear": float(module.shear.detach().cpu()),
+                    "matrix": [
+                        float(value.detach().cpu()) for value in (a, b, c, d)
+                    ],
+                    "determinant": float((a * d - b * c).detach().cpu()),
+                }
+            )
+        return records
+
+    initial_transforms = transform_records()
+
     get_batch = _make_paired_get_batch(
         namespace, seed=seed, batch_size=args.batch_size, ctx_len=args.seq_len
     )
@@ -1155,7 +1300,40 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
     # activation wrapper materializes its trainable parameters (modReLU bias,
     # gain, residual mix, transform) on first use, and an optimizer built
     # before that silently trains the model with a frozen activation.
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    transform_parameters = [
+        parameter
+        for module in model.modules()
+        if isinstance(module, SymplecticLCTLayer)
+        for parameter in (module.angle, module.log_scale, module.shear)
+        if parameter.requires_grad
+    ]
+    transform_parameter_ids = {id(parameter) for parameter in transform_parameters}
+    ordinary_parameters = [
+        parameter
+        for parameter in model.parameters()
+        if parameter.requires_grad and id(parameter) not in transform_parameter_ids
+    ]
+    if transform_parameters:
+        optimizer = torch.optim.AdamW(
+            [
+                {
+                    "params": ordinary_parameters,
+                    "lr": args.lr,
+                    "weight_decay": args.weight_decay,
+                },
+                {
+                    "params": transform_parameters,
+                    "lr": args.lr * args.transform_lr_scale,
+                    "weight_decay": 0.0,
+                },
+            ]
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            ordinary_parameters,
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+        )
 
     def lr_lambda(step: int) -> float:
         if args.warmup_steps and step < args.warmup_steps:
@@ -1179,6 +1357,11 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         _logits, loss = model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
+        if transform_parameters and args.transform_grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(
+                transform_parameters,
+                max_norm=args.transform_grad_clip,
+            )
         optimizer.step()
         scheduler.step()
         if args.eval_every and (step + 1) % args.eval_every == 0 and (step + 1) < args.steps:
@@ -1224,6 +1407,8 @@ def _run_tune_trial(args: argparse.Namespace, spec: TrialSpec, *, device: torch.
         "steps": args.steps,
         "tokens_per_second": (args.batch_size * args.seq_len * args.steps) / train_elapsed,
         "parameter_count": sum(param.numel() for param in model.parameters()),
+        "initial_transforms": initial_transforms,
+        "final_transforms": transform_records(),
     }
 
 
@@ -1267,6 +1452,8 @@ def tune_nanogpt_main() -> None:
             "vocab_size": args.vocab_size,
             "lr": args.lr,
             "weight_decay": args.weight_decay,
+            "transform_lr_scale": args.transform_lr_scale,
+            "transform_grad_clip": args.transform_grad_clip,
             "normalization": args.normalization,
             "inverse_after_multiply": args.inverse_after_multiply,
             "unitary_projection": args.unitary_projection,

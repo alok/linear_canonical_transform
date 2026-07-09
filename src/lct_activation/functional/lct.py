@@ -217,7 +217,11 @@ def linear_canonical_transform(
     if abs(abs_b - 1.0) <= 1e-6:
         chirp_in = _chirp(length=n_features, coeff=a_c / b_c, dtype=dtype, device=device, centered=centered)
         x_chirped = x * _broadcast_vector(chirp_in, ndim=x.ndim, dim=dim)
-        x_fft = torch.fft.fft(x_chirped, dim=dim, norm="ortho")
+        b_sign = float(torch.sign(torch.real(b_c)).detach().cpu())
+        if b_sign >= 0:
+            x_fft = torch.fft.fft(x_chirped, dim=dim, norm="ortho")
+        else:
+            x_fft = torch.fft.ifft(x_chirped, dim=dim, norm="ortho")
 
         chirp_out = _chirp(length=n_features, coeff=d_c / b_c, dtype=dtype, device=device, centered=centered)
         out = x_fft * _broadcast_vector(chirp_out, ndim=x.ndim, dim=dim)

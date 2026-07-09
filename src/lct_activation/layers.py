@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Literal
 
 import torch
@@ -21,6 +22,7 @@ __all__ = [
     "LCTLinear",
     "LCTLayer",
     "LCTModReLU",
+    "SymplecticLCTLayer",
 ]
 
 
@@ -69,14 +71,15 @@ class LCTLayer(nn.Module):
         return self.a, self.b, self.c, self.d
 
     def forward(self, x: Tensor) -> Tensor:
+        a, b, c, d = self.canonical_matrix
         input_was_complex = torch.is_complex(x)
         x_complex = x.to(torch.complex64)
         y = linear_canonical_transform(
             x_complex,
-            a=self.a,
-            b=self.b,
-            c=self.c,
-            d=self.d,
+            a=a,
+            b=b,
+            c=c,
+            d=d,
             dim=-1,
             normalized=self.normalized,
             normalization=self.normalization,
@@ -90,14 +93,15 @@ class LCTLayer(nn.Module):
         return y.real.to(x.dtype)
 
     def inverse(self, x: Tensor) -> Tensor:
+        a, b, c, d = self.canonical_matrix
         input_was_complex = torch.is_complex(x)
         x_complex = x.to(torch.complex64)
         y = linear_canonical_transform(
             x_complex,
-            a=self.d,
-            b=-self.b,
-            c=-self.c,
-            d=self.a,
+            a=d,
+            b=-b,
+            c=-c,
+            d=a,
             dim=-1,
             normalized=self.normalized,
             normalization=self.normalization,
@@ -145,6 +149,114 @@ class LCTLayer(nn.Module):
         a = torch.cos(torch.tensor(theta)).item()
         b = torch.sin(torch.tensor(theta)).item()
         return LCTLayer(a=a, b=b, c=-b, **kwargs)
+
+
+class SymplecticLCTLayer(LCTLayer):
+    """LCT with a differentiable determinant-one parameterization.
+
+    A rotation, reciprocal scale, and chirp shear are composed as ``C S R``.
+    The three unconstrained trainable values therefore produce a real 2x2
+    matrix with determinant exactly one, including at the Fourier quarter-turn
+    where solving ``d = (1 + bc) / a`` is singular.
+    """
+
+    def __init__(
+        self,
+        *,
+        angle: float = math.pi / 2.0,
+        log_scale: float = 0.0,
+        shear: float = 0.0,
+        normalized: bool = True,
+        normalization: NormMode | None = None,
+        centered: bool = True,
+        dense_threshold: int = 256,
+        b_eps: float = 1e-6,
+        unitary_projection: bool = True,
+        learnable: bool = True,
+    ) -> None:
+        nn.Module.__init__(self)
+        self.angle = nn.Parameter(torch.tensor(float(angle), dtype=torch.float32))
+        self.log_scale = nn.Parameter(torch.tensor(float(log_scale), dtype=torch.float32))
+        self.shear = nn.Parameter(torch.tensor(float(shear), dtype=torch.float32))
+        if not learnable:
+            self.angle.requires_grad_(False)
+            self.log_scale.requires_grad_(False)
+            self.shear.requires_grad_(False)
+
+        self.normalized = normalized
+        self.normalization = normalization
+        self.centered = centered
+        self.dense_threshold = dense_threshold
+        self.b_eps = b_eps
+        self.unitary_projection = unitary_projection
+
+    @staticmethod
+    def decompose_abc(a: float, b: float, c: float) -> tuple[float, float, float]:
+        """Convert a real canonical ``(a, b, c)`` triple to ``(angle, log_scale, shear)``.
+
+        ``(0, +/-1, 0)`` is accepted as the package's historical FFT shorthand
+        and promoted to the corresponding canonical Fourier matrix.
+        """
+
+        a_f, b_f, c_f = float(a), float(b), float(c)
+        if abs(a_f) <= 1e-8 and abs(abs(b_f) - 1.0) <= 1e-8 and abs(c_f) <= 1e-8:
+            return math.copysign(math.pi / 2.0, b_f), 0.0, 0.0
+
+        d_f = float(symplectic_d(a_f, b_f, c_f))
+        determinant = a_f * d_f - b_f * c_f
+        if not math.isclose(determinant, 1.0, rel_tol=1e-5, abs_tol=1e-5):
+            raise ValueError(
+                "learnable transforms require a real symplectic initialization "
+                f"(ad - bc = 1); got determinant {determinant:.6g}"
+            )
+
+        scale_sq = a_f * a_f + b_f * b_f
+        if scale_sq <= 1e-12:
+            raise ValueError("learnable transform initialization has a zero first row")
+        angle = math.atan2(b_f, a_f)
+        log_scale = 0.5 * math.log(scale_sq)
+        shear = (a_f * c_f + b_f * d_f) / scale_sq
+        return angle, log_scale, shear
+
+    @classmethod
+    def from_abc(cls, *, a: float, b: float, c: float, **kwargs) -> "SymplecticLCTLayer":
+        angle, log_scale, shear = cls.decompose_abc(a, b, c)
+        return cls(angle=angle, log_scale=log_scale, shear=shear, **kwargs)
+
+    @property
+    def canonical_matrix(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        scale = torch.exp(self.log_scale)
+        cosine = torch.cos(self.angle)
+        sine = torch.sin(self.angle)
+
+        a = scale * cosine
+        b = scale * sine
+        c = self.shear * a - sine / scale
+        d = self.shear * b + cosine / scale
+        return a, b, c, d
+
+    @property
+    def a(self) -> Tensor:
+        return self.canonical_matrix[0]
+
+    @property
+    def b(self) -> Tensor:
+        return self.canonical_matrix[1]
+
+    @property
+    def c(self) -> Tensor:
+        return self.canonical_matrix[2]
+
+    @property
+    def d(self) -> Tensor:
+        return self.canonical_matrix[3]
+
+    def extra_repr(self) -> str:
+        return (
+            f"angle={float(self.angle.detach()):.6g}, "
+            f"log_scale={float(self.log_scale.detach()):.6g}, "
+            f"shear={float(self.shear.detach()):.6g}"
+        )
 
 
 def _real_work_dtype(dtype: torch.dtype) -> torch.dtype:
@@ -324,6 +436,8 @@ class LCTModReLU(nn.Module):
         dense_threshold: int = 256,
         normalization: NormMode = "unitary",
         unitary_projection: bool = True,
+        learnable_transform: bool = False,
+        transform_parameterization: Literal["legacy", "symplectic"] | None = None,
     ) -> None:
         super().__init__()
         if channels < 2:
@@ -335,14 +449,30 @@ class LCTModReLU(nn.Module):
         self.inverse_after_nonlinearity = inverse_after_nonlinearity
         self.eps = eps
 
-        self.transform = LCTLayer(
-            a=a,
-            b=b,
-            c=c,
-            normalization=normalization,
-            dense_threshold=dense_threshold,
-            unitary_projection=unitary_projection,
+        parameterization = transform_parameterization or (
+            "symplectic" if learnable_transform else "legacy"
         )
+        if parameterization not in {"legacy", "symplectic"}:
+            raise ValueError(f"unknown transform parameterization: {parameterization}")
+        self.transform_parameterization = parameterization
+        transform_kwargs = {
+            "normalization": normalization,
+            "dense_threshold": dense_threshold,
+            "unitary_projection": unitary_projection,
+        }
+        if parameterization == "symplectic":
+            self.transform = SymplecticLCTLayer.from_abc(
+                a=a,
+                b=b,
+                c=c,
+                learnable=learnable_transform,
+                **transform_kwargs,
+            )
+        else:
+            self.transform = LCTLayer(a=a, b=b, c=c, **transform_kwargs)
+            self.transform.a.requires_grad_(learnable_transform)
+            self.transform.b.requires_grad_(learnable_transform)
+            self.transform.c.requires_grad_(learnable_transform)
         self.bias = nn.Parameter(torch.full((self.complex_channels,), float(bias_init)))
         self.residual_mix = nn.Parameter(torch.tensor(float(residual_mix)))
         self.output_gain = nn.Parameter(torch.tensor(1.0))
@@ -401,6 +531,7 @@ class LCTLinear(nn.Module):
         normalization: NormMode = "unitary",
         unitary_projection: bool = False,
         learnable_transform: bool = False,
+        transform_parameterization: Literal["legacy", "symplectic"] | None = None,
         expansion_mode: Literal["zero", "tile"] = "tile",
         use_triton_kernels: bool | None = None,
         direct_fourier_backend: Literal["fft", "conv", "auto"] = "fft",
@@ -418,8 +549,16 @@ class LCTLinear(nn.Module):
         self.normalization = normalization
         self.use_triton_kernels = HAS_TRITON if use_triton_kernels is None else use_triton_kernels
         self.direct_fourier_backend = direct_fourier_backend
+        self.transform_parameterization = transform_parameterization or (
+            "symplectic" if learnable_transform else "legacy"
+        )
+        if self.transform_parameterization not in {"legacy", "symplectic"}:
+            raise ValueError(
+                f"unknown transform parameterization: {self.transform_parameterization}"
+            )
         self._direct_fft = (
-            not learnable_transform
+            self.transform_parameterization == "legacy"
+            and not learnable_transform
             and abs(a) <= 1e-6
             and abs(b - 1.0) <= 1e-6
             and abs(c) <= 1e-6
@@ -429,18 +568,24 @@ class LCTLinear(nn.Module):
         self.padded_features = base_features if base_features % 2 == 0 else base_features + 1
         self.complex_features = self.padded_features // 2
 
-        self.transform = LCTLayer(
-            a=a,
-            b=b,
-            c=c,
-            normalization=normalization,
-            dense_threshold=dense_threshold,
-            unitary_projection=unitary_projection,
-        )
-        if not learnable_transform:
-            self.transform.a.requires_grad_(False)
-            self.transform.b.requires_grad_(False)
-            self.transform.c.requires_grad_(False)
+        transform_kwargs = {
+            "normalization": normalization,
+            "dense_threshold": dense_threshold,
+            "unitary_projection": unitary_projection,
+        }
+        if self.transform_parameterization == "symplectic":
+            self.transform = SymplecticLCTLayer.from_abc(
+                a=a,
+                b=b,
+                c=c,
+                learnable=learnable_transform,
+                **transform_kwargs,
+            )
+        else:
+            self.transform = LCTLayer(a=a, b=b, c=c, **transform_kwargs)
+            self.transform.a.requires_grad_(learnable_transform)
+            self.transform.b.requires_grad_(learnable_transform)
+            self.transform.c.requires_grad_(learnable_transform)
 
         self.spectral_real = nn.Parameter(torch.ones(self.complex_features))
         self.spectral_imag = nn.Parameter(torch.zeros(self.complex_features))
@@ -610,5 +755,6 @@ class LCTLinear(nn.Module):
             f"in_features={self.in_features}, out_features={self.out_features}, "
             f"bias={self.bias is not None}, inverse_after_multiply={self.inverse_after_multiply}, "
             f"complex_features={self.complex_features}, expansion_mode={self.expansion_mode}, "
-            f"direct_fourier_backend={self.direct_fourier_backend}"
+            f"direct_fourier_backend={self.direct_fourier_backend}, "
+            f"transform_parameterization={self.transform_parameterization}"
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
-from lct_activation import LCTLinear
+from lct_activation import LCTLinear, SymplecticLCTLayer
 
 
 def test_lct_linear_preserves_expected_shape() -> None:
@@ -19,6 +19,66 @@ def test_lct_linear_is_identity_like_at_init() -> None:
     x = torch.randn(3, 16, dtype=torch.float32)
     y = layer(x)
     assert torch.allclose(y, x, atol=1e-4, rtol=0.0)
+
+
+def test_learnable_lct_linear_uses_symplectic_transform_with_gradients() -> None:
+    torch.manual_seed(12)
+    layer = LCTLinear(
+        16,
+        16,
+        bias=False,
+        a=2**-0.5,
+        b=2**-0.5,
+        c=-(2**-0.5),
+        inverse_after_multiply=False,
+        learnable_transform=True,
+    )
+    assert isinstance(layer.transform, SymplecticLCTLayer)
+
+    x = torch.randn(4, 16)
+    target = torch.randn(4, 16)
+    (layer(x) - target).square().mean().backward()
+
+    for parameter in (
+        layer.transform.angle,
+        layer.transform.log_scale,
+        layer.transform.shear,
+    ):
+        assert parameter.grad is not None
+        assert torch.isfinite(parameter.grad)
+        assert float(parameter.grad.abs()) > 1e-7
+
+    a, b, c, d = layer.transform.canonical_matrix
+    assert torch.allclose(a * d - b * c, torch.ones_like(a), atol=1e-6, rtol=0.0)
+
+
+def test_learnable_fourier_linear_is_identity_like_with_inverse() -> None:
+    layer = LCTLinear(16, 16, bias=False, learnable_transform=True)
+    x = torch.randn(3, 16)
+    assert torch.allclose(layer(x), x, atol=2e-4, rtol=0.0)
+
+
+def test_fixed_and_learned_symplectic_controls_share_initial_function() -> None:
+    fixed = LCTLinear(
+        16,
+        16,
+        bias=False,
+        learnable_transform=False,
+        transform_parameterization="symplectic",
+    )
+    learned = LCTLinear(
+        16,
+        16,
+        bias=False,
+        learnable_transform=True,
+        transform_parameterization="symplectic",
+    )
+    learned.load_state_dict(fixed.state_dict())
+    x = torch.randn(3, 16)
+
+    assert torch.allclose(fixed(x), learned(x), atol=1e-6, rtol=0.0)
+    assert not any(parameter.requires_grad for parameter in fixed.transform.parameters())
+    assert all(parameter.requires_grad for parameter in learned.transform.parameters())
 
 
 def test_materialized_weight_matches_forward() -> None:

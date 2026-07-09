@@ -7,7 +7,7 @@ from .functional import (
     symplectic_d,
 )
 from .doctor import DoctorCheck, DoctorReport, format_doctor_text, run_doctor
-from .layers import LCTActivation, LCTLayer, LCTLinear, LCTModReLU
+from .layers import LCTActivation, LCTLayer, LCTLinear, LCTModReLU, SymplecticLCTLayer
 from .properties import (
     DiscretizationMode,
     FiniteLCTPropertyAssessment,
@@ -39,6 +39,7 @@ __all__ = [
     "LCTLayer",
     "LCTLinear",
     "LCTModReLU",
+    "SymplecticLCTLayer",
     "assess_property_report",
     "canonical_determinant",
     "chirpz_lct",

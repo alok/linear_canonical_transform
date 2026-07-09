@@ -58,6 +58,8 @@ class NonlinearLCTActivation(nn.Module):
         dense_threshold: int = 256,
         normalization: NormMode = "unitary",
         unitary_projection: bool = True,
+        learnable_transform: bool = False,
+        transform_parameterization: Literal["legacy", "symplectic"] | None = None,
     ) -> None:
         super().__init__()
         self.activation: CoreLCTActivation | None = None
@@ -71,6 +73,8 @@ class NonlinearLCTActivation(nn.Module):
             "dense_threshold": int(dense_threshold),
             "normalization": normalization,
             "unitary_projection": bool(unitary_projection),
+            "learnable_transform": bool(learnable_transform),
+            "transform_parameterization": transform_parameterization,
         }
 
     def _ensure_activation(self, width: int, *, device: torch.device) -> CoreLCTActivation:
@@ -97,6 +101,8 @@ def make_lct_activation_factory(
     dense_threshold: int = 256,
     normalization: NormMode = "unitary",
     unitary_projection: bool = True,
+    learnable_transform: bool = False,
+    transform_parameterization: Literal["legacy", "symplectic"] | None = None,
 ) -> ActivationFactory:
     return lambda: NonlinearLCTActivation(
         a=a,
@@ -108,6 +114,8 @@ def make_lct_activation_factory(
         dense_threshold=dense_threshold,
         normalization=normalization,
         unitary_projection=unitary_projection,
+        learnable_transform=learnable_transform,
+        transform_parameterization=transform_parameterization,
     )
 
 
@@ -119,6 +127,7 @@ def make_lct_linear_factory(
     inverse_after_multiply: bool = True,
     dense_threshold: int = 32,
     learnable_transform: bool = False,
+    transform_parameterization: Literal["legacy", "symplectic"] | None = None,
     normalization: NormMode = "unitary",
     unitary_projection: bool = False,
     use_triton_kernels: bool = True,
@@ -135,6 +144,7 @@ def make_lct_linear_factory(
             inverse_after_multiply=inverse_after_multiply,
             dense_threshold=dense_threshold,
             learnable_transform=learnable_transform,
+            transform_parameterization=transform_parameterization,
             normalization=normalization,
             unitary_projection=unitary_projection,
             use_triton_kernels=use_triton_kernels,

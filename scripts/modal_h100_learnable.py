@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCAL_NANOGPT = Path("/Users/alokbeniwal/nanogpt")
 REMOTE_ROOT = Path("/root/lct")
 REMOTE_NANOGPT = Path("/root/nanogpt")
-REMOTE_VENV = Path("/.uv/.venv")
+REMOTE_VENV = REMOTE_ROOT / ".venv"
 REMOTE_PYTHON = REMOTE_VENV / "bin/python"
 REMOTE_TUNER = REMOTE_VENV / "bin/lct-tune-nanogpt"
 
@@ -42,15 +42,14 @@ results_volume = modal.Volume.from_name("lct-h100-results", create_if_missing=Tr
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .uv_sync(str(ROOT), extras=["dev"], frozen=True)
+    .pip_install("uv")
     .add_local_file(ROOT / "pyproject.toml", str(REMOTE_ROOT / "pyproject.toml"), copy=True)
+    .add_local_file(ROOT / "uv.lock", str(REMOTE_ROOT / "uv.lock"), copy=True)
     .add_local_file(ROOT / "README.md", str(REMOTE_ROOT / "README.md"), copy=True)
     .add_local_file(ROOT / "LICENSE", str(REMOTE_ROOT / "LICENSE"), copy=True)
     .add_local_dir(ROOT / "src", str(REMOTE_ROOT / "src"), copy=True)
     .add_local_dir(ROOT / "tests", str(REMOTE_ROOT / "tests"), copy=True)
-    .run_commands(
-        f"/.uv/uv pip install --python {REMOTE_PYTHON} --no-deps {REMOTE_ROOT}"
-    )
+    .run_commands(f"cd {REMOTE_ROOT} && uv sync --extra dev --frozen")
     .add_local_dir(
         LOCAL_NANOGPT,
         str(REMOTE_NANOGPT),

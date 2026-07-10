@@ -6,7 +6,7 @@ Canonical Transform layers inside real models.
 The package keeps two goals in view:
 
 - correctness on finite grids, via a dense reference kernel and explicit tests for special cases
-- speed where it matters, via FFT and Bluestein / chirp-z fast paths instead of Python loops
+- structured execution, via FFT and Bluestein / chirp-z paths instead of Python loops
 
 The package now exposes one lead model-facing building block and one
 experimental activation:
@@ -22,9 +22,9 @@ modules for Apple silicon via the optional `mlx` extra (see
 Real channels are packed into complex pairs, transformed by an LCT, mixed in the transform domain, and unpacked back to real tensors. The default `LCTLinear` initialization is identity-like, so it can slot into an MLP without blowing up activations on step one.
 
 The current research paper is an interactive HTML instrument under
-[`site/`](site/README.md): it combines a determinant-one 3D phase-space
+[`site/`](https://github.com/alok/linear_canonical_transform/tree/main/site): it combines a determinant-one 3D phase-space
 explainer, a guided prediction loop, the controlled NanoGPT evidence, and the
-exploratory H100 learned-transform result. [`paper/report.md`](paper/report.md)
+exploratory H100 learned-transform result. [`paper/report.md`](https://github.com/alok/linear_canonical_transform/blob/main/paper/report.md)
 is retained as the archival fixed-transform report that preceded the learned
 symplectic implementation.
 
@@ -36,45 +36,22 @@ The finite-dimensional tradeoff is explicit:
 
 ## Install
 
-For local development:
+Add the published package to a `uv` project:
 
 ```bash
-cd /Users/alokbeniwal/LCT
-uv sync --extra dev
-uv run pytest -q
+uv add lct-activation
 ```
 
-Use the package from this checkout in another `uv` project:
+Install the optional MLX backend explicitly when needed:
 
 ```bash
-uv add "lct-activation @ file:///Users/alokbeniwal/LCT"
+uv add "lct-activation[mlx]"
 ```
 
-Install directly from GitHub with `uv` once the branch or tag you want is
-pushed:
+To make the packaged commands available independently of a project:
 
 ```bash
-uv add "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>"
-```
-
-If you just want one packaged command-line entry point, install `lct` with
-`uv tool`:
-
-```bash
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct
-```
-
-The older direct command names remain available for scripts and CI:
-
-```bash
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-linear
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-bench-nanogpt
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-check-properties
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-doctor
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-quickstart
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-summarize-results
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-sweep-properties
-uv tool install --from "git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>" lct-tune-nanogpt
+uv tool install lct-activation
 ```
 
 Quick smoke test after installing:
@@ -89,7 +66,7 @@ The same self-contained smoke test can emit JSON:
 lct quickstart --format json
 ```
 
-Manual Python smoke test:
+Manual Python smoke test in a project that has added the package:
 
 ```bash
 uv run python - <<'PY'
@@ -106,6 +83,23 @@ Or run the packaged self-check:
 
 ```bash
 lct doctor
+```
+
+## Development
+
+Clone the repository and install its locked development environment:
+
+```bash
+git clone https://github.com/alok/linear_canonical_transform.git
+cd linear_canonical_transform
+uv sync --extra dev
+uv run pytest -q
+```
+
+To test an unreleased branch or tag in another `uv` project:
+
+```bash
+uv add "lct-activation @ git+https://github.com/alok/linear_canonical_transform.git@<branch-or-tag>"
 ```
 
 Inside this repository, include the checked-in paper evidence artifacts:
@@ -187,7 +181,7 @@ are fixed at construction and compiled into precomputed per-length plans
 branch on traced parameter values; the modReLU bias/gain/residual mix and the
 spectral diagonal/bias remain trainable.
 
-Runnable examples live in [`examples/`](examples/):
+Runnable examples live in [`examples/`](https://github.com/alok/linear_canonical_transform/tree/main/examples):
 
 ```bash
 uv run lct quickstart
@@ -205,13 +199,13 @@ uv run python examples/mlx_quickstart.py  # trains a tiny MLX LCT-MLP
   unitarity, and composition errors
 - `src/lct_activation/doctor.py`: install, smoke-test, and local evidence checks
 
-Math notes for the discrete approximation live in [`docs/lct_math.md`](docs/lct_math.md).
-The public API surface is summarized in [`docs/api.md`](docs/api.md).
+Math notes for the discrete approximation live in [`docs/lct_math.md`](https://github.com/alok/linear_canonical_transform/blob/main/docs/lct_math.md).
+The public API surface is summarized in [`docs/api.md`](https://github.com/alok/linear_canonical_transform/blob/main/docs/api.md).
 
 ## License
 
 `lct-activation` is distributed under the Apache License, Version 2.0. See
-[`LICENSE`](LICENSE). Copyright 2026 Alok Singh.
+[`LICENSE`](https://github.com/alok/linear_canonical_transform/blob/main/LICENSE). Copyright 2026 Alok Singh.
 
 ## Finite-grid property checks
 
@@ -344,16 +338,18 @@ lct-summarize-results --result-dir paper/results --format json
 
 This repo includes a minimal NanoGPT integration under `lct_activation.integrations`:
 
-- `src/lct_activation/integrations/nanogpt.py` provides source-sliced loading for the local `/Users/alokbeniwal/nanogpt` repo, an upstream patch path for `karpathy/nanoGPT`, and model builders for both layouts
+- `src/lct_activation/integrations/nanogpt.py` provides source-sliced loading for an explicitly supplied NanoGPT checkout, an upstream patch path for `karpathy/nanoGPT`, and model builders for both layouts
 - `scripts/bench_nanogpt.py` benchmarks baseline vs LCT activation throughput on random tokens
 - `scripts/train_nanogpt_lct.py` runs upstream `train.py` in-process after applying the LCT patch
 
 ## Benchmark usage
 
-Smoke-test against the local `/Users/alokbeniwal/nanogpt` repo:
+Smoke-test against a local NanoGPT checkout:
 
 ```bash
 uv run python scripts/bench_nanogpt.py \
+  --repo-dir /path/to/nanoGPT \
+  --repo-kind local \
   --device cpu \
   --steps 1 \
   --warmup-steps 1 \
@@ -384,9 +380,9 @@ lct-bench-linear \
   --output paper/results/bench_linear_cpu.json
 ```
 
-On this machine, the current implementation is still slower than `nn.Linear`
-for small 512-wide CPU layers, but already faster around 4096 features where
-the structured FFT path starts to dominate the dense matmul.
+In the checked-in measurements, the current implementation is slower than
+`nn.Linear` for small 512-wide CPU layers and faster around 4096 features,
+where the structured FFT path starts to dominate the dense matmul.
 
 Benchmark all local Mac backends (torch CPU, torch MPS, MLX) in one run:
 
@@ -397,7 +393,7 @@ uv run python scripts/bench_mac_local.py \
 
 Representative numbers from an Apple-silicon laptop (batch 8, seq 256,
 forward pass, median of 30 steps; see
-[`paper/results/bench_mac_local.json`](paper/results/bench_mac_local.json)):
+[`paper/results/bench_mac_local.json`](https://github.com/alok/linear_canonical_transform/blob/main/paper/results/bench_mac_local.json)):
 
 | dim  | backend   | `nn.Linear` | `LCTLinear` | GELU    | `LCTActivation` |
 |------|-----------|-------------|-------------|---------|-----------------|
@@ -406,10 +402,11 @@ forward pass, median of 30 steps; see
 | 4096 | torch MPS | 5.64 ms     | 1.11 ms     | 0.47 ms | 2.53 ms         |
 | 4096 | MLX       | 5.40 ms     | 1.96 ms     | 0.27 ms | 2.59 ms         |
 
-The structured `LCTLinear` overtakes the dense matmul around 1024-2048
-features and is about 5x faster at 4096 on MPS. The nonlinear
-`LCTActivation` costs roughly 4-10 GELUs; MLX is the fastest backend for it
-up to ~2048 features, with torch MPS edging ahead at 4096.
+In this sweep, the structured `LCTLinear` overtakes the dense matmul around
+1024-2048 features and is about 5x faster at 4096 on MPS. The nonlinear
+`LCTActivation` costs roughly 4-10 GELUs in the same measurements; MLX has the
+lowest measured time for it up to ~2048 features, with torch MPS edging ahead
+at 4096.
 
 Methodology notes: both layers are benchmarked at their default transform
 `(a, b, c) = (0, 1, 0)`, i.e. the FFT fast path. The torch numbers include
@@ -499,7 +496,7 @@ still uploadable on PyPI:
 uv run python scripts/verify_release.py --check-pypi
 ```
 
-Before public release, use [`docs/release_checklist.md`](docs/release_checklist.md).
-The GitHub Actions workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+Before public release, use [`docs/release_checklist.md`](https://github.com/alok/linear_canonical_transform/blob/main/docs/release_checklist.md).
+The GitHub Actions workflow in [`.github/workflows/ci.yml`](https://github.com/alok/linear_canonical_transform/blob/main/.github/workflows/ci.yml)
 runs tests, examples, property diagnostics, result summaries, package build, and
 isolated wheel smoke and release-metadata checks on Python 3.10 and 3.12.

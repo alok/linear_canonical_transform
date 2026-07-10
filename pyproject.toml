@@ -1,7 +1,7 @@
 [project]
 name = "lct-activation"
 version = "0.1.0"
-description = "Fast PyTorch Linear Canonical Transform layers, activations, and NanoGPT experiments."
+description = "Discrete linear canonical transform layers for PyTorch and MLX."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -9,9 +9,14 @@ authors = [
     { name = "Alok Singh" },
 ]
 keywords = [
+    "discrete-linear-canonical-transform",
     "linear-canonical-transform",
     "pytorch",
-    "structured-layers",
+    "mlx",
+    "symplectic",
+    "chirp-z-transform",
+    "structured-linear-layer",
+    "signal-processing",
     "nanogpt",
     "fractional-fourier-transform",
 ]
@@ -21,10 +26,13 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -33,6 +41,7 @@ dependencies = [
 ]
 
 [project.urls]
+Homepage = "https://github.com/alok/linear_canonical_transform"
 Documentation = "https://github.com/alok/linear_canonical_transform#readme"
 Repository = "https://github.com/alok/linear_canonical_transform"
 Issues = "https://github.com/alok/linear_canonical_transform/issues"

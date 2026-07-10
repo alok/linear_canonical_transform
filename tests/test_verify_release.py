@@ -122,6 +122,7 @@ def test_verify_release_accepts_local_artifacts_and_pypi_404(
         skip_smoke=False,
         allow_existing_version=False,
         pypi_timeout=1.0,
+        tag="v0.1.0",
     )
 
     assert report["ok"] is True
@@ -131,6 +132,43 @@ def test_verify_release_accepts_local_artifacts_and_pypi_404(
     assert report["sdist_content"]["content_ok"] is True
     assert report["git"]["origin_ok"] is True
     assert report["pypi"]["version_available"] is True
+    assert report["tag"] == {
+        "checked": True,
+        "provided": "v0.1.0",
+        "expected": "v0.1.0",
+        "matches_version": True,
+    }
+
+
+def test_verify_release_fails_when_tag_does_not_match_artifact_version(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    wheel = tmp_path / "lct_activation-0.1.0-py3-none-any.whl"
+    sdist = tmp_path / "lct_activation-0.1.0.tar.gz"
+    _write_wheel(wheel)
+    _write_sdist(sdist)
+    (tmp_path / "LICENSE").write_text("Apache License\nVersion 2.0\n")
+
+    monkeypatch.setattr(verify_release, "_git_origin_url", lambda repo_root: verify_release.EXPECTED_REPOSITORY_URL)
+
+    report = verify_release.verify_release(
+        repo_root=tmp_path,
+        dist_dir=tmp_path,
+        wheel=wheel,
+        sdist=sdist,
+        check_pypi=False,
+        skip_smoke=True,
+        allow_existing_version=False,
+        pypi_timeout=1.0,
+        tag="v0.1.1",
+    )
+
+    assert report["ok"] is False
+    assert report["tag"]["matches_version"] is False
+    assert any(
+        "release tag is 'v0.1.1', expected 'v0.1.0' for artifact version '0.1.0'" in failure
+        for failure in report["failures"]
+    )
 
 
 def test_verify_release_fails_when_pypi_version_already_exists(

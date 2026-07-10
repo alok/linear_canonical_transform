@@ -319,6 +319,7 @@ def verify_release(
     skip_smoke: bool,
     allow_existing_version: bool,
     pypi_timeout: float,
+    tag: str | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     report: dict[str, Any] = {
@@ -361,6 +362,28 @@ def verify_release(
     version = wheel_version or sdist_version
     if version:
         report["version"] = version
+
+    if tag is None:
+        report["tag"] = {"checked": False}
+    elif version:
+        expected_tag = f"v{version}"
+        tag_matches_version = tag == expected_tag
+        report["tag"] = {
+            "checked": True,
+            "provided": tag,
+            "expected": expected_tag,
+            "matches_version": tag_matches_version,
+        }
+        if not tag_matches_version:
+            failures.append(f"release tag is {tag!r}, expected {expected_tag!r} for artifact version {version!r}.")
+    else:
+        report["tag"] = {
+            "checked": True,
+            "provided": tag,
+            "expected": None,
+            "matches_version": False,
+        }
+        failures.append(f"could not verify release tag {tag!r} because artifact metadata has no version.")
 
     report["source_license_file"] = _check_source_license(repo_root, failures)
 
@@ -418,6 +441,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--check-pypi", action="store_true", help="Check PyPI for current-version availability.")
     parser.add_argument("--allow-existing-version", action="store_true", help="Do not fail if this version exists on PyPI.")
+    parser.add_argument("--tag", help="Require this tag to equal v{artifact version}, for example v0.1.0.")
     parser.add_argument("--skip-smoke", action="store_true", help="Skip the isolated wheel smoke test.")
     parser.add_argument("--pypi-timeout", type=float, default=10.0)
     return parser.parse_args()
@@ -438,6 +462,7 @@ def main() -> int:
         skip_smoke=args.skip_smoke,
         allow_existing_version=args.allow_existing_version,
         pypi_timeout=args.pypi_timeout,
+        tag=args.tag,
     )
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["ok"] else 1

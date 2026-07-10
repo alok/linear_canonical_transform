@@ -36,9 +36,20 @@ def _write_wheel(path: Path, *, version: str = "0.1.0", license_value: str = "Ap
         archive.writestr(f"lct_activation-{version}.dist-info/licenses/LICENSE", "Apache License\n")
 
 
-def _write_sdist(path: Path, *, version: str = "0.1.0", license_value: str = "Apache-2.0") -> None:
+def _write_sdist(
+    path: Path,
+    *,
+    version: str = "0.1.0",
+    license_value: str = "Apache-2.0",
+    extra_entries: dict[str, bytes] | None = None,
+) -> None:
     metadata = _metadata(version=version, license_value=license_value)
     license_content = b"Apache License\n"
+    readme_content = b"# lct-activation\n"
+    pyproject_content = b"[build-system]\nrequires = ['hatchling']\nbuild-backend = 'hatchling.build'\n"
+    init_content = b"from .layers import LCTLinear\n"
+    compat_content = b"from lct_activation import LCTLinear\n"
+    typed_content = b""
     with tarfile.open(path, "w:gz") as archive:
         pkg_info = tarfile.TarInfo(f"lct_activation-{version}/PKG-INFO")
         pkg_info.size = len(metadata)
@@ -46,6 +57,32 @@ def _write_sdist(path: Path, *, version: str = "0.1.0", license_value: str = "Ap
         license_info = tarfile.TarInfo(f"lct_activation-{version}/LICENSE")
         license_info.size = len(license_content)
         archive.addfile(license_info, io.BytesIO(license_content))
+        readme_info = tarfile.TarInfo(f"lct_activation-{version}/README.md")
+        readme_info.size = len(readme_content)
+        archive.addfile(readme_info, io.BytesIO(readme_content))
+        pyproject_info = tarfile.TarInfo(f"lct_activation-{version}/pyproject.toml")
+        pyproject_info.size = len(pyproject_content)
+        archive.addfile(pyproject_info, io.BytesIO(pyproject_content))
+        init_info = tarfile.TarInfo(f"lct_activation-{version}/src/lct_activation/__init__.py")
+        init_info.size = len(init_content)
+        archive.addfile(init_info, io.BytesIO(init_content))
+        typed_info = tarfile.TarInfo(f"lct_activation-{version}/src/lct_activation/py.typed")
+        typed_info.size = len(typed_content)
+        archive.addfile(typed_info, io.BytesIO(typed_content))
+        compat_init_info = tarfile.TarInfo(
+            f"lct_activation-{version}/src/linear_canonical_transform/__init__.py"
+        )
+        compat_init_info.size = len(compat_content)
+        archive.addfile(compat_init_info, io.BytesIO(compat_content))
+        compat_typed_info = tarfile.TarInfo(
+            f"lct_activation-{version}/src/linear_canonical_transform/py.typed"
+        )
+        compat_typed_info.size = len(typed_content)
+        archive.addfile(compat_typed_info, io.BytesIO(typed_content))
+        for relative_path, content in sorted((extra_entries or {}).items()):
+            entry = tarfile.TarInfo(f"lct_activation-{version}/{relative_path}")
+            entry.size = len(content)
+            archive.addfile(entry, io.BytesIO(content))
 
 
 def test_verify_release_accepts_local_artifacts_and_pypi_404(
@@ -91,6 +128,7 @@ def test_verify_release_accepts_local_artifacts_and_pypi_404(
     assert report["version"] == "0.1.0"
     assert report["wheel_metadata"]["license_ok"] is True
     assert report["sdist_metadata"]["project_urls_ok"] is True
+    assert report["sdist_content"]["content_ok"] is True
     assert report["git"]["origin_ok"] is True
     assert report["pypi"]["version_available"] is True
 
@@ -234,6 +272,50 @@ def test_verify_release_fails_bad_wheel_license(monkeypatch: pytest.MonkeyPatch,
 
     assert report["ok"] is False
     assert any("wheel license is 'MIT'" in failure for failure in report["failures"])
+
+
+def test_verify_release_fails_unexpected_sdist_content(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    wheel = tmp_path / "lct_activation-0.1.0-py3-none-any.whl"
+    sdist = tmp_path / "lct_activation-0.1.0.tar.gz"
+    _write_wheel(wheel)
+    _write_sdist(sdist, extra_entries={"site/package-lock.json": b"junk"})
+    (tmp_path / "LICENSE").write_text("Apache License\nVersion 2.0\n")
+
+    monkeypatch.setattr(verify_release, "_git_origin_url", lambda repo_root: verify_release.EXPECTED_REPOSITORY_URL)
+    monkeypatch.setattr(verify_release, "_run_smoke_dist", lambda repo_root, wheel: {"quickstart_ok": True})
+
+    report = verify_release.verify_release(
+        repo_root=tmp_path,
+        dist_dir=tmp_path,
+        wheel=wheel,
+        sdist=sdist,
+        check_pypi=False,
+        skip_smoke=False,
+        allow_existing_version=False,
+        pypi_timeout=1.0,
+    )
+
+    assert report["ok"] is False
+    assert report["sdist_content"]["content_ok"] is False
+    assert any("source distribution contains unexpected paths" in failure for failure in report["failures"])
+
+
+def test_check_sdist_content_and_size_rejects_large_archive(tmp_path: Path) -> None:
+    sdist = tmp_path / "lct_activation-0.1.0.tar.gz"
+    _write_sdist(sdist)
+    failures: list[str] = []
+
+    original_limit = verify_release.MAX_SDIST_COMPRESSED_BYTES
+    verify_release.MAX_SDIST_COMPRESSED_BYTES = 1
+    try:
+        report = verify_release._check_sdist_content_and_size(sdist, failures)
+    finally:
+        verify_release.MAX_SDIST_COMPRESSED_BYTES = original_limit
+
+    assert report["compressed_size_ok"] is False
+    assert any("source distribution is " in failure for failure in failures)
 
 
 def test_latest_dist_file_fails_when_missing(tmp_path: Path) -> None:

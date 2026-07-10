@@ -26,6 +26,9 @@ EXPECTED_PROJECT_URLS = {
     "Issues, https://github.com/alok/linear_canonical_transform/issues",
 }
 PYPI_JSON_URL = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
+EXPECTED_SDIST_FILES = {".gitignore", "LICENSE", "PKG-INFO", "README.md", "pyproject.toml"}
+MAX_SDIST_COMPRESSED_BYTES = 1_000_000
+MAX_SDIST_UNPACKED_BYTES = 5_000_000
 
 
 def _latest_dist_file(dist_dir: Path, pattern: str, label: str) -> Path:
@@ -70,6 +73,72 @@ def _read_sdist(sdist: Path) -> tuple[Message, set[str]]:
         if file_obj is None:
             raise ValueError(f"Could not read {pkg_info_members[0].name} from {sdist}")
         return _parse_metadata(file_obj.read()), names
+
+
+def _normalise_sdist_member(name: str) -> str:
+    parts = Path(name).parts
+    if len(parts) <= 1:
+        return ""
+    return Path(*parts[1:]).as_posix()
+
+
+def _sdist_member_allowed(path: str) -> bool:
+    if not path:
+        return True
+    if path in EXPECTED_SDIST_FILES or path == "src":
+        return True
+    if path == "src/lct_activation" or path.startswith("src/lct_activation/"):
+        return "__pycache__" not in Path(path).parts and not path.endswith((".pyc", ".pyo"))
+    if path == "src/linear_canonical_transform" or path.startswith("src/linear_canonical_transform/"):
+        return "__pycache__" not in Path(path).parts and not path.endswith((".pyc", ".pyo"))
+    return False
+
+
+def _check_sdist_content_and_size(sdist: Path, failures: list[str]) -> dict[str, Any]:
+    with tarfile.open(sdist, "r:*") as archive:
+        members = archive.getmembers()
+
+    root_entries = sorted({Path(member.name).parts[0] for member in members if member.name})
+    relative_entries = sorted(
+        {
+            relative
+            for member in members
+            if (relative := _normalise_sdist_member(member.name))
+        }
+    )
+    unexpected_entries = [path for path in relative_entries if not _sdist_member_allowed(path)]
+    compressed_bytes = sdist.stat().st_size
+    unpacked_bytes = sum(member.size for member in members if member.isfile())
+    report = {
+        "compressed_bytes": compressed_bytes,
+        "max_compressed_bytes": MAX_SDIST_COMPRESSED_BYTES,
+        "unpacked_bytes": unpacked_bytes,
+        "max_unpacked_bytes": MAX_SDIST_UNPACKED_BYTES,
+        "root_entries": root_entries,
+        "unexpected_entries": unexpected_entries,
+        "compressed_size_ok": compressed_bytes <= MAX_SDIST_COMPRESSED_BYTES,
+        "unpacked_size_ok": unpacked_bytes <= MAX_SDIST_UNPACKED_BYTES,
+        "content_ok": not unexpected_entries,
+        "single_root_ok": len(root_entries) == 1,
+    }
+
+    if report["single_root_ok"] is not True:
+        failures.append(f"source distribution should have exactly one root directory; found {root_entries}.")
+    if report["content_ok"] is not True:
+        failures.append(
+            "source distribution contains unexpected paths: "
+            f"{unexpected_entries[:20]}{'...' if len(unexpected_entries) > 20 else ''}."
+        )
+    if report["compressed_size_ok"] is not True:
+        failures.append(
+            f"source distribution is {compressed_bytes} bytes compressed; limit is {MAX_SDIST_COMPRESSED_BYTES}."
+        )
+    if report["unpacked_size_ok"] is not True:
+        failures.append(
+            f"source distribution expands to {unpacked_bytes} bytes; limit is {MAX_SDIST_UNPACKED_BYTES}."
+        )
+
+    return report
 
 
 def _metadata_summary(metadata: Message) -> dict[str, Any]:
@@ -280,6 +349,7 @@ def verify_release(
         sdist_metadata, sdist_files = _read_sdist(sdist_path)
         sdist_report = _check_metadata("source distribution", _metadata_summary(sdist_metadata), sdist_files, failures)
         report["sdist_metadata"] = sdist_report
+        report["sdist_content"] = _check_sdist_content_and_size(sdist_path, failures)
     except (OSError, ValueError, tarfile.TarError) as exc:
         failures.append(f"could not read source distribution metadata: {exc}")
         sdist_report = {}

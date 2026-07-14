@@ -36,22 +36,26 @@ The finite-dimensional tradeoff is explicit:
 
 ## Install
 
-Add the published package to a `uv` project:
+The current public release is
+[`v0.1.0`](https://github.com/alok/linear_canonical_transform/releases/tag/v0.1.0).
+Add it to a `uv` project directly from the immutable Git tag:
 
 ```bash
-uv add lct-activation
+uv add "lct-activation @ git+https://github.com/alok/linear_canonical_transform.git@v0.1.0"
 ```
 
 Install the optional MLX backend explicitly when needed:
 
 ```bash
-uv add "lct-activation[mlx]"
+uv add "lct-activation[mlx] @ git+https://github.com/alok/linear_canonical_transform.git@v0.1.0"
 ```
 
 To make the packaged commands available independently of a project:
 
 ```bash
-uv tool install lct-activation
+uv tool install \
+  --from "git+https://github.com/alok/linear_canonical_transform.git@v0.1.0" \
+  lct-activation
 ```
 
 Quick smoke test after installing:

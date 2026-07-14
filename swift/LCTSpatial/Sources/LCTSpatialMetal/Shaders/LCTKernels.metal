@@ -64,3 +64,57 @@ kernel void lct_axis_pass(
 
     output[gid] = sum * rsqrt(float(length));
 }
+
+struct PreviewSourceVertex {
+    float3 position;
+    float3 normal;
+};
+
+struct PreviewVertex {
+    float3 position;
+    float3 normal;
+    float4 color;
+};
+
+inline float3 phase_rgb(float phase, float luminance) {
+    float hue = fract((phase + M_PI_F) / (2.0f * M_PI_F));
+    float3 shifted = abs(fract(hue + float3(0.0f, 2.0f / 3.0f, 1.0f / 3.0f)) * 6.0f - 3.0f);
+    float3 rgb = clamp(shifted - 1.0f, 0.0f, 1.0f);
+    return mix(float3(luminance * 0.18f), rgb * luminance, 0.86f);
+}
+
+/// Updates a duplicated RealityKit mesh with the real and imaginary parts of
+/// q' = a q + b p, where q is position and p is a scaled normal field.
+kernel void canonical_preview_mesh(
+    device const PreviewSourceVertex *source [[buffer(0)]],
+    device PreviewVertex *output [[buffer(1)]],
+    constant float2 &a [[buffer(2)]],
+    constant float2 &b [[buffer(3)]],
+    constant float4 &parameters [[buffer(4)]],
+    constant uint &vertexCount [[buffer(5)]],
+    uint gid [[thread_position_in_grid]])
+{
+    if (gid >= vertexCount) {
+        return;
+    }
+
+    const PreviewSourceVertex sourceVertex = source[gid];
+    const float3 companion = sourceVertex.normal * parameters.x;
+    const float3 realPosition = a.x * sourceVertex.position + b.x * companion;
+    const float3 imaginaryPosition = a.y * sourceVertex.position + b.y * companion;
+    const float3 phaseProbe = normalize(float3(1.0f, 1.6180339f, 2.6180339f));
+    const float realProbe = dot(realPosition, phaseProbe);
+    const float imaginaryProbe = dot(imaginaryPosition, phaseProbe);
+    const float phase = atan2(imaginaryProbe, realProbe);
+    const float magnitude = length(float2(realProbe, imaginaryProbe));
+    const float luminance = 0.25f + 0.75f * (1.0f - exp(-magnitude));
+    const float3 rgb = phase_rgb(phase, luminance);
+
+    output[gid].position = realPosition;
+    output[gid].normal = sourceVertex.normal;
+    output[gid].color = float4(rgb, 1.0f);
+
+    output[gid + vertexCount].position = imaginaryPosition;
+    output[gid + vertexCount].normal = sourceVertex.normal;
+    output[gid + vertexCount].color = float4(rgb, 0.28f * parameters.y);
+}

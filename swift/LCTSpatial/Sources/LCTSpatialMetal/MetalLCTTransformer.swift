@@ -118,7 +118,7 @@ public final class MetalLCTTransformer: @unchecked Sendable {
     return try ComplexField(shape: field.shape, values: values)
   }
 
-  private static func makeLibrary(device: any MTLDevice) throws -> any MTLLibrary {
+  static func makeLibrary(device: any MTLDevice) throws -> any MTLLibrary {
     let candidates = [
       Bundle.module.url(forResource: "LCTKernels", withExtension: "metal"),
       Bundle.module.url(

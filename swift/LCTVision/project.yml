@@ -1,0 +1,44 @@
+name: LCTVision
+
+options:
+  bundleIdPrefix: com.aloksingh
+  deploymentTarget:
+    visionOS: "2.0"
+  createIntermediateGroups: true
+
+packages:
+  LCTSpatial:
+    path: ../LCTSpatial
+
+targets:
+  LCTVision:
+    type: application
+    platform: visionOS
+    sources:
+      - path: LCTVision
+    dependencies:
+      - package: LCTSpatial
+        product: LCTSpatial
+      - package: LCTSpatial
+        product: LCTSpatialMetal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aloksingh.lctvision
+        PRODUCT_NAME: LCT Vision
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 6.0
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: LCT Vision
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: 7
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+
+schemes:
+  LCTVision:
+    build:
+      targets:
+        LCTVision: all
+    run:
+      config: Debug

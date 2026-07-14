@@ -9,6 +9,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+swift/**/.build/
+swift/**/DerivedData/
+swift/**/*.xcuserstate
 # The interactive paper's Sites adapter is source, not a generated build.
 !site/build/
 !site/build/sites-vite-plugin.ts

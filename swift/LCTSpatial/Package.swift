@@ -23,5 +23,9 @@ let package = Package(
       name: "LCTSpatialTests",
       dependencies: ["LCTSpatial"]
     ),
+    .testTarget(
+      name: "LCTSpatialMetalTests",
+      dependencies: ["LCTSpatial", "LCTSpatialMetal"]
+    ),
   ]
 )

@@ -12,14 +12,18 @@ final class LCTStudioModel: ObservableObject {
   @Published private(set) var sourceName = "Torus study"
   @Published private(set) var isTransforming = false
   @Published private(set) var status = "Ready · sampled-field LCT"
+  @Published private(set) var selectedPreset: LCTPreset? = .identity
+  @Published private(set) var isPlaying = false
   @Published var showsImaginary = true
-  @Published var isImporting = false
+  @Published var presentsImporter = false
+  @Published private(set) var isImporting = false
   @Published var resolution = 14
 
   private var constraint = SL2CConstraint()
   private var sourceField: ComplexField
   private let transformer: MetalLCTTransformer?
   private var transformTask: Task<Void, Never>?
+  private var playbackTask: Task<Void, Never>?
   private var generation = 0
 
   init() {
@@ -39,9 +43,11 @@ final class LCTStudioModel: ObservableObject {
   }
 
   func set(_ coefficient: SL2CCoefficient, to value: Complex32) {
+    stopPlayback()
     do {
       matrix = try constraint.set(coefficient, to: value)
       dependent = constraint.dependent
+      selectedPreset = nil
       status = "Scrubbing \(coefficient.rawValue) · det locked"
       scheduleTransform()
     } catch {
@@ -50,10 +56,12 @@ final class LCTStudioModel: ObservableObject {
   }
 
   func apply(_ preset: LCTPreset) {
+    stopPlayback()
     let preferredDependent: SL2CCoefficient = preset == .fourier ? .c : .d
     constraint.replace(with: preset.matrix, dependent: preferredDependent)
     matrix = preset.matrix
     dependent = preferredDependent
+    selectedPreset = preset
     status = "\(preset.title) preset"
     scheduleTransform(immediate: true)
   }
@@ -75,7 +83,34 @@ final class LCTStudioModel: ObservableObject {
     }
   }
 
+  func togglePlayback() {
+    if isPlaying {
+      stopPlayback()
+      status = "Scrub animation paused"
+      scheduleTransform(immediate: true)
+      return
+    }
+
+    isPlaying = true
+    selectedPreset = .fractional
+    status = "FrFT orbit · live"
+    playbackTask = Task {
+      var frame = 0
+      while !Task.isCancelled {
+        let angle = 2 * Float.pi * Float(frame % 96) / 96
+        let next = SL2CMatrix.fractionalFourier(angle: angle)
+        constraint.replace(with: next, dependent: .d)
+        matrix = next
+        dependent = .d
+        scheduleTransform(immediate: true)
+        frame += 1
+        try? await Task.sleep(for: .milliseconds(90))
+      }
+    }
+  }
+
   func importOBJ(from url: URL) {
+    stopPlayback()
     isImporting = true
     status = "Importing \(url.lastPathComponent)…"
     let resolution = resolution
@@ -101,6 +136,12 @@ final class LCTStudioModel: ObservableObject {
         status = "Import failed: \(error.localizedDescription)"
       }
     }
+  }
+
+  private func stopPlayback() {
+    playbackTask?.cancel()
+    playbackTask = nil
+    isPlaying = false
   }
 
   private func scheduleTransform(immediate: Bool = false) {

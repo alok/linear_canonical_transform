@@ -12,9 +12,11 @@
 		268B9F80D84F5AFA48A5E8F6 /* LCTStudioModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */; };
 		3352F9F40C93B7436F22A8E9 /* LCTSpatial in Frameworks */ = {isa = PBXBuildFile; productRef = BD04D0F971106BE502570B8B /* LCTSpatial */; };
 		5C5690C121DC57E7C61576DF /* DemoGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA40AF487128C05684C2270D /* DemoGeometry.swift */; };
+		82B8E954FB528192A3CA7D58 /* ControlDeck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CA59CB26418F5B49D577B49 /* ControlDeck.swift */; };
 		85BB40B156332BA8ECD2AEEB /* LCTVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */; };
 		9250E6A40D4DB3D264CB18D8 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D07A4A16F26A52A2A7C7CA5 /* StudioView.swift */; };
 		B7B6D4F14E80717A6D967D67 /* SpectralCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CDD047EB89CC0A4D27095A0 /* SpectralCloud.swift */; };
+		C5F192F70A8E9E1061540C2C /* ArgandPad.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC189FEA16B29874D18522C9 /* ArgandPad.swift */; };
 		D68EF6FAF2E9F9FA659CC5F8 /* LCTPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */; };
 /* End PBXBuildFile section */
 
@@ -23,11 +25,14 @@
 		04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTStudioModel.swift; sourceTree = "<group>"; };
 		1D07A4A16F26A52A2A7C7CA5 /* StudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioView.swift; sourceTree = "<group>"; };
 		2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTPreset.swift; sourceTree = "<group>"; };
+		407B22E37670A10D799AC7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4CA59CB26418F5B49D577B49 /* ControlDeck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlDeck.swift; sourceTree = "<group>"; };
 		8D0D7482BA8D41F2BBB9E9BF /* LCTVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LCTVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTVisionApp.swift; sourceTree = "<group>"; };
 		9CDD047EB89CC0A4D27095A0 /* SpectralCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralCloud.swift; sourceTree = "<group>"; };
 		CD6AFC1F5FD72FF06B2BE189 /* LCTSpatial */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LCTSpatial; path = ../LCTSpatial; sourceTree = SOURCE_ROOT; };
 		DA40AF487128C05684C2270D /* DemoGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoGeometry.swift; sourceTree = "<group>"; };
+		EC189FEA16B29874D18522C9 /* ArgandPad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArgandPad.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,7 +67,10 @@
 		958CA8ADFC1A19925A321973 /* LCTVision */ = {
 			isa = PBXGroup;
 			children = (
+				EC189FEA16B29874D18522C9 /* ArgandPad.swift */,
+				4CA59CB26418F5B49D577B49 /* ControlDeck.swift */,
 				DA40AF487128C05684C2270D /* DemoGeometry.swift */,
+				407B22E37670A10D799AC7CE /* Info.plist */,
 				2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */,
 				04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */,
 				9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */,
@@ -143,6 +151,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C5F192F70A8E9E1061540C2C /* ArgandPad.swift in Sources */,
+				82B8E954FB528192A3CA7D58 /* ControlDeck.swift in Sources */,
 				5C5690C121DC57E7C61576DF /* DemoGeometry.swift in Sources */,
 				D68EF6FAF2E9F9FA659CC5F8 /* LCTPreset.swift in Sources */,
 				268B9F80D84F5AFA48A5E8F6 /* LCTStudioModel.swift in Sources */,
@@ -161,10 +171,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "LCT Vision";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LCTVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -303,10 +311,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "LCT Vision";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LCTVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

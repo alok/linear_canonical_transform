@@ -16,11 +16,13 @@ enum DemoGeometry {
 
     for majorIndex in 0..<majorSegments {
       let u = 2 * Float.pi * Float(majorIndex) / Float(majorSegments)
-      let center = SIMD3<Float>(majorRadius * cos(u), 0, majorRadius * sin(u))
+      // Face the demo torus toward the viewer. Imported meshes retain their
+      // authored orientation.
+      let center = SIMD3<Float>(majorRadius * cos(u), majorRadius * sin(u), 0)
       for minorIndex in 0..<minorSegments {
         let v = 2 * Float.pi * Float(minorIndex) / Float(minorSegments)
         let normal = simd_normalize(
-          SIMD3<Float>(cos(u) * cos(v), sin(v), sin(u) * cos(v))
+          SIMD3<Float>(cos(u) * cos(v), sin(u) * cos(v), sin(v))
         )
         positions.append(center + minorRadius * normal)
         normals.append(normal)

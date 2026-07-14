@@ -119,6 +119,14 @@ public final class MetalLCTTransformer: @unchecked Sendable {
   }
 
   static func makeLibrary(device: any MTLDevice) throws -> any MTLLibrary {
+    // Xcode compiles package Metal resources into the target's default
+    // metallib. SwiftPM's command-line test runner instead leaves the source
+    // available as a resource, so keep source compilation as a portable
+    // fallback for library consumers and tests.
+    if let library = try? device.makeDefaultLibrary(bundle: Bundle.module) {
+      return library
+    }
+
     let candidates = [
       Bundle.module.url(forResource: "LCTKernels", withExtension: "metal"),
       Bundle.module.url(

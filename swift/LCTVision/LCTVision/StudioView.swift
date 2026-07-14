@@ -26,22 +26,42 @@ struct StudioView: View {
 
       VStack(spacing: 0) {
         header
+        HStack {
+          viewLabel("CANONICAL MAP", detail: "instant preview", color: .mint)
+          Spacer()
+          viewLabel("SAMPLED FIELD", detail: "amplitude × phase", color: .indigo)
+        }
+        .padding(.horizontal, 34)
+        .padding(.top, 12)
         Spacer()
-        Text("Control deck loading…")
-          .font(.caption.monospaced())
-          .foregroundStyle(.secondary)
-          .padding(10)
-          .glassBackgroundEffect()
+        ControlDeck()
+          .padding(.bottom, 30)
       }
-      .padding(24)
+      .padding(20)
     }
     .fileImporter(
-      isPresented: $model.isImporting,
+      isPresented: $model.presentsImporter,
       allowedContentTypes: [UTType(filenameExtension: "obj")!],
       allowsMultipleSelection: false
     ) { result in
       guard case .success(let urls) = result, let url = urls.first else { return }
       model.importOBJ(from: url)
+    }
+  }
+
+  private func viewLabel(_ title: String, detail: String, color: Color) -> some View {
+    HStack(spacing: 7) {
+      RoundedRectangle(cornerRadius: 1)
+        .fill(color)
+        .frame(width: 3, height: 25)
+      VStack(alignment: .leading, spacing: 1) {
+        Text(title)
+          .font(.system(size: 9, weight: .bold, design: .monospaced))
+          .foregroundStyle(color)
+        Text(detail)
+          .font(.system(size: 8, design: .monospaced))
+          .foregroundStyle(.secondary)
+      }
     }
   }
 

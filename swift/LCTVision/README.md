@@ -20,5 +20,13 @@ xcodebuild \
   build
 ```
 
+Open `LCTVision.xcodeproj`, select an Apple Vision Pro destination, and run the
+`LCTVision` scheme. The app starts with a front-facing torus study. Drag in any
+of the four complex planes to update that coefficient; the orange `AUTO` chip
+marks the coefficient currently solved to keep `ad - bc = 1`. Presets and the
+continuous FrFT orbit are available along the bottom of the deck.
+
 The app imports Wavefront OBJ meshes, normalizes them into its study volume,
 samples their triangle surfaces, and sends the field through `LCTSpatialMetal`.
+The Swift library itself accepts any triangular `MeshGeometry`; OBJ is only the
+sample app's current document-picker format.

@@ -36,6 +36,16 @@ public struct Complex32: Codable, Hashable, Sendable {
     .init(real: real, imaginary: -imaginary)
   }
 
+  /// The principal square root.
+  @inlinable
+  public var squareRoot: Self {
+    let radius = magnitude
+    let realPart = sqrt(max((radius + real) / 2, 0))
+    let imaginaryMagnitude = sqrt(max((radius - real) / 2, 0))
+    let imaginaryPart = imaginary < 0 ? -imaginaryMagnitude : imaginaryMagnitude
+    return .init(real: realPart, imaginary: imaginaryPart)
+  }
+
   @inlinable
   public func exponential(maximumReal: Float = 20) -> Self {
     let boundedReal = min(max(real, -maximumReal), maximumReal)

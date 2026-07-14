@@ -32,6 +32,11 @@ let transformed = try DiscreteLCT.transform(field, matrix: matrix)
 to solve for `d`, then automatically changes the dependent coefficient if the
 current denominator approaches a singular pivot.
 
+The finite-grid implementation includes the `b = 0` chirp/scaling branch when
+`d` is real, using centered linear interpolation. A genuinely complex `d` in
+that branch would move sampling off the real grid and is reported as unsupported
+rather than silently inventing a contour deformation.
+
 ## Mathematical boundary
 
 Classical unitary LCTs use real symplectic parameters. Complex matrices are a

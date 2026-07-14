@@ -9,7 +9,7 @@ public enum MetalLCTError: Error, Sendable {
   case bufferAllocationFailed
   case commandEncodingFailed
   case commandFailed(String)
-  case singularB
+  case complexScalingUnsupported
 }
 
 /// A Metal implementation of the dimension-agnostic separable LCT kernel.
@@ -21,6 +21,7 @@ public final class MetalLCTTransformer: @unchecked Sendable {
 
   private let commandQueue: any MTLCommandQueue
   private let axisPipeline: any MTLComputePipelineState
+  private let singularAxisPipeline: any MTLComputePipelineState
 
   public convenience init() throws {
     guard let device = MTLCreateSystemDefaultDevice() else {
@@ -40,7 +41,11 @@ public final class MetalLCTTransformer: @unchecked Sendable {
     guard let function = library.makeFunction(name: "lct_axis_pass") else {
       throw MetalLCTError.commandEncodingFailed
     }
+    guard let singularFunction = library.makeFunction(name: "lct_singular_axis_pass") else {
+      throw MetalLCTError.commandEncodingFailed
+    }
     axisPipeline = try device.makeComputePipelineState(function: function)
+    singularAxisPipeline = try device.makeComputePipelineState(function: singularFunction)
   }
 
   public func transform(
@@ -49,7 +54,10 @@ public final class MetalLCTTransformer: @unchecked Sendable {
     maximumKernelExponent: Float = 12
   ) throws -> ComplexField {
     if matrix == .identity { return field }
-    guard matrix.b.magnitude > 1e-6 else { throw MetalLCTError.singularB }
+    let usesSingularBranch = matrix.b.magnitude <= 1e-6
+    if usesSingularBranch, abs(matrix.d.imaginary) > 1e-5 {
+      throw MetalLCTError.complexScalingUnsupported
+    }
     precondition(MemoryLayout<Complex32>.stride == MemoryLayout<SIMD2<Float>>.stride)
 
     let byteCount = field.count * MemoryLayout<Complex32>.stride
@@ -71,6 +79,7 @@ public final class MetalLCTTransformer: @unchecked Sendable {
     var output = secondBuffer
     var a = SIMD2<Float>(matrix.a.real, matrix.a.imaginary)
     var b = SIMD2<Float>(matrix.b.real, matrix.b.imaginary)
+    var c = SIMD2<Float>(matrix.c.real, matrix.c.imaginary)
     var d = SIMD2<Float>(matrix.d.real, matrix.d.imaginary)
     var maximumExponent = maximumKernelExponent
 
@@ -88,16 +97,24 @@ public final class MetalLCTTransformer: @unchecked Sendable {
         UInt32(field.count)
       )
 
-      encoder.setComputePipelineState(axisPipeline)
+      let selectedPipeline = usesSingularBranch ? singularAxisPipeline : axisPipeline
+      encoder.setComputePipelineState(selectedPipeline)
       encoder.setBuffer(input, offset: 0, index: 0)
       encoder.setBuffer(output, offset: 0, index: 1)
-      encoder.setBytes(&a, length: MemoryLayout<SIMD2<Float>>.stride, index: 2)
-      encoder.setBytes(&b, length: MemoryLayout<SIMD2<Float>>.stride, index: 3)
-      encoder.setBytes(&d, length: MemoryLayout<SIMD2<Float>>.stride, index: 4)
-      encoder.setBytes(&dimensions, length: MemoryLayout<SIMD4<UInt32>>.stride, index: 5)
-      encoder.setBytes(&maximumExponent, length: MemoryLayout<Float>.stride, index: 6)
+      if usesSingularBranch {
+        encoder.setBytes(&c, length: MemoryLayout<SIMD2<Float>>.stride, index: 2)
+        encoder.setBytes(&d, length: MemoryLayout<SIMD2<Float>>.stride, index: 3)
+        encoder.setBytes(&dimensions, length: MemoryLayout<SIMD4<UInt32>>.stride, index: 4)
+        encoder.setBytes(&maximumExponent, length: MemoryLayout<Float>.stride, index: 5)
+      } else {
+        encoder.setBytes(&a, length: MemoryLayout<SIMD2<Float>>.stride, index: 2)
+        encoder.setBytes(&b, length: MemoryLayout<SIMD2<Float>>.stride, index: 3)
+        encoder.setBytes(&d, length: MemoryLayout<SIMD2<Float>>.stride, index: 4)
+        encoder.setBytes(&dimensions, length: MemoryLayout<SIMD4<UInt32>>.stride, index: 5)
+        encoder.setBytes(&maximumExponent, length: MemoryLayout<Float>.stride, index: 6)
+      }
 
-      let width = min(axisPipeline.maxTotalThreadsPerThreadgroup, 256)
+      let width = min(selectedPipeline.maxTotalThreadsPerThreadgroup, 256)
       encoder.dispatchThreads(
         MTLSize(width: field.count, height: 1, depth: 1),
         threadsPerThreadgroup: MTLSize(width: width, height: 1, depth: 1)

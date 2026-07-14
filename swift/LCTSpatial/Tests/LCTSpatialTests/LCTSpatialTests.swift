@@ -52,6 +52,23 @@ import Testing
   #expect(try DiscreteLCT.transform(field, matrix: .identity) == field)
 }
 
+@Test func singularBranchAppliesChirpWithoutChangingMagnitude() throws {
+  let values = (0..<7).map { Complex32(real: Float($0 + 1) / 7) }
+  let field = try ComplexField(shape: [7], values: values)
+  let lens = SL2CMatrix(
+    a: .one,
+    b: .zero,
+    c: .init(real: 0.35),
+    d: .one
+  )
+  let transformed = try DiscreteLCT.transform(field, matrix: lens)
+
+  for (actual, expected) in zip(transformed.values, values) {
+    #expect(abs(actual.magnitude - expected.magnitude) < 1e-5)
+  }
+  #expect(transformed.values[0].phase != transformed.values[3].phase)
+}
+
 @Test func objImportAndVoxelization() throws {
   let source = """
     v -1 -1 0

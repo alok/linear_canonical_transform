@@ -55,7 +55,9 @@ public struct ComplexField: Sendable, Equatable {
 }
 
 public enum DiscreteLCTError: Error, Equatable, Sendable {
-  case singularB
+  /// Complex coordinate scaling would require sampling the input away from
+  /// the real grid. The current finite-grid model supports real `d` here.
+  case complexScalingUnsupported
 }
 
 /// A small, deterministic CPU reference for the separable finite-grid LCT.
@@ -70,7 +72,23 @@ public enum DiscreteLCT {
     maximumKernelExponent: Float = 12
   ) throws -> ComplexField {
     if matrix == .identity { return field }
-    guard matrix.b.magnitude > 1e-6 else { throw DiscreteLCTError.singularB }
+
+    if matrix.b.magnitude <= 1e-6 {
+      guard abs(matrix.d.imaginary) <= 1e-5 else {
+        throw DiscreteLCTError.complexScalingUnsupported
+      }
+      var values = field.values
+      for axis in field.shape.indices {
+        values = transformSingularAxis(
+          values,
+          shape: field.shape,
+          axis: axis,
+          matrix: matrix,
+          maximumKernelExponent: maximumKernelExponent
+        )
+      }
+      return try ComplexField(shape: field.shape, values: values)
+    }
 
     var values = field.values
     for axis in field.shape.indices {
@@ -117,6 +135,47 @@ public enum DiscreteLCT {
             sum += input[blockStart + inputIndex * stride + inner] * kernel
           }
           output[blockStart + outputIndex * stride + inner] = sum * normalization
+        }
+      }
+    }
+    return output
+  }
+
+  /// Finite-grid `b = 0` branch:
+  /// `sqrt(d) exp(iπ c d y² / n) f(dy)` with linear interpolation.
+  private static func transformSingularAxis(
+    _ input: [Complex32],
+    shape: [Int],
+    axis: Int,
+    matrix: SL2CMatrix,
+    maximumKernelExponent: Float
+  ) -> [Complex32] {
+    let length = shape[axis]
+    let stride = shape.dropFirst(axis + 1).reduce(1, *)
+    let block = length * stride
+    let outerCount = input.count / block
+    let center = Float(length - 1) / 2
+    let piI = Complex32(real: 0, imaginary: .pi)
+    let amplitude = matrix.d.squareRoot
+    var output = [Complex32](repeating: .zero, count: input.count)
+
+    for outer in 0..<outerCount {
+      let blockStart = outer * block
+      for inner in 0..<stride {
+        for outputIndex in 0..<length {
+          let y = Float(outputIndex) - center
+          let sourceCoordinate = matrix.d.real * y + center
+          guard sourceCoordinate >= 0, sourceCoordinate <= Float(length - 1) else { continue }
+
+          let lower = Int(floor(sourceCoordinate))
+          let upper = min(lower + 1, length - 1)
+          let fraction = sourceCoordinate - Float(lower)
+          let lowerValue = input[blockStart + lower * stride + inner]
+          let upperValue = input[blockStart + upper * stride + inner]
+          let sample = lowerValue * (1 - fraction) + upperValue * fraction
+          let phase = piI * (matrix.c * matrix.d) * (y * y / Float(length))
+          let chirp = phase.exponential(maximumReal: maximumKernelExponent)
+          output[blockStart + outputIndex * stride + inner] = amplitude * chirp * sample
         }
       }
     }

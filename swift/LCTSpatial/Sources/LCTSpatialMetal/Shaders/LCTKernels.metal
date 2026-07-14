@@ -25,6 +25,14 @@ inline float2 complex_exp_bounded(float2 value, float maximumReal) {
     return scale * float2(cos(value.y), sin(value.y));
 }
 
+inline float2 complex_sqrt(float2 value) {
+    const float radius = length(value);
+    const float realPart = sqrt(max((radius + value.x) * 0.5f, 0.0f));
+    const float imaginaryMagnitude = sqrt(max((radius - value.x) * 0.5f, 0.0f));
+    const float imaginaryPart = value.y < 0.0f ? -imaginaryMagnitude : imaginaryMagnitude;
+    return float2(realPart, imaginaryPart);
+}
+
 /// Applies one separable LCT axis to a row-major complex field.
 kernel void lct_axis_pass(
     device const float2 *input [[buffer(0)]],
@@ -63,6 +71,49 @@ kernel void lct_axis_pass(
     }
 
     output[gid] = sum * rsqrt(float(length));
+}
+
+/// Handles the finite-grid b = 0 branch as a chirped real-axis scaling:
+/// sqrt(d) exp(iπ c d y² / n) f(dy), with linear interpolation.
+kernel void lct_singular_axis_pass(
+    device const float2 *input [[buffer(0)]],
+    device float2 *output [[buffer(1)]],
+    constant float2 &c [[buffer(2)]],
+    constant float2 &d [[buffer(3)]],
+    constant uint4 &dimensions [[buffer(4)]],
+    constant float &maximumExponent [[buffer(5)]],
+    uint gid [[thread_position_in_grid]])
+{
+    const uint length = dimensions.x;
+    const uint elementStride = dimensions.y;
+    const uint totalCount = dimensions.w;
+    if (gid >= totalCount) {
+        return;
+    }
+
+    const uint outputCoordinate = (gid / elementStride) % length;
+    const uint lineStart = gid - outputCoordinate * elementStride;
+    const float center = float(length - 1) * 0.5f;
+    const float y = float(outputCoordinate) - center;
+    const float sourceCoordinate = d.x * y + center;
+    if (sourceCoordinate < 0.0f || sourceCoordinate > float(length - 1)) {
+        output[gid] = 0.0f;
+        return;
+    }
+
+    const uint lower = uint(floor(sourceCoordinate));
+    const uint upper = min(lower + 1, length - 1);
+    const float fraction = sourceCoordinate - float(lower);
+    const float2 lowerValue = input[lineStart + lower * elementStride];
+    const float2 upperValue = input[lineStart + upper * elementStride];
+    const float2 sample = mix(lowerValue, upperValue, fraction);
+    const float2 piI = float2(0.0f, M_PI_F);
+    const float2 phase = complex_mul(
+        piI,
+        complex_mul(c, d) * (y * y / float(length))
+    );
+    const float2 chirp = complex_exp_bounded(phase, maximumExponent);
+    output[gid] = complex_mul(complex_mul(complex_sqrt(d), chirp), sample);
 }
 
 struct PreviewSourceVertex {

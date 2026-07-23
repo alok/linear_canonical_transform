@@ -8,7 +8,12 @@ __pycache__/
 *.pyd
 *.egg-info/
 build/
+.build/
 dist/
+swift/**/.build/
+swift/**/DerivedData/
+swift/**/.derivedData/
+swift/**/*.xcuserstate
 # The interactive paper's Sites adapter is source, not a generated build.
 !site/build/
 !site/build/sites-vite-plugin.ts
@@ -16,6 +21,9 @@ extern/
 records/
 # Paper figures are intentional artifacts (the user's global ignore excludes *.png).
 !paper/figures/*.png
+!paper/baylearn/*.png
+# The compiled abstract is a build artifact; rebuild with tectonic (see paper/baylearn/README.md).
+paper/baylearn/*.pdf
 
 # Agent scaffolding (not package content)
 .claude/

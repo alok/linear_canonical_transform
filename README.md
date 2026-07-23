@@ -34,6 +34,22 @@ The finite-dimensional tradeoff is explicit:
 - `normalization="compositional"` favors behavior that tracks matrix
   composition more closely
 
+## Vision Pro spatial atlas
+
+The repository is also a Swift package and includes a simulator-ready visionOS
+instrument under [`swift/LCTVision`](swift/LCTVision). It is designed for fast
+visual intuition-building: scrub `a`, `b`, `c`, or `d` on four complex planes,
+while an automatically selected dependent coefficient keeps `ad - bc = 1`.
+
+Two views update together without conflating their meaning:
+
+- a Metal-updated canonical mesh preview for immediate geometric feedback;
+- a phase-colored sampled complex field produced by the actual separable LCT.
+
+Add the repository as a Swift Package dependency to use the dimension-agnostic
+`LCTSpatial` core or the `LCTSpatialMetal` GPU implementation. The standalone
+package and API guide also live at [`swift/LCTSpatial`](swift/LCTSpatial).
+
 ## Install
 
 The current public release is

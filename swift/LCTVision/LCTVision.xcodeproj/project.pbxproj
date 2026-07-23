@@ -1,0 +1,372 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		097BB7D5AF76D7D8B233B80E /* LCTSpatialMetal in Frameworks */ = {isa = PBXBuildFile; productRef = 1B777115542AD3C84ECEF01C /* LCTSpatialMetal */; };
+		0C260994CE402301BE4B195A /* SpatialScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0311C66D86888655DE7FEAE0 /* SpatialScene.swift */; };
+		268B9F80D84F5AFA48A5E8F6 /* LCTStudioModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */; };
+		3352F9F40C93B7436F22A8E9 /* LCTSpatial in Frameworks */ = {isa = PBXBuildFile; productRef = BD04D0F971106BE502570B8B /* LCTSpatial */; };
+		5C5690C121DC57E7C61576DF /* DemoGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA40AF487128C05684C2270D /* DemoGeometry.swift */; };
+		82B8E954FB528192A3CA7D58 /* ControlDeck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CA59CB26418F5B49D577B49 /* ControlDeck.swift */; };
+		85BB40B156332BA8ECD2AEEB /* LCTVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */; };
+		9250E6A40D4DB3D264CB18D8 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D07A4A16F26A52A2A7C7CA5 /* StudioView.swift */; };
+		B7B6D4F14E80717A6D967D67 /* SpectralCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CDD047EB89CC0A4D27095A0 /* SpectralCloud.swift */; };
+		C5F192F70A8E9E1061540C2C /* ArgandPad.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC189FEA16B29874D18522C9 /* ArgandPad.swift */; };
+		D68EF6FAF2E9F9FA659CC5F8 /* LCTPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0311C66D86888655DE7FEAE0 /* SpatialScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialScene.swift; sourceTree = "<group>"; };
+		04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTStudioModel.swift; sourceTree = "<group>"; };
+		1D07A4A16F26A52A2A7C7CA5 /* StudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioView.swift; sourceTree = "<group>"; };
+		2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTPreset.swift; sourceTree = "<group>"; };
+		407B22E37670A10D799AC7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4CA59CB26418F5B49D577B49 /* ControlDeck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlDeck.swift; sourceTree = "<group>"; };
+		8D0D7482BA8D41F2BBB9E9BF /* LCTVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LCTVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LCTVisionApp.swift; sourceTree = "<group>"; };
+		9CDD047EB89CC0A4D27095A0 /* SpectralCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralCloud.swift; sourceTree = "<group>"; };
+		CD6AFC1F5FD72FF06B2BE189 /* LCTSpatial */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LCTSpatial; path = ../LCTSpatial; sourceTree = SOURCE_ROOT; };
+		DA40AF487128C05684C2270D /* DemoGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoGeometry.swift; sourceTree = "<group>"; };
+		EC189FEA16B29874D18522C9 /* ArgandPad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArgandPad.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E528DFC6FF4DEF67D557AEE3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3352F9F40C93B7436F22A8E9 /* LCTSpatial in Frameworks */,
+				097BB7D5AF76D7D8B233B80E /* LCTSpatialMetal in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3A15CA113650B2BA2B746F71 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8D0D7482BA8D41F2BBB9E9BF /* LCTVision.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6169708FC6FB87418782F289 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				CD6AFC1F5FD72FF06B2BE189 /* LCTSpatial */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		958CA8ADFC1A19925A321973 /* LCTVision */ = {
+			isa = PBXGroup;
+			children = (
+				EC189FEA16B29874D18522C9 /* ArgandPad.swift */,
+				4CA59CB26418F5B49D577B49 /* ControlDeck.swift */,
+				DA40AF487128C05684C2270D /* DemoGeometry.swift */,
+				407B22E37670A10D799AC7CE /* Info.plist */,
+				2A48CCE09849E483EE5E5F4D /* LCTPreset.swift */,
+				04DD3BE2B5DF963834C2621E /* LCTStudioModel.swift */,
+				9258A03ADDF7B22AD57D7778 /* LCTVisionApp.swift */,
+				0311C66D86888655DE7FEAE0 /* SpatialScene.swift */,
+				9CDD047EB89CC0A4D27095A0 /* SpectralCloud.swift */,
+				1D07A4A16F26A52A2A7C7CA5 /* StudioView.swift */,
+			);
+			path = LCTVision;
+			sourceTree = "<group>";
+		};
+		C0A7780FDC3F53B3D698DE20 = {
+			isa = PBXGroup;
+			children = (
+				958CA8ADFC1A19925A321973 /* LCTVision */,
+				6169708FC6FB87418782F289 /* Packages */,
+				3A15CA113650B2BA2B746F71 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		94836008DB781ACCB4984C1F /* LCTVision */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E603CC0192D67091D39CBD71 /* Build configuration list for PBXNativeTarget "LCTVision" */;
+			buildPhases = (
+				B5531478A646568403351A1A /* Sources */,
+				E528DFC6FF4DEF67D557AEE3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LCTVision;
+			packageProductDependencies = (
+				BD04D0F971106BE502570B8B /* LCTSpatial */,
+				1B777115542AD3C84ECEF01C /* LCTSpatialMetal */,
+			);
+			productName = LCTVision;
+			productReference = 8D0D7482BA8D41F2BBB9E9BF /* LCTVision.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1FC20AA316E7FAF6540D4419 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 6C91947218B97916050A91D8 /* Build configuration list for PBXProject "LCTVision" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C0A7780FDC3F53B3D698DE20;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				59E162961AFC9BA4B68DB6F3 /* XCLocalSwiftPackageReference "../LCTSpatial" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3A15CA113650B2BA2B746F71 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				94836008DB781ACCB4984C1F /* LCTVision */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B5531478A646568403351A1A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C5F192F70A8E9E1061540C2C /* ArgandPad.swift in Sources */,
+				82B8E954FB528192A3CA7D58 /* ControlDeck.swift in Sources */,
+				5C5690C121DC57E7C61576DF /* DemoGeometry.swift in Sources */,
+				D68EF6FAF2E9F9FA659CC5F8 /* LCTPreset.swift in Sources */,
+				268B9F80D84F5AFA48A5E8F6 /* LCTStudioModel.swift in Sources */,
+				85BB40B156332BA8ECD2AEEB /* LCTVisionApp.swift in Sources */,
+				0C260994CE402301BE4B195A /* SpatialScene.swift in Sources */,
+				B7B6D4F14E80717A6D967D67 /* SpectralCloud.swift in Sources */,
+				9250E6A40D4DB3D264CB18D8 /* StudioView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0278E08EA4D0345B9BF04F7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LCTVision/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aloksingh.lctvision;
+				PRODUCT_NAME = "LCT Vision";
+				SDKROOT = xros;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
+		69C28F25B53792B85F57CE51 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Debug;
+		};
+		710DC7F615970FA11961B751 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Release;
+		};
+		AB0DEAD1C12917DEF8F94C52 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LCTVision/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aloksingh.lctvision;
+				PRODUCT_NAME = "LCT Vision";
+				SDKROOT = xros;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6C91947218B97916050A91D8 /* Build configuration list for PBXProject "LCTVision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				69C28F25B53792B85F57CE51 /* Debug */,
+				710DC7F615970FA11961B751 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E603CC0192D67091D39CBD71 /* Build configuration list for PBXNativeTarget "LCTVision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB0DEAD1C12917DEF8F94C52 /* Debug */,
+				0278E08EA4D0345B9BF04F7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		59E162961AFC9BA4B68DB6F3 /* XCLocalSwiftPackageReference "../LCTSpatial" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../LCTSpatial;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1B777115542AD3C84ECEF01C /* LCTSpatialMetal */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LCTSpatialMetal;
+		};
+		BD04D0F971106BE502570B8B /* LCTSpatial */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LCTSpatial;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 1FC20AA316E7FAF6540D4419 /* Project object */;
+}

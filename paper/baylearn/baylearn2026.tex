@@ -1,0 +1,207 @@
+\documentclass{article}
+
+% BayLearn 2026 submission: 2-page extended abstract, NeurIPS 2023 format,
+% anonymized for double-blind review. Body is inserted between the markers
+% below; see paper/baylearn/README.md for build instructions.
+% Default (non-final) mode renders the anonymous "Anonymous Author(s)" block
+% and reviewer line numbers, as required for double-blind review.
+\PassOptionsToPackage{numbers,compress}{natbib}
+\usepackage{neurips_2023}
+\makeatletter
+\renewcommand{\@noticestring}{Submitted to the Bay Area Machine Learning Symposium (BayLearn 2026).}
+\makeatother
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\title{Structure Beats Rank-1, Width Beats Structure: An Honest Accounting of Linear Canonical Transform Layers in Transformers}
+
+\author{Anonymous}
+
+\begin{document}
+
+% BODY-START
+\maketitle
+
+\begin{abstract}
+Structured efficient linear layers promise dense-layer quality at sub-quadratic cost. We evaluate
+the maximally spectral member of the family in a transformer: a Linear Canonical Transform (LCT)
+layer---the symplectic family unifying the Fourier, fractional-Fourier, Fresnel, and scaling
+transforms---replacing the MLP up-projection with FFT $\to$ learned complex diagonal $\to$
+inverse FFT. A pre-registered, bug-audited protocol yields a three-way accounting: (i)~\emph{structure beats naive factorization} ($0.083 \pm 0.007$ nats
+over a rank-1 control at matched budget, 4/4 paired seeds; catastrophically at 34M);
+(ii)~\emph{structure buys wall-clock at width} ($1.24\times$ end-to-end at trunk width 1024;
+kernel wins to $18\times$ at width 8192); (iii)~\emph{structure never beats width}: a matched-budget narrower
+dense trunk beats every structured arm in every paired comparison, and learning the geometry does
+not rescue it. The audit overturned our own earlier positives: five harness bugs collectively
+produced spurious 0.03--0.13-nat wins---evaluation noise alone ($\sim$0.03 nats) was that size.
+\end{abstract}
+
+\section{Problem: what does a spectral structural prior actually buy?}
+
+Structured efficient linear layers replace $O(N^2)$ dense maps with $O(N \log N)$ FFT-like
+factorizations~\cite{moczulski2016acdc,dao2019butterfly,dao2022monarch}, and
+FNet/FNO~\cite{leethorp2021fnet,li2020fno} show spectral mixing carries real work. The LCT completes this spectral line: the family of unit-determinant
+$2\times 2$ actions on time--frequency space~\cite{ozaktas2001}. \texttt{LCTLinear} packs
+channels into complex pairs, transforms, applies a learnable diagonal, inverse-transforms, and
+crops ($\mathrm{padded}/2 + \mathrm{out}$ real parameters, not
+$\mathrm{in}\times\mathrm{out}$); a companion activation applies
+modReLU~\cite{arjovsky2016unitary} in-domain. Every main arm keeps the geometry
+\emph{fixed}, learning only the spectral diagonal and bias. \textbf{At matched parameters and
+measured wall-clock, what does structure buy vs.\ (a) same-budget rank-1 factorization,
+(b) same-width dense, and (c) a same-budget narrower dense trunk?}
+
+\paragraph{Protocol, and five ways the evidence was wrong.} NanoGPT-style char-level models on tinyshakespeare (4 layers, 4 heads, width 256, sequence 256,
+batch 64, dropout 0.2, AdamW, $1/\sqrt{d_{\mathrm{head}}}$ attention scaling, warmup+cosine, peak
+lr $5\mathrm{e}{-3}$ from a fresh pilot sweep). Variants replace each MLP up-projection with
+\texttt{LCTLinear} ($-32\%$ total parameters) or the ReLU with the LCT activation. Controls:
+the width-256 baseline; a parameter-matched width-212 baseline; a rank-1 factorized up-projection
+at 2{,}214{,}977 parameters (0.05\% off the LCT variant), pre-registered before these confirmatory
+replications. Four common seeds, paired batch streams, 2{,}000 steps, deterministic full-split
+validation; decision rule fixed in advance: real improvement iff paired best-val delta
+$< -0.01$ nats, consistent sign 4/4 seeds, no net wall-clock loss.
+
+Earlier 20--40-step runs at width 64 had the LCT arms \emph{winning} by 0.03--0.13 nats; none
+survived five harness bugs that collectively produced those positives: (1)~\textbf{wrong input
+gradients}---the backward used the adjoint of \texttt{repeat\_interleave} for a \texttt{repeat}
+forward, corrupting input gradients exactly when $\mathrm{out} > \mathrm{in}$ (the
+up-projection)---\emph{anti}-LCT: post-fix seed-identical reruns improved LCT variants in 8/9
+rows ($\sim$0.03 nats masked); (2)~\textbf{the activation never trained}---its lazy
+parameters materialized after the optimizer; (3)~\textbf{every seed was the same
+seed}---the model re-seeded the global RNG at import; (4)~\textbf{unpaired
+comparisons}---variants saw different data orders per seed; (5)~\textbf{noisy
+evaluation}---8 random batches from $\sim$435 windows; measured MPS noise $\sim$0.03 nats, the
+size of the reported effects. Bugs 1--2 were caught only by cross-checking a
+second backend (MLX) against the PyTorch reference (finite differences as referee; rank-deficient
+kernels amplify ulps into $O(1)$ divergence); the regression test uses an exact oracle for any
+linear layer, $\partial_x \sum(\mathrm{layer}(x)\odot G) = GW$. Bugs 3--5 came from adversarial
+red-team review; forensics like these belong in the record~\cite{lucic2018gans,melis2018}.
+
+\section{Results: the three-way accounting}
+\label{sec:results}
+
+\begin{table}[t]
+\centering
+\caption{Best validation loss (nats). Top: repaired substrate, char-Shakespeare, MPS, 2{,}000
+steps, 4 paired seeds. Bottom: 10\,MB text8, A100, width 1024, 3{,}000 steps, 2 paired seeds.
+Bold: winning dense controls (top two tie).}
+\label{tab:main}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrl}
+\toprule
+Configuration & Params & tok/s & Best val loss \\
+\midrule
+Dense baseline (width 256) & 3.26M & 171k & $\mathbf{1.4656 \pm 0.0103}$ \\
+Dense matched (width 212) & 2.25M & 194k & $\mathbf{1.4702 \pm 0.0050}$ \\
+LCT up-projection (Fourier) & 2.21M & 145k & $1.5645 \pm 0.0060$ \\
+LCT activation (modReLU) & 3.26M & 112k & $1.5954 \pm 0.0080$ \\
+Rank-1 factorized up-projection & 2.21M & 186k & $1.6470 \pm 0.0065$ \\
+\midrule
+Dense matched (width 840) & 34.2M & 64.5k & $\mathbf{1.2956\;/\;1.2938}$ \\
+Dense baseline (width 1024) & 50.7M & 48.4k & $1.3430\;/\;1.3271$ \\
+LCT up-projection @1024 & 33.9M & 60.1k & $1.4087\;/\;1.4107$ \\
+Rank-1 @1024 & 33.9M & 64.8k & $2.0406\;/\;1.8816$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Structure beats factorization.} At matched budget the LCT layer beats rank-1 by
+$-0.083 \pm 0.007$ nats in 4/4 paired seeds (Table~\ref{tab:main}, top), the activation by
+$-0.052 \pm 0.009$; at 34M parameters rank-1 collapses entirely (bottom); the ordering
+replicates on text8 at width 256 (LCT $+0.14$/$+0.17$ over baseline, rank-1 and activation
+$+0.29$--$0.33$; 2 paired seeds). \textbf{Structure buys wall-clock at width.} A100 kernels beat
+dense
+$2.5\times$/$8.7\times$/$17.9\times$ at square widths 1024/4096/8192 ($18.3\times$ with
+backward at 8192), converting end-to-end ($1.24\times$, width 1024); rectangular shapes dilute it
+($0.85\times$ on $256\to1024$), and the $18\times$ square win at 8192 marks attention projections
+at width $\geq 2048$ as the strongest \emph{untested} placement, alongside chirp-like
+audio/radar domains.
+
+\textbf{Width beats structure.} In 4/4 paired seeds the LCT layer loses to both dense controls
+($+0.094$/$+0.099$ nats; activation $+0.130$). At 34M parameters a width-840 dense model matched
+within 0.8\% beats every arm \emph{and} out-runs the LCT model (Table~\ref{tab:main}); the
+verdict holds across two substrates, datasets, hardware targets, a $15\times$ parameter range, and
+every swept axis (lr, angle, normalization, inverse, schedule).
+
+\textbf{Late takeoff, conditioning, learned geometry.} The identity-initialized layer improves
+latest: on the original sick substrate (no attention scaling; its two dense controls
+\emph{disagreed} by 0.22 nats), a single-seed 5{,}000-step run beat the plateaued same-width
+baseline by 0.32 nats (1.910 vs.\ 2.228)---a conditioning rescue of a pathological control,
+landing at $\sim$1.91 at \emph{both} trunk widths: the structured projection is the capacity
+bottleneck. On the healthy substrate the gap narrows ($+0.094$ at 2{,}000 to $+0.019$/$+0.033$ at
+5{,}000 steps, 2 paired seeds) but no longer closes. Learning the geometry did not help: an
+exploratory H100 run (single seed, 500 steps, width 1024; determinant-preserving
+$C(k)\,S(s)\,R(\theta)$) reached 1.979 vs.\ 1.940 fixed Fourier, 1.944 canonical-fixed,
+1.743 dense.
+
+\textbf{Conclusions.} Spectral structure is a real prior---it dominates naive factorization and
+delivers real speed at width~\cite{moczulski2016acdc,dao2019butterfly,dao2022monarch}---but
+never, here, beats plain width; we propose the three-way report as the minimum honest
+comparison, with a checklist: a second implementation as gradient oracle; paired batches;
+deterministic evaluation; a measured noise floor (refuse effects of its size); seeds verified
+distinct, dense controls agreeing; distrust of short-horizon rankings (a 300-step pilot
+inverted by 2{,}000 steps). Code and all artifacts will be released.
+% BODY-END
+
+% BIB-START
+\begin{thebibliography}{9}
+
+\bibitem{ozaktas2001}
+H.~M. Ozaktas, Z.~Zalevsky, and M.~A. Kutay.
+\newblock \emph{The Fractional Fourier Transform: with Applications in Optics and Signal Processing}.
+\newblock Wiley, 2001.
+
+\bibitem{leethorp2021fnet}
+J.~Lee-Thorp, J.~Ainslie, I.~Eckstein, and S.~Onta\~{n}\'{o}n.
+\newblock {FNet}: Mixing tokens with {Fourier} transforms.
+\newblock arXiv:2105.03824, 2021.
+
+\bibitem{li2020fno}
+Z.~Li, N.~Kovachki, K.~Azizzadenesheli, B.~Liu, K.~Bhattacharya, A.~Stuart, and A.~Anandkumar.
+\newblock Fourier neural operator for parametric partial differential equations.
+\newblock arXiv:2010.08895, 2020.
+
+\bibitem{moczulski2016acdc}
+M.~Moczulski, M.~Denil, J.~Appleyard, and N.~de~Freitas.
+\newblock {ACDC}: A structured efficient linear layer.
+\newblock In \emph{International Conference on Learning Representations}, 2016.
+
+\bibitem{dao2019butterfly}
+T.~Dao, A.~Gu, M.~Eichhorn, A.~Rudra, and C.~R\'{e}.
+\newblock Learning fast algorithms for linear transforms using butterfly factorizations.
+\newblock In \emph{International Conference on Machine Learning}, 2019.
+
+\bibitem{dao2022monarch}
+T.~Dao, B.~Chen, N.~S. Sohoni, A.~Desai, M.~Poli, J.~Grogan, A.~Liu, A.~Rao, A.~Rudra, and C.~R\'{e}.
+\newblock Monarch: Expressive structured matrices for efficient and accurate training.
+\newblock In \emph{International Conference on Machine Learning}, 2022.
+
+\bibitem{arjovsky2016unitary}
+M.~Arjovsky, A.~Shah, and Y.~Bengio.
+\newblock Unitary evolution recurrent neural networks.
+\newblock In \emph{International Conference on Machine Learning}, 2016.
+
+\bibitem{lucic2018gans}
+M.~Lucic, K.~Kurach, M.~Michalski, S.~Gelly, and O.~Bousquet.
+\newblock Are {GANs} created equal? {A} large-scale study.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2018.
+
+\bibitem{melis2018}
+G.~Melis, C.~Dyer, and P.~Blunsom.
+\newblock On the state of the art of evaluation in neural language models.
+\newblock In \emph{International Conference on Learning Representations}, 2018.
+
+\end{thebibliography}
+% BIB-END
+
+\end{document}

@@ -21,6 +21,9 @@ extern/
 records/
 # Paper figures are intentional artifacts (the user's global ignore excludes *.png).
 !paper/figures/*.png
+!paper/baylearn/*.png
+# The compiled abstract is a build artifact; rebuild with tectonic (see paper/baylearn/README.md).
+paper/baylearn/*.pdf
 
 # Agent scaffolding (not package content)
 .claude/
